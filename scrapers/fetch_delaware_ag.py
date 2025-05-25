@@ -26,20 +26,87 @@ REQUEST_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
 
-def parse_date_delaware(date_str: str, formats: list = ["%m/%d/%Y", "%B %d, %Y"]) -> str | None:
+def parse_date_delaware(date_str: str) -> str | None:
     """
-    Tries to parse a date string with a list of formats.
-    Returns ISO 8601 format string or None if parsing fails.
+    Enhanced date parsing for Delaware AG with support for complex formats.
+    Handles date ranges, concatenated dates, and various formats.
     """
-    if not date_str:
+    if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending', 'various', 'see notice', 'not provided']:
         return None
+
+    date_str = date_str.strip()
+
+    # Handle date ranges - take the first date
+    if '–' in date_str:
+        date_str = date_str.split('–')[0].strip()
+    elif ' - ' in date_str:
+        date_str = date_str.split(' - ')[0].strip()
+
+    # Handle concatenated dates without separators (like "04/09/202504/21/2025")
+    if date_str.count('/') >= 4:  # Multiple dates concatenated
+        # Try to extract the first complete date
+        import re
+        match = re.match(r'(\d{1,2}/\d{1,2}/\d{4})', date_str)
+        if match:
+            date_str = match.group(1)
+
+    # Handle multiple dates separated by spaces or newlines
+    if '\n' in date_str or '  ' in date_str:
+        # Take the first date-like string
+        parts = date_str.replace('\n', ' ').split()
+        for part in parts:
+            if '/' in part and len(part) >= 8:  # Looks like a date
+                date_str = part
+                break
+
+    # Common formats to try
+    formats = ['%m/%d/%Y', '%m/%d/%y', '%B %d, %Y', '%Y-%m-%d', '%d/%m/%Y']
+
     for fmt in formats:
         try:
-            return datetime.strptime(date_str.strip(), fmt).isoformat()
+            dt_object = datetime.strptime(date_str, fmt)
+            return dt_object.isoformat()
         except ValueError:
             continue
+
     logger.warning(f"Could not parse date string: '{date_str}' with formats {formats}")
     return None
+
+def is_recent_breach(date_str: str) -> bool:
+    """
+    Check if a breach date is from today onward.
+    Returns True if the date is today or in the future.
+    """
+    if not date_str:
+        return False
+
+    try:
+        from datetime import datetime, date
+        breach_date = datetime.fromisoformat(date_str).date()
+        today = date.today()
+        return breach_date >= today
+    except:
+        return False
+
+def extract_organization_name(cell) -> str:
+    """
+    Extract organization name from potentially complex cell structure.
+    Some cells have nested tables or complex HTML.
+    """
+    # First try to get text directly
+    text = cell.get_text(strip=True)
+    if text and not text.isspace():
+        return text
+
+    # If that fails, look for nested tables
+    nested_table = cell.find('table')
+    if nested_table:
+        # Get text from the first cell of the nested table
+        first_cell = nested_table.find('td')
+        if first_cell:
+            return first_cell.get_text(strip=True)
+
+    return ""
 
 def process_delaware_ag_breaches():
     """
@@ -99,7 +166,8 @@ def process_delaware_ag_breaches():
             # 3: Number of Potentially Affected Delaware Residents
             # 4: Sample of Notice (contains PDF link)
 
-            entity_name = cols[0].get_text(strip=True)
+            # Use improved organization name extraction
+            entity_name = extract_organization_name(cols[0])
             date_of_breach_str = cols[1].get_text(strip=True)
             reported_date_str = cols[2].get_text(strip=True)
             residents_affected_text = cols[3].get_text(strip=True)
@@ -120,14 +188,18 @@ def process_delaware_ag_breaches():
             if reported_date_str and reported_date_str.lower() not in ['n/a', 'unknown', '']:
                 publication_date_iso = parse_date_delaware(reported_date_str)
             if not publication_date_iso and date_of_breach_str and date_of_breach_str.lower() not in ['n/a', 'unknown', '']:
-                # Date of breach might be a range, take the start if so, or parse as single.
-                # This simplistic parsing takes the first date found.
-                publication_date_iso = parse_date_delaware(date_of_breach_str.split('–')[0].strip())  # Note: using en-dash
+                publication_date_iso = parse_date_delaware(date_of_breach_str)
 
             if not publication_date_iso:
                  # If no valid date could be parsed, use a fallback or skip
                 logger.warning(f"Skipping '{entity_name}' due to no parsable primary date. Reported: '{reported_date_str}', Breach: '{date_of_breach_str}'")
                 skipped_count +=1
+                continue
+
+            # Filter: Only collect breaches from today onward (exclude archived/past listings)
+            if not is_recent_breach(publication_date_iso):
+                logger.info(f"Skipping '{entity_name}' - breach date {publication_date_iso.split('T')[0]} is before today")
+                skipped_count += 1
                 continue
 
 
@@ -140,12 +212,18 @@ def process_delaware_ag_breaches():
             }
             raw_data_json = {k: v for k, v in raw_data.items() if v is not None and v.strip() != "" and v.lower() != 'n/a'}
 
-            # Create summary from available information
-            summary = f"Breach reported on {reported_date_str}."
+            # Create comprehensive summary from available information
+            summary_parts = []
+            if reported_date_str and reported_date_str.lower() != 'n/a':
+                summary_parts.append(f"Reported to Delaware AG: {reported_date_str}")
             if date_of_breach_str and date_of_breach_str.lower() != 'n/a':
-                summary += f" Breach occurred: {date_of_breach_str}."
+                summary_parts.append(f"Breach occurred: {date_of_breach_str}")
             if residents_affected_text and residents_affected_text.lower() != 'n/a':
-                summary += f" DE Residents Affected: {residents_affected_text}."
+                summary_parts.append(f"Delaware residents affected: {residents_affected_text}")
+            if item_specific_url:
+                summary_parts.append("Sample notice available")
+
+            summary = ". ".join(summary_parts) + "." if summary_parts else "Data breach notification."
 
 
             # Generate unique URL if no specific URL available
