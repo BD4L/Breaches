@@ -1,0 +1,53 @@
+cybersecurity_news_feeds:
+  - name: "KrebsOnSecurity"
+    url: "https://krebsonsecurity.com/feed/"
+    source_id: 20
+  - name: "BleepingComputer"
+    url: "https://www.bleepingcomputer.com/feed/"
+    source_id: 21
+  - name: "The Hacker News"
+    url: "https://feeds.feedburner.com/TheHackersNews"
+    source_id: 22
+  - name: "SecurityWeek"
+    url: "https://www.securityweek.com/feed/"
+    source_id: 23
+  - name: "Threatpost" # Ceased publication, but kept for consistency with previous version
+    url: "https://threatpost.com/feed/"
+    source_id: 24
+  - name: "Dark Reading"
+    url: "https://www.darkreading.com/rss.xml"
+    source_id: 25
+  - name: "DataBreaches.net"
+    url: "https://www.databreaches.net/feed/"
+    source_id: 26
+  - name: "Cybersecurity Ventures"
+    url: "https://cybersecurityventures.com/feed/"
+    source_id: 27
+  - name: "Reddit r/cybersecurity"
+    url: "https://www.reddit.com/r/cybersecurity.rss"
+    source_id: 28
+  - name: "Reddit r/databreaches"
+    url: "https://www.reddit.com/r/databreaches.rss"
+    source_id: 29
+
+company_ir_sites:
+  - name: "Microsoft IR"
+    url: "https://www.microsoft.com/en-us/Investor/"
+    source_id: 31
+    # subpage_hints: ["news", "press releases", "blog", "investor-news"] # Example, can be added if needed
+  - name: "Apple IR"
+    url: "https://investor.apple.com/investor-relations/default.aspx"
+    source_id: 32
+    # subpage_hints: ["newsroom", "press"]
+  - name: "Amazon IR"
+    url: "https://ir.aboutamazon.com/" # Main IR page, news is often on news.aboutamazon.com or linked
+    source_id: 33
+    # subpage_hints: ["news", "press-center", "blog"]
+  - name: "Alphabet IR"
+    url: "https://abc.xyz/investor/"
+    source_id: 34
+    # subpage_hints: ["news", "press", "blog"] 
+  - name: "Meta IR"
+    url: "https://investor.fb.com/"
+    source_id: 35
+    # subpage_hints: ["news", "press", "blog"]
