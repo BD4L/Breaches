@@ -8,6 +8,8 @@ from urllib.parse import urljoin
 from dateutil import parser as dateutil_parser
 import time # For converting time_struct to datetime
 
+import yaml # For loading config
+
 # Assuming SupabaseClient is in utils.supabase_client
 try:
     from utils.supabase_client import SupabaseClient
@@ -20,18 +22,8 @@ except ImportError:
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-NEWS_FEEDS = [
-    {"name": "KrebsOnSecurity", "url": "https://krebsonsecurity.com/feed/", "source_id": 20},
-    {"name": "BleepingComputer", "url": "https://www.bleepingcomputer.com/feed/", "source_id": 21},
-    {"name": "The Hacker News", "url": "https://feeds.feedburner.com/TheHackersNews", "source_id": 22},
-    {"name": "SecurityWeek", "url": "https://www.securityweek.com/feed/", "source_id": 23},
-    {"name": "Threatpost", "url": "https://threatpost.com/feed/", "source_id": 24}, # Ceased publication
-    {"name": "Dark Reading", "url": "https://www.darkreading.com/rss.xml", "source_id": 25},
-    {"name": "DataBreaches.net", "url": "https://www.databreaches.net/feed/", "source_id": 26},
-    {"name": "Cybersecurity Ventures", "url": "https://cybersecurityventures.com/feed/", "source_id": 27},
-    {"name": "Reddit r/cybersecurity", "url": "https://www.reddit.com/r/cybersecurity.rss", "source_id": 28}, # Reddit feeds can be less structured
-    {"name": "Reddit r/databreaches", "url": "https://www.reddit.com/r/databreaches.rss", "source_id": 29}, # Reddit feeds can be less structured
-]
+# Path to the configuration file
+CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
 
 # Headers for feedparser/requests. Some feeds might require a User-Agent.
 REQUEST_HEADERS = {
@@ -82,6 +74,24 @@ def process_cybersecurity_news_feeds():
     """
     logger.info("Starting Cybersecurity News Feed processing...")
 
+    try:
+        with open(CONFIG_FILE_PATH, 'r') as f:
+            config = yaml.safe_load(f)
+            NEWS_FEEDS = config.get('cybersecurity_news_feeds', [])
+            if not NEWS_FEEDS:
+                logger.error(f"Could not find 'cybersecurity_news_feeds' in {CONFIG_FILE_PATH} or it's empty.")
+                return
+    except FileNotFoundError:
+        logger.error(f"Configuration file {CONFIG_FILE_PATH} not found.")
+        return
+    except yaml.YAMLError as e_yaml:
+        logger.error(f"Error parsing YAML configuration file {CONFIG_FILE_PATH}: {e_yaml}")
+        return
+    except Exception as e_conf:
+        logger.error(f"An unexpected error occurred while loading configuration: {e_conf}")
+        return
+
+
     supabase_client = None
     try:
         supabase_client = SupabaseClient()
@@ -94,9 +104,13 @@ def process_cybersecurity_news_feeds():
     total_skipped_all_feeds = 0
 
     for feed_info in NEWS_FEEDS:
-        feed_name = feed_info["name"]
-        feed_url = feed_info["url"]
-        source_id = feed_info["source_id"]
+        feed_name = feed_info.get("name")
+        feed_url = feed_info.get("url")
+        source_id = feed_info.get("source_id")
+
+        if not all([feed_name, feed_url, source_id]):
+            logger.warning(f"Skipping feed entry due to missing name, url, or source_id in config: {feed_info}")
+            continue
         
         logger.info(f"Processing feed: {feed_name} from {feed_url}")
 
@@ -206,13 +220,17 @@ def process_cybersecurity_news_feeds():
 if __name__ == "__main__":
     logger.info("Cybersecurity News RSS Feed Scraper Started")
     
+    # Check for Supabase env vars first, as they are critical for the script's core function.
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
+        logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set for Supabase client.")
+        # Optionally, print to console if run directly without these, as logger might not be fully configured or visible.
+        if __name__ == "__main__":
+             print("ERROR: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
     else:
         logger.info("Supabase environment variables seem to be set.")
-        process_cybersecurity_news_feeds()
+        process_cybersecurity_news_feeds() # This function now loads its own config.
         
     logger.info("Cybersecurity News RSS Feed Scraper Finished")

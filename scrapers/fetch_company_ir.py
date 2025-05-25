@@ -7,6 +7,8 @@ from urllib.parse import urljoin, urlparse
 from dateutil import parser as dateutil_parser
 import re
 
+import yaml # For loading config
+
 # Assuming SupabaseClient is in utils.supabase_client
 try:
     from utils.supabase_client import SupabaseClient
@@ -19,13 +21,9 @@ except ImportError:
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-COMPANY_IR_SITES = [
-    {"name": "Microsoft IR", "url": "https://www.microsoft.com/en-us/Investor/", "source_id": 31},
-    {"name": "Apple IR", "url": "https://investor.apple.com/investor-relations/default.aspx", "source_id": 32},
-    {"name": "Amazon IR", "url": "https://ir.aboutamazon.com/", "source_id": 33},
-    {"name": "Alphabet IR", "url": "https://abc.xyz/investor/", "source_id": 34},
-    {"name": "Meta IR", "url": "https://investor.fb.com/", "source_id": 35},
-]
+# Path to the configuration file
+CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
+
 
 KEYWORDS_BREACH = [
     "data breach", "cybersecurity incident", "security incident", "security event",
@@ -264,6 +262,23 @@ def process_single_page(page_url: str, company_name: str, source_id: int, supaba
 def process_company_ir_sites():
     logger.info("Starting Company Investor Relations (IR) site processing...")
 
+    try:
+        with open(CONFIG_FILE_PATH, 'r') as f:
+            config = yaml.safe_load(f)
+            COMPANY_IR_SITES = config.get('company_ir_sites', [])
+            if not COMPANY_IR_SITES:
+                logger.error(f"Could not find 'company_ir_sites' in {CONFIG_FILE_PATH} or it's empty.")
+                return
+    except FileNotFoundError:
+        logger.error(f"Configuration file {CONFIG_FILE_PATH} not found.")
+        return
+    except yaml.YAMLError as e_yaml:
+        logger.error(f"Error parsing YAML configuration file {CONFIG_FILE_PATH}: {e_yaml}")
+        return
+    except Exception as e_conf:
+        logger.error(f"An unexpected error occurred while loading configuration: {e_conf}")
+        return
+
     supabase_client = None
     try:
         supabase_client = SupabaseClient()
@@ -274,9 +289,14 @@ def process_company_ir_sites():
     total_inserted_all_sites = 0
 
     for company_site in COMPANY_IR_SITES:
-        company_name = company_site["name"]
-        base_ir_url = company_site["url"]
-        source_id = company_site["source_id"]
+        company_name = company_site.get("name")
+        base_ir_url = company_site.get("url")
+        source_id = company_site.get("source_id")
+        # subpage_hints = company_site.get("subpage_hints", SUBPAGE_LINK_KEYWORDS) # Use specific hints if provided, else default
+
+        if not all([company_name, base_ir_url, source_id]):
+            logger.warning(f"Skipping company IR site entry due to missing name, url, or source_id in config: {company_site}")
+            continue
         
         logger.info(f"Processing company: {company_name}, URL: {base_ir_url}")
         
@@ -291,28 +311,33 @@ def process_company_ir_sites():
             main_soup = BeautifulSoup(main_page_response.content, 'html.parser')
             
             # Find links on the main IR page that might lead to news/press releases
-            sub_page_links = get_internal_links(main_soup, base_ir_url, SUBPAGE_LINK_KEYWORDS)
-            logger.info(f"Found {len(sub_page_links)} potential sub-pages for {company_name} from main IR page.")
+            # Use subpage_hints from config if available, otherwise default SUBPAGE_LINK_KEYWORDS
+            current_subpage_keywords = company_site.get("subpage_hints") or SUBPAGE_LINK_KEYWORDS
+            sub_page_links = get_internal_links(main_soup, base_ir_url, current_subpage_keywords)
+            logger.info(f"Found {len(sub_page_links)} potential sub-pages for {company_name} using keywords: {current_subpage_keywords}")
 
             processed_subpage_count = 0
+            items_inserted_this_company_subpages = 0
             for sub_page_url in list(sub_page_links): # Convert to list to avoid issues if set changes (not expected here)
                 if processed_subpage_count >= MAX_SUBPAGES_PER_COMPANY:
                     logger.info(f"Reached max sub-pages ({MAX_SUBPAGES_PER_COMPANY}) for {company_name}. Moving to next company.")
                     break
                 
                 inserted_sub = process_single_page(sub_page_url, company_name, source_id, supabase_client, is_main_page=False)
-                total_inserted_all_sites += inserted_sub
+                items_inserted_this_company_subpages += inserted_sub
                 processed_subpage_count += 1
                 
                 # Optional: Small delay between sub-page requests
                 # time.sleep(0.5) 
 
+            total_inserted_all_sites += items_inserted_this_company_subpages
         except requests.exceptions.RequestException as e:
             logger.error(f"Error fetching main IR page {base_ir_url} for {company_name} to find sub-links: {e}")
         except Exception as e_main:
             logger.error(f"Unexpected error processing main IR page or finding sub-links for {company_name} ({base_ir_url}): {e_main}", exc_info=True)
             
-        logger.info(f"Finished processing for {company_name}. Total items inserted for this company so far: {total_inserted_all_sites - (total_inserted_all_sites - inserted_main - sum(1 for _ in range(processed_subpage_count) if _ > 0)) }") # Approx
+        logger.info(f"Finished processing for {company_name}. Items inserted (main page): {inserted_main}, Items inserted (sub-pages): {items_inserted_this_company_subpages if 'items_inserted_this_company_subpages' in locals() else 0 }.")
+
 
     logger.info(f"Finished all Company IR sites. Total items inserted across all sites: {total_inserted_all_sites}")
 
@@ -320,13 +345,16 @@ def process_company_ir_sites():
 if __name__ == "__main__":
     logger.info("Company Investor Relations (IR) Scraper Started")
     
+    # Check for Supabase env vars first
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
+        logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set for Supabase client.")
+        if __name__ == "__main__":
+            print("ERROR: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
     else:
         logger.info("Supabase environment variables seem to be set.")
-        process_company_ir_sites()
+        process_company_ir_sites() # This function now loads its own config.
         
     logger.info("Company Investor Relations (IR) Scraper Finished")
