@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Constants
 WASHINGTON_AG_BREACH_INITIAL_URL = "http://www.atg.wa.gov/data-breach-notifications"
 # Placeholder for the source_id from the 'data_sources' table in Supabase
-SOURCE_ID_WASHINGTON_AG = 5 
+SOURCE_ID_WASHINGTON_AG = 5
 
 # Headers for requests
 REQUEST_HEADERS = {
@@ -88,7 +88,7 @@ def process_washington_ag_breaches():
     # The table might be directly in the main content area, or within a specific div.
     # Example selector might be 'div.field-items table tbody tr' or similar.
     # We need to find the table and then iterate its rows.
-    
+
     # Try to find a table - this is the most common structure historically.
     # Look for a table that seems to contain breach data. Often it might have specific headers.
     # A common pattern is tables within a div with class "content" or "main-content" or similar.
@@ -96,7 +96,7 @@ def process_washington_ag_breaches():
     # First, try a more specific selector if known, e.g. based on a parent div
     # content_area = soup.find('div', class_='some-specific-class-if-known')
     # if content_area: data_table = content_area.find('table')
-    
+
     # Generic search for tables if specific parent unknown
     if not data_table:
         all_tables = soup.find_all('table')
@@ -112,10 +112,10 @@ def process_washington_ag_breaches():
         field_items_div = soup.find('div', class_=['field-item', 'field-items']) # Common Drupal class
         if field_items_div:
             data_table = field_items_div.find('table')
-        
+
         if not data_table and all_tables:
             # Fallback: pick the first table found if no better heuristic. This might be fragile.
-            data_table = all_tables[0] 
+            data_table = all_tables[0]
             logger.info(f"Found {len(all_tables)} table(s). Using the first one found as a fallback or the one within 'field-items'.")
         elif not data_table:
             logger.error("Could not identify a suitable data table within 'field-items' or as a primary table.")
@@ -130,7 +130,7 @@ def process_washington_ag_breaches():
     if not tbody:
         logger.error("Table found, but it does not contain a <tbody> element. Cannot process rows.")
         return
-        
+
     notifications = tbody.find_all('tr')
     logger.info(f"Found {len(notifications)} potential breach notifications in the table.")
 
@@ -157,7 +157,7 @@ def process_washington_ag_breaches():
         header_row = thead.find('tr')
         if header_row:
             headers = [th.get_text(strip=True).lower() for th in header_row.find_all(['th', 'td'])]
-    
+
     if not headers and notifications: # Fallback: use first row of tbody if no thead
          first_row_cells = notifications[0].find_all(['th', 'td'])
          # Check if this looks like a header row (e.g. by inspecting content)
@@ -168,13 +168,13 @@ def process_washington_ag_breaches():
     for row_idx, row in enumerate(notifications):
         processed_count += 1
         cols = row.find_all(['td', 'th']) # Include 'th' if data rows might use them for row headers (unlikely for WA AG)
-        
+
         # Map columns to data fields based on headers if available and consistent
         # This mapping needs to be robust or adaptable if column order changes.
         # Example expected headers (actual headers can vary!):
         # "Date Posted", "Organization", "Date(s) of Breach", "Date AG Notified", "Description of Breach", "WA Residents Affected"
         # "Link to Notice"
-        
+
         # Create a dictionary from the row cells and headers
         row_data = {}
         if headers:
@@ -209,7 +209,7 @@ def process_washington_ag_breaches():
         dates_breach_str = dates_breach_cell.get_text(strip=True) if dates_breach_cell else None
         description = description_cell.get_text(strip=True) if description_cell else "Not specified"
         residents_affected_str = residents_affected_cell.get_text(strip=True) if residents_affected_cell else "Not specified"
-        
+
         notice_link_tag = notice_link_cell.find('a', href=True) if notice_link_cell else None
         item_specific_url = None
         if notice_link_tag:
@@ -253,9 +253,19 @@ def process_washington_ag_breaches():
             if "email" in desc_lower: tags.append("email_compromise")
 
 
+        # Generate unique URL for each item
+        if item_specific_url:
+            unique_url = item_specific_url
+        else:
+            # Create a unique URL by appending organization name and date
+            import urllib.parse
+            org_slug = urllib.parse.quote(org_name.replace(' ', '-').lower())
+            date_slug = publication_date_iso.split('T')[0]  # Just the date part
+            unique_url = f"{final_url_to_scrape}#{org_slug}-{date_slug}"
+
         item_data = {
             "source_id": SOURCE_ID_WASHINGTON_AG,
-            "item_url": item_specific_url if item_specific_url else final_url_to_scrape,
+            "item_url": unique_url,
             "title": org_name,
             "publication_date": publication_date_iso,
             "summary_text": description if description else "Details may be in linked notice if available.",
@@ -263,14 +273,16 @@ def process_washington_ag_breaches():
             "tags_keywords": list(set(tags))
         }
 
-        # TODO: Implement check for existing record before inserting
-        # Example: Check by title and publication_date
-        # query_result = supabase_client.client.table("scraped_items").select("id").eq("title", org_name).eq("publication_date", publication_date_iso).eq("source_id", SOURCE_ID_WASHINGTON_AG).execute()
-        # if query_result.data:
-        #     logger.info(f"Item '{org_name}' on {publication_date_iso} already exists. Skipping.")
-        #     skipped_count +=1
-        #     continue
-            
+        # Check for existing record before inserting
+        try:
+            query_result = supabase_client.client.table("scraped_items").select("id").eq("title", org_name).eq("publication_date", publication_date_iso).eq("source_id", SOURCE_ID_WASHINGTON_AG).execute()
+            if query_result.data:
+                logger.info(f"Item '{org_name}' on {publication_date_iso} already exists. Skipping.")
+                skipped_count += 1
+                continue
+        except Exception as e_check:
+            logger.warning(f"Could not check for existing record: {e_check}. Proceeding with insert.")
+
         try:
             insert_response = supabase_client.insert_item(**item_data)
             if insert_response:
@@ -278,16 +290,19 @@ def process_washington_ag_breaches():
                 inserted_count += 1
             else:
                 logger.error(f"Failed to insert item for '{org_name}'. Supabase client returned no error, but no data in response.")
-                # This case might indicate an issue with how insert_item signals success/failure
-        except Exception as e_insert: # Catch specific Supabase errors if possible
-            logger.error(f"Error inserting item for '{org_name}' into Supabase: {e_insert}", exc_info=True)
-            # Potentially add to skipped_count here if appropriate
+        except Exception as e_insert:
+            if "duplicate key value violates unique constraint" in str(e_insert):
+                logger.info(f"Item '{org_name}' already exists (duplicate URL). Skipping.")
+                skipped_count += 1
+            else:
+                logger.error(f"Error inserting item for '{org_name}' into Supabase: {e_insert}")
+                skipped_count += 1
 
     logger.info(f"Finished processing Washington AG breaches. Total rows processed: {processed_count}. Items inserted: {inserted_count}. Items skipped: {skipped_count}")
 
 if __name__ == "__main__":
     logger.info("Washington AG Security Breach Scraper Started")
-    
+
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
@@ -296,5 +311,5 @@ if __name__ == "__main__":
     else:
         logger.info("Supabase environment variables seem to be set.")
         process_washington_ag_breaches()
-        
+
     logger.info("Washington AG Security Breach Scraper Finished")
