@@ -57,13 +57,13 @@ def process_delaware_ag_breaches():
 
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # The data is within a <table> with id="breaches"
-    # Each row <tr> in <tbody> is a breach notification.
-    table = soup.find('table', id='breaches')
+    # The data is within a DataTable (no specific ID, but it's the main table on the page)
+    # Look for the table containing breach data
+    table = soup.find('table')
     if not table:
-        logger.error("Could not find the breach data table on the page. The page structure might have changed.")
+        logger.error("Could not find any table on the page. The page structure might have changed.")
         return
-    
+
     tbody = table.find('tbody')
     if not tbody:
         logger.error("Could not find the table body (tbody) for breaches. Page structure might have changed.")
@@ -86,101 +86,109 @@ def process_delaware_ag_breaches():
     for row in notifications:
         processed_count += 1
         cols = row.find_all('td')
-        if len(cols) < 6: # Expecting at least 6 columns based on typical table structure
-            logger.warning(f"Skipping row due to insufficient columns: {row.text[:100]}")
+        if len(cols) < 5: # Expecting at least 5 columns based on current table structure
+            logger.warning(f"Skipping row due to insufficient columns ({len(cols)}): {row.text[:100]}")
             skipped_count += 1
             continue
 
         try:
-            # Column order seems to be:
-            # 0: Entity Name
-            # 1: Date Notice Provided to Consumers
-            # 2: Date Notice Provided to AG
-            # 3: Date(s) of Breach
-            # 4: # DE Residents Affected (may contain link to notice)
-            # 5: Type of Breach
-            # 6: Type of Info (optional, sometimes not present or merged)
+            # Current column order (as of 2025):
+            # 0: Organization Name
+            # 1: Date(s) of Breach
+            # 2: Reported Date (to AG)
+            # 3: Number of Potentially Affected Delaware Residents
+            # 4: Sample of Notice (contains PDF link)
 
             entity_name = cols[0].get_text(strip=True)
-            date_notice_consumers_str = cols[1].get_text(strip=True)
-            date_notice_ag_str = cols[2].get_text(strip=True)
-            date_of_breach_str = cols[3].get_text(strip=True)
-            residents_affected_text = cols[4].get_text(strip=True) # Can be "N/A" or number
-            
-            # Link to detailed notice might be in the 'DE Residents Affected' column
+            date_of_breach_str = cols[1].get_text(strip=True)
+            reported_date_str = cols[2].get_text(strip=True)
+            residents_affected_text = cols[3].get_text(strip=True)
+
+            # Link to detailed notice is in the 'Sample of Notice' column
             detailed_notice_link_tag = cols[4].find('a', href=True)
             item_specific_url = None
             if detailed_notice_link_tag:
                 item_specific_url = urljoin(DELAWARE_AG_BREACH_URL, detailed_notice_link_tag['href'])
-
-            type_of_breach = cols[5].get_text(strip=True)
-            
-            type_of_info = None
-            if len(cols) > 6:
-                 type_of_info = cols[6].get_text(strip=True)
-
 
             if not entity_name:
                 logger.warning(f"Skipping row due to missing entity name: {row.text[:100]}")
                 skipped_count += 1
                 continue
 
-            # Prioritize AG notice date, then consumer notice date, then breach date for publication_date
+            # Prioritize reported date (to AG), then breach date for publication_date
             publication_date_iso = None
-            if date_notice_ag_str and date_notice_ag_str.lower() not in ['n/a', 'unknown', '']:
-                publication_date_iso = parse_date_delaware(date_notice_ag_str)
-            if not publication_date_iso and date_notice_consumers_str and date_notice_consumers_str.lower() not in ['n/a', 'unknown', '']:
-                publication_date_iso = parse_date_delaware(date_notice_consumers_str)
+            if reported_date_str and reported_date_str.lower() not in ['n/a', 'unknown', '']:
+                publication_date_iso = parse_date_delaware(reported_date_str)
             if not publication_date_iso and date_of_breach_str and date_of_breach_str.lower() not in ['n/a', 'unknown', '']:
                 # Date of breach might be a range, take the start if so, or parse as single.
                 # This simplistic parsing takes the first date found.
-                publication_date_iso = parse_date_delaware(date_of_breach_str.split('-')[0].strip())
-            
+                publication_date_iso = parse_date_delaware(date_of_breach_str.split('–')[0].strip())  # Note: using en-dash
+
             if not publication_date_iso:
                  # If no valid date could be parsed, use a fallback or skip
-                logger.warning(f"Skipping '{entity_name}' due to no parsable primary date. AG: '{date_notice_ag_str}', Consumers: '{date_notice_consumers_str}', Breach: '{date_of_breach_str}'")
+                logger.warning(f"Skipping '{entity_name}' due to no parsable primary date. Reported: '{reported_date_str}', Breach: '{date_of_breach_str}'")
                 skipped_count +=1
                 continue
 
 
             raw_data = {
-                "entity_name": entity_name,
-                "date_notice_to_consumers": date_notice_consumers_str,
-                "date_notice_to_ag": date_notice_ag_str,
+                "organization_name": entity_name,
                 "date_of_breach": date_of_breach_str,
+                "reported_date": reported_date_str,
                 "delaware_residents_affected": residents_affected_text,
-                "type_of_breach": type_of_breach,
-                "type_of_information": type_of_info,
-                "original_link_in_table": item_specific_url if item_specific_url else None
+                "sample_notice_link": item_specific_url if item_specific_url else None
             }
             raw_data_json = {k: v for k, v in raw_data.items() if v is not None and v.strip() != "" and v.lower() != 'n/a'}
 
-
-            summary = f"Type: {type_of_breach}."
+            # Create summary from available information
+            summary = f"Breach reported on {reported_date_str}."
+            if date_of_breach_str and date_of_breach_str.lower() != 'n/a':
+                summary += f" Breach occurred: {date_of_breach_str}."
             if residents_affected_text and residents_affected_text.lower() != 'n/a':
                 summary += f" DE Residents Affected: {residents_affected_text}."
-            if type_of_info:
-                summary += f" Info: {type_of_info}."
 
+
+            # Generate unique URL if no specific URL available
+            if not item_specific_url:
+                import urllib.parse
+                org_slug = urllib.parse.quote(entity_name.replace(' ', '-').lower())
+                date_slug = publication_date_iso.split('T')[0]  # Just the date part
+                item_specific_url = f"{DELAWARE_AG_BREACH_URL}#{org_slug}-{date_slug}"
 
             item_data = {
                 "source_id": SOURCE_ID_DELAWARE_AG,
-                "item_url": item_specific_url if item_specific_url else DELAWARE_AG_BREACH_URL,
+                "item_url": item_specific_url,
                 "title": entity_name,
                 "publication_date": publication_date_iso,
                 "summary_text": summary.strip(),
                 "raw_data_json": raw_data_json,
-                "tags_keywords": ["delaware_ag", "de_breach", type_of_breach.lower().replace(" ", "_")] if type_of_breach else ["delaware_ag", "de_breach"]
+                "tags_keywords": ["delaware_ag", "de_breach", "data_breach"]
             }
-            
-            # TODO: Implement check for existing record before inserting
 
-            insert_response = supabase_client.insert_item(**item_data)
-            if insert_response:
-                logger.info(f"Successfully inserted item for '{entity_name}'.")
-                inserted_count += 1
-            else:
-                logger.error(f"Failed to insert item for '{entity_name}'.")
+            # Check for existing record before inserting
+            try:
+                query_result = supabase_client.client.table("scraped_items").select("id").eq("title", entity_name).eq("publication_date", publication_date_iso).eq("source_id", SOURCE_ID_DELAWARE_AG).execute()
+                if query_result.data:
+                    logger.info(f"Item '{entity_name}' on {publication_date_iso} already exists. Skipping.")
+                    skipped_count += 1
+                    continue
+            except Exception as e_check:
+                logger.warning(f"Could not check for existing record: {e_check}. Proceeding with insert.")
+
+            try:
+                insert_response = supabase_client.insert_item(**item_data)
+                if insert_response:
+                    logger.info(f"Successfully inserted item for '{entity_name}'.")
+                    inserted_count += 1
+                else:
+                    logger.error(f"Failed to insert item for '{entity_name}'.")
+            except Exception as e_insert:
+                if "duplicate key value violates unique constraint" in str(e_insert):
+                    logger.info(f"Item '{entity_name}' already exists (duplicate URL). Skipping.")
+                    skipped_count += 1
+                else:
+                    logger.error(f"Error inserting item for '{entity_name}' into Supabase: {e_insert}")
+                    skipped_count += 1
 
         except Exception as e:
             logger.error(f"Error processing row for '{entity_name if 'entity_name' in locals() else 'Unknown Entity'}': {row.text[:150]}. Error: {e}", exc_info=True)
@@ -190,7 +198,7 @@ def process_delaware_ag_breaches():
 
 if __name__ == "__main__":
     logger.info("Delaware AG Security Breach Scraper Started")
-    
+
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
@@ -199,5 +207,5 @@ if __name__ == "__main__":
     else:
         logger.info("Supabase environment variables seem to be set.")
         process_delaware_ag_breaches()
-        
+
     logger.info("Delaware AG Security Breach Scraper Finished")
