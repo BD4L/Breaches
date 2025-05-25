@@ -1,0 +1,117 @@
+name: Run All Scrapers
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # Runs daily at 3 AM UTC
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  run-scrapers:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      HIBP_API_KEY: ${{ secrets.HIBP_API_KEY }}
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }} # Optional, but good to include
+      APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+      APIFY_TEXAS_BREACH_ACTOR_ID: ${{ secrets.APIFY_TEXAS_BREACH_ACTOR_ID }}
+      PYTHONUNBUFFERED: "1" # Ensures print statements appear in the GitHub Actions logs immediately
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' 
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # --- Government & State AG Scrapers ---
+      - name: Run SEC EDGAR 8-K Scraper
+        run: python scrapers/fetch_sec_edgar_8k.py
+
+      - name: Run HHS OCR Scraper
+        run: python scrapers/fetch_hhs_ocr.py
+
+      - name: Run Delaware AG Scraper
+        run: python scrapers/fetch_delaware_ag.py
+
+      - name: Run California AG Scraper
+        run: python scrapers/fetch_california_ag.py
+
+      - name: Run Washington AG Scraper
+        run: python scrapers/fetch_washington_ag.py
+
+      - name: Run Hawaii AG Scraper
+        run: python scrapers/fetch_hi_ag.py
+
+      - name: Run Indiana AG Scraper
+        run: python scrapers/fetch_in_ag.py
+
+      - name: Run Iowa AG Scraper
+        run: python scrapers/fetch_ia_ag.py
+      
+      - name: Run Maine AG Scraper
+        run: python scrapers/fetch_me_ag.py
+
+      - name: Run Maryland AG Scraper
+        run: python scrapers/fetch_md_ag.py
+
+      - name: Run Massachusetts AG Scraper
+        run: python scrapers/fetch_ma_ag.py
+
+      - name: Run Montana AG Scraper
+        run: python scrapers/fetch_mt_ag.py
+
+      - name: Run New Hampshire AG Scraper
+        run: python scrapers/fetch_nh_ag.py
+
+      - name: Run New Jersey Cybersecurity Scraper (fetch_nj_ag.py)
+        run: python scrapers/fetch_nj_ag.py
+
+      - name: Run North Dakota AG Scraper
+        run: python scrapers/fetch_nd_ag.py
+
+      - name: Run Oklahoma Cybersecurity Scraper (fetch_ok_cyber.py)
+        run: python scrapers/fetch_ok_cyber.py
+
+      - name: Run Vermont AG Scraper
+        run: python scrapers/fetch_vt_ag.py
+
+      - name: Run Wisconsin DATCP Scraper
+        run: python scrapers/fetch_wi_datcp.py
+
+      # --- News & Cybersecurity Websites Scrapers ---
+      - name: Run BreachSense Scraper
+        run: python scrapers/fetch_breachsense.py
+
+      - name: Run Cybersecurity News RSS Scraper
+        run: python scrapers/fetch_cybersecurity_news.py
+
+      - name: Run Privacy Rights Clearinghouse Scraper
+        run: python scrapers/fetch_privacyrights.py
+
+      # --- Company IR Scraper ---
+      - name: Run Company IR Scraper
+        run: python scrapers/fetch_company_ir.py
+
+      # --- API-based Services Scrapers ---
+      - name: Run HIBP API Scraper
+        run: python scrapers/fetch_hibp_api.py
+
+      - name: Run CISA KEV Scraper
+        run: python scrapers/fetch_cisa_kev.py
+
+      - name: Run NVD API Scraper
+        run: python scrapers/fetch_nvd_api.py
+
+      # --- Apify Integration Scraper ---
+      - name: Run Texas Apify Scraper
+        run: python scrapers/fetch_texas_apify.py
+
+      # --- Final Step ---
+      - name: All scrapers finished
+        run: echo "All scraper scripts have been executed."
