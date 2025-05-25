@@ -34,8 +34,26 @@ def parse_date_flexible_hi(date_str: str) -> str | None:
     """
     if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending', 'various', 'see notice', 'not provided']:
         return None
+
+    # Clean up the date string
+    date_str = date_str.strip()
+
+    # Skip if it looks like a company name (contains common business words)
+    business_indicators = ['inc', 'llc', 'corp', 'company', 'ltd', 'dental', 'medical', 'health', 'services', 'group', 'associates']
+    if any(indicator in date_str.lower() for indicator in business_indicators):
+        logger.warning(f"Skipping date parsing for '{date_str}' - appears to be a company name")
+        return None
+
+    # Handle specific Hawaii AG date formats like "2024/03.18"
+    if '/' in date_str and '.' in date_str:
+        try:
+            # Convert "2024/03.18" to "2024/03/18"
+            date_str = date_str.replace('.', '/')
+        except:
+            pass
+
     try:
-        dt_object = dateutil_parser.parse(date_str.strip())
+        dt_object = dateutil_parser.parse(date_str)
         return dt_object.isoformat()
     except (ValueError, TypeError, OverflowError) as e:
         logger.warning(f"Could not parse date string: '{date_str}'. Error: {e}")
@@ -60,12 +78,12 @@ def process_hawaii_ag_breaches():
     # Hawaii AG site structure:
     # Data is typically within a <table>. The table might be inside a div with class 'entry-content'.
     # Each row <tr> in <tbody> is a breach notification.
-    
+
     data_table = None
     entry_content_div = soup.find('div', class_='entry-content') # Common WordPress class
     if entry_content_div:
         data_table = entry_content_div.find('table')
-    
+
     if not data_table:
         # Fallback: try to find any table if not in 'entry-content'
         all_tables = soup.find_all('table')
@@ -76,12 +94,12 @@ def process_hawaii_ag_breaches():
             logger.error("Could not find the breach data table (neither in 'entry-content' nor any other table on page). Page structure might have changed.")
             # logger.debug(f"Page content sample (first 500 chars): {response.text[:500]}")
             return
-            
+
     tbody = data_table.find('tbody')
     if not tbody:
         logger.error("Table found, but it does not contain a <tbody> element. Cannot process rows.")
         return
-        
+
     notifications = tbody.find_all('tr')
     logger.info(f"Found {len(notifications)} potential breach notifications in the table.")
 
@@ -107,7 +125,7 @@ def process_hawaii_ag_breaches():
     for row_idx, row in enumerate(notifications):
         processed_count += 1
         cols = row.find_all('td')
-        
+
         if len(cols) < 3: # Expecting at least Date Posted, Org Name, Date of Breach. Notice is optional.
             logger.warning(f"Skipping row {row_idx+1} due to insufficient columns ({len(cols)}). Row content: {[c.get_text(strip=True)[:30] for c in cols]}")
             skipped_count += 1
@@ -117,11 +135,11 @@ def process_hawaii_ag_breaches():
             date_posted_str = cols[0].get_text(strip=True)
             org_name = cols[1].get_text(strip=True)
             date_of_breach_str = cols[2].get_text(strip=True)
-            
+
             notice_link_tag = None
             if len(cols) > 3: # Notice column might not always be present or have a link
                  notice_link_tag = cols[3].find('a', href=True)
-            
+
             item_specific_url = None
             if notice_link_tag:
                 item_specific_url = urljoin(HAWAII_AG_BREACH_URL, notice_link_tag['href'])
@@ -168,7 +186,7 @@ def process_hawaii_ag_breaches():
                 "raw_data_json": raw_data_json,
                 "tags_keywords": list(set(tags))
             }
-            
+
             # TODO: Implement check for existing record before inserting
 
             insert_response = supabase_client.insert_item(**item_data)
@@ -186,7 +204,7 @@ def process_hawaii_ag_breaches():
 
 if __name__ == "__main__":
     logger.info("Hawaii AG Security Breach Scraper Started")
-    
+
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
@@ -195,5 +213,5 @@ if __name__ == "__main__":
     else:
         logger.info("Supabase environment variables seem to be set.")
         process_hawaii_ag_breaches()
-        
+
     logger.info("Hawaii AG Security Breach Scraper Finished")

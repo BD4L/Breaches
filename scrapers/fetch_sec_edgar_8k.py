@@ -26,13 +26,13 @@ logger = logging.getLogger(__name__)
 SEC_EDGAR_8K_ATOM_FEED_URL = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&count=100&output=atom"
 # Keywords to search for in filing documents
 KEYWORDS = [
-    "cybersecurity", "data breach", "security incident", 
+    "cybersecurity", "data breach", "security incident",
     "unauthorized access", "ransomware", "information security",
     "material cybersecurity incident" # Added based on new SEC rules
 ]
 # Placeholder for the source_id from the 'data_sources' table in Supabase
 # This ID should correspond to "SEC EDGAR 8-K"
-SOURCE_ID_SEC_EDGAR_8K = 1 
+SOURCE_ID_SEC_EDGAR_8K = 1
 
 # Headers for requests
 REQUEST_HEADERS = {
@@ -60,18 +60,18 @@ def fetch_filing_document_url_and_content(index_url: str) -> tuple[str | None, s
                     break
                 if not document_link_tag: # Fallback to first htm/html
                      document_link_tag = link
-        
+
         if not document_link_tag: # Try to find .txt if no .htm found
             for link in soup.find_all('a', href=True):
                 href = link['href']
                 if href.endswith('.txt'):
                     document_link_tag = link
                     break
-        
+
         if document_link_tag:
             document_url = urljoin(index_url, document_link_tag['href'])
             logger.info(f"Found document URL: {document_url}")
-            
+
             doc_response = requests.get(document_url, headers=REQUEST_HEADERS)
             doc_response.raise_for_status()
 
@@ -109,28 +109,48 @@ def process_edgar_feed():
     and inserts relevant data into Supabase.
     """
     logger.info("Starting SEC EDGAR 8-K feed processing...")
-    feed = feedparser.parse(SEC_EDGAR_8K_ATOM_FEED_URL)
 
-    if feed.bozo:
-        logger.error(f"Error parsing feed: {feed.bozo_exception}")
+    try:
+        # First try to fetch the feed with requests to check if it's accessible
+        response = requests.get(SEC_EDGAR_8K_ATOM_FEED_URL, headers=REQUEST_HEADERS, timeout=30)
+        response.raise_for_status()
+        logger.info(f"Successfully fetched feed. Status: {response.status_code}, Length: {len(response.content)} bytes")
+
+        # Parse the feed
+        feed = feedparser.parse(response.content)
+
+        if feed.bozo:
+            logger.error(f"Error parsing feed: {feed.bozo_exception}")
+            logger.error(f"Feed content preview: {response.text[:500]}")
+            return
+
+        if not feed.entries:
+            logger.warning("No entries found in the feed")
+            return
+
+        logger.info(f"Fetched {len(feed.entries)} filings from the feed.")
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching SEC EDGAR feed: {e}")
+        return
+    except Exception as e:
+        logger.error(f"Unexpected error processing feed: {e}")
         return
 
-    logger.info(f"Fetched {len(feed.entries)} filings from the feed.")
-    
     supabase_client = None
     try:
         supabase_client = SupabaseClient()
     except ValueError as e:
         logger.error(f"Failed to initialize Supabase client: {e}. Ensure SUPABASE_URL and SUPABASE_SERVICE_KEY are set.")
         return
-    
+
     inserted_count = 0
     for entry in feed.entries:
         try:
             title = entry.get("title", "N/A")
             link_to_index = entry.get("link") # This is usually the index page
             published_parsed = entry.get("published_parsed")
-            
+
             if not link_to_index or not published_parsed:
                 logger.warning(f"Skipping entry due to missing link or publication date: {title}")
                 continue
@@ -143,7 +163,7 @@ def process_edgar_feed():
                 # Example: 'Form 8-K for FOO BAR CORP, CIK: 0001234567, Filing Date: ...'
                 if 'CIK:' in summary_text_for_cik:
                     cik_number = summary_text_for_cik.split('CIK:')[1].split(',')[0].strip()
-            
+
             if not cik_number and entry.get('id'): # Fallback: try to get CIK from entry ID
                 # Example id: urn:tag:sec.gov,2008:accession-number=0001193125-23-287834
                 # CIK is not directly in the id, but accession number is.
@@ -152,7 +172,7 @@ def process_edgar_feed():
                     potential_cik = title.split('(')[-1].split(')')[0]
                     if potential_cik.isdigit():
                         cik_number = potential_cik
-            
+
             company_name = title.replace(f"({cik_number})", "").replace("8-K - ", "").strip() if cik_number else title.replace("8-K - ", "").strip()
 
             publication_date = datetime(*published_parsed[:6]).isoformat()
@@ -193,7 +213,7 @@ def process_edgar_feed():
                     "raw_data_json": {"cik": cik_number, "keywords_found": found_keywords, "feed_entry_id": entry.get('id')},
                     "tags_keywords": ["sec_filing", "8-k"] + [kw.lower().replace(" ", "_") for kw in found_keywords]
                 }
-                
+
                 insert_response = supabase_client.insert_item(**item_data)
                 if insert_response:
                     logger.info(f"Successfully inserted item for {company_name} (CIK: {cik_number}) into Supabase.")
@@ -210,7 +230,7 @@ def process_edgar_feed():
 
 if __name__ == "__main__":
     logger.info("SEC EDGAR 8-K Scraper Started")
-    
+
     # Check for Supabase environment variables
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
@@ -218,7 +238,7 @@ if __name__ == "__main__":
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
         # Optionally, exit if critical env vars are missing
-        # sys.exit(1) 
+        # sys.exit(1)
     else:
         logger.info("Supabase environment variables seem to be set.")
 

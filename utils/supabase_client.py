@@ -34,12 +34,29 @@ class SupabaseClient:
             data_to_insert = {k: v for k, v in data_to_insert.items() if v is not None}
 
             response = self.client.table("scraped_items").insert(data_to_insert).execute()
-            logger.info(f"Successfully inserted item: {item_url}. Response: {response}")
+
+            # Check for errors in the response
+            if hasattr(response, 'error') and response.error:
+                logger.error(f"Supabase error inserting item {item_url}: {response.error}")
+                return None
+
             if response.data:
+                logger.info(f"Successfully inserted item: {item_url}")
                 return response.data[0]
-            return None # Or handle cases where data might not be returned as expected
+            else:
+                logger.warning(f"No data returned for item {item_url}, but no error reported")
+                return None
+
         except Exception as e:
+            # Enhanced error logging with more details
             logger.error(f"Error inserting item {item_url}: {e}")
+            logger.error(f"Data being inserted: {data_to_insert}")
+            if hasattr(e, 'details'):
+                logger.error(f"Error details: {e.details}")
+            if hasattr(e, 'message'):
+                logger.error(f"Error message: {e.message}")
+            if hasattr(e, 'code'):
+                logger.error(f"Error code: {e.code}")
             return None
 
     # We can add more methods later, e.g., for inserting into 'data_sources'

@@ -23,9 +23,20 @@ logger = logging.getLogger(__name__)
 MASSACHUSETTS_AG_BREACH_URL = "https://www.mass.gov/lists/data-breach-notification-reports"
 SOURCE_ID_MASSACHUSETTS_AG = 11
 
-# Headers for requests
+# Headers for requests - Enhanced to avoid 403 errors
 REQUEST_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'DNT': '1',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Cache-Control': 'max-age=0'
 }
 
 def parse_date_flexible_ma(date_str: str) -> str | None:
@@ -51,8 +62,21 @@ def process_massachusetts_ag_breaches():
     logger.info("Starting Massachusetts AG Security Breach Notification processing...")
 
     try:
+        # Try with a delay to avoid rate limiting
+        import time
+        time.sleep(2)
+
         response = requests.get(MASSACHUSETTS_AG_BREACH_URL, headers=REQUEST_HEADERS, timeout=30)
         response.raise_for_status()
+        logger.info(f"Successfully fetched Massachusetts AG page. Status: {response.status_code}")
+
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 403:
+            logger.error(f"403 Forbidden error - Massachusetts AG site may be blocking automated requests: {e}")
+            logger.info("This may require manual intervention or a different approach (e.g., using a proxy or browser automation)")
+        else:
+            logger.error(f"HTTP error fetching Massachusetts AG breach data page: {e}")
+        return
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching Massachusetts AG breach data page: {e}")
         return
@@ -73,17 +97,17 @@ def process_massachusetts_ag_breaches():
     # Common container classes: 'ma__document-link-list', 'ma__link-list-with-icon', or main content area.
     # Try a general approach first.
     main_content_area = soup.find('main', id='main-content') or soup # Fallback to whole soup
-    
+
     # Pattern for yearly report links: "Data breach notifications reported in YYYY"
     # Or "Data breaches reported in YYYY"
     link_pattern = re.compile(r'data\s+breach(?:es)?\s+(?:notification(?:s)?)?\s*reported\s+in\s+(\d{4})', re.IGNORECASE)
-    
+
     for link_tag in main_content_area.find_all('a', href=True):
         if link_pattern.search(link_tag.get_text(strip=True)):
             full_url = urljoin(MASSACHUSETTS_AG_BREACH_URL, link_tag['href'])
             if full_url not in yearly_page_links:
                 yearly_page_links.append(full_url)
-    
+
     if not yearly_page_links:
         logger.warning(f"No links to yearly breach notification pages found on {MASSACHUSETTS_AG_BREACH_URL}. Attempting to process main page directly if it contains breach list items.")
         # If no yearly links, perhaps the main page itself has the data.
@@ -139,7 +163,7 @@ def process_massachusetts_ag_breaches():
         # Inside <li>:
         #   <a> tag with href to PDF notice, text is Org Name.
         #   <div class="ma__executive-summary__content"> contains "Date posted: Month Day, Year"
-        
+
         breach_list_ul = page_soup.select_one("ul.ma__executive-summary-links") # Common pattern on mass.gov
         if not breach_list_ul:
             # Fallback: try other common list structures or article lists
@@ -149,14 +173,14 @@ def process_massachusetts_ag_breaches():
                 logger.warning(f"Could not find the main list of breaches (ul.ma__executive-summary-links or fallbacks) on {page_url}. Skipping this page.")
                 total_skipped +=1 # Count page as skipped
                 continue
-        
+
         notifications = breach_list_ul.find_all('li', recursive=False) # Get direct <li> children
         if not notifications:
             # If <li> not direct children, try finding them deeper, e.g. if wrapped in other divs by mistake
             notifications = breach_list_ul.find_all('li')
 
         logger.info(f"Found {len(notifications)} potential breach notifications on page {page_url}.")
-        
+
         page_processed_count = 0
         page_inserted_count = 0
         page_skipped_count = 0
@@ -174,7 +198,7 @@ def process_massachusetts_ag_breaches():
 
                 org_name = link_tag.get_text(strip=True)
                 item_specific_url = urljoin(page_url, link_tag['href']) # Usually PDF link
-                
+
                 date_posted_str = None
                 # Date is often in "Date posted: Month Day, Year" format within content_div
                 date_text_element = content_div.find(string=re.compile(r'Date\s+posted:'))
@@ -186,7 +210,7 @@ def process_massachusetts_ag_breaches():
                     date_match = re.search(r'([A-Za-z]+\s+\d{1,2},\s+\d{4})', possible_date_text)
                     if date_match:
                         date_posted_str = date_match.group(1)
-                
+
                 if not org_name or not date_posted_str:
                     logger.warning(f"Skipping item for '{org_name}' on {page_url} due to missing Org Name or Date Posted ('{date_posted_str}').")
                     page_skipped_count += 1
@@ -197,7 +221,7 @@ def process_massachusetts_ag_breaches():
                     logger.warning(f"Skipping '{org_name}' from {page_url} due to unparsable date posted: '{date_posted_str}'")
                     page_skipped_count +=1
                     continue
-                
+
                 # Other details like date of breach, # affected are usually in the PDF, not on list page.
                 summary = f"Data breach notification for {org_name} reported to MA AG."
                 # Try to get year from page title or URL for tagging
@@ -216,7 +240,7 @@ def process_massachusetts_ag_breaches():
                 raw_data_json = {k: v for k, v in raw_data.items() if v is not None}
 
                 tags = ["massachusetts_ag", "ma_ag", f"year_{year_for_tag}"]
-                
+
                 item_data = {
                     "source_id": SOURCE_ID_MASSACHUSETTS_AG,
                     "item_url": item_specific_url, # PDF is the specific item
@@ -226,7 +250,7 @@ def process_massachusetts_ag_breaches():
                     "raw_data_json": raw_data_json,
                     "tags_keywords": list(set(tags))
                 }
-                
+
                 # TODO: Implement check for existing record (e.g., by item_url)
 
                 insert_response = supabase_client.insert_item(**item_data)
@@ -239,7 +263,7 @@ def process_massachusetts_ag_breaches():
             except Exception as e:
                 logger.error(f"Error processing list item #{item_idx+1} on page {page_url}: {li_item.get_text(strip=True)[:150]}. Error: {e}", exc_info=True)
                 page_skipped_count +=1
-        
+
         total_processed += page_processed_count
         total_inserted += page_inserted_count
         total_skipped += page_skipped_count
@@ -249,7 +273,7 @@ def process_massachusetts_ag_breaches():
 
 if __name__ == "__main__":
     logger.info("Massachusetts AG Security Breach Scraper Started")
-    
+
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
@@ -258,5 +282,5 @@ if __name__ == "__main__":
     else:
         logger.info("Supabase environment variables seem to be set.")
         process_massachusetts_ag_breaches()
-        
+
     logger.info("Massachusetts AG Security Breach Scraper Finished")

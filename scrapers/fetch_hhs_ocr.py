@@ -56,10 +56,26 @@ def process_hhs_ocr_csv():
     try:
         response = requests.get(HHS_OCR_CSV_DOWNLOAD_URL, headers=REQUEST_HEADERS, timeout=60)
         response.raise_for_status()  # Raise an exception for HTTP errors
+
+        # Check if we got HTML instead of CSV (indicates dynamic page)
+        content_type = response.headers.get('content-type', '').lower()
+        if 'text/html' in content_type or response.text.strip().startswith('<!DOCTYPE') or response.text.strip().startswith('<html'):
+            logger.error("Received HTML page instead of CSV data. The HHS OCR site may require JavaScript or session handling.")
+            logger.error(f"Content type: {content_type}")
+            logger.error(f"Response preview: {response.text[:500]}")
+            return
+
+        # Check if content looks like CSV
+        if not (response.text.strip().startswith('"') or ',' in response.text[:100]):
+            logger.error("Response doesn't appear to be CSV format")
+            logger.error(f"Content preview: {response.text[:200]}")
+            return
+
         # The content is binary, decode it to utf-8, common for CSVs from web sources
         # Some sources might use other encodings like 'latin-1' or 'cp1252'
         # If encoding issues arise, chardet library could be used to detect it.
         csv_content = response.content.decode('utf-8-sig') # utf-8-sig handles potential BOM
+
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching HHS OCR CSV data: {e}")
         return
@@ -105,7 +121,7 @@ def process_hhs_ocr_csv():
                 logger.warning(f"Skipping row for '{name_of_covered_entity}' due to unparsable date: {breach_submission_date_str}")
                 skipped_count +=1
                 continue
-            
+
             # Construct a pseudo-unique URL if none is directly available.
             # This is tricky without a true unique ID per breach in the CSV.
             # One approach is to use the main portal URL and append some row data,
@@ -180,7 +196,7 @@ def process_hhs_ocr_csv():
 
 if __name__ == "__main__":
     logger.info("HHS OCR Breach Scraper Started")
-    
+
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
@@ -189,5 +205,5 @@ if __name__ == "__main__":
     else:
         logger.info("Supabase environment variables seem to be set.")
         process_hhs_ocr_csv()
-        
+
     logger.info("HHS OCR Breach Scraper Finished")
