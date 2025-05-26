@@ -112,6 +112,7 @@ def parse_affected_individuals(affected_text: str) -> int | None:
     """
     Parse the affected individuals count from text.
     Handles formats like "1,023", "14,255", "N/A", etc.
+    Returns integer if parseable, None if not a number.
     """
     if not affected_text or affected_text.strip().lower() in ['n/a', 'unknown', 'pending', 'tbd', 'not specified']:
         return None
@@ -127,16 +128,23 @@ def parse_affected_individuals(affected_text: str) -> int | None:
         except ValueError:
             pass
 
+    # If no number found, return None (original text will be preserved in raw_data_json)
     return None
 
 def parse_date_to_date_only(date_str: str) -> str | None:
     """
     Parse a date string and return just the date part (YYYY-MM-DD).
+    If parsing fails, return the original string to preserve information.
     """
+    if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending', 'various', 'see notice', 'not provided']:
+        return None
+
     iso_date = parse_date_delaware(date_str)
     if iso_date:
         return iso_date.split('T')[0]  # Extract just the date part
-    return None
+
+    # If parsing failed, return the original string to preserve the information
+    return date_str.strip()
 
 def process_delaware_ag_breaches():
     """
@@ -220,14 +228,15 @@ def process_delaware_ag_breaches():
             if not publication_date_iso and date_of_breach_str and date_of_breach_str.lower() not in ['n/a', 'unknown', '']:
                 publication_date_iso = parse_date_delaware(date_of_breach_str)
 
+            # If no valid date could be parsed, use current date as fallback to preserve the record
+            current_datetime_iso = datetime.now().isoformat()
             if not publication_date_iso:
-                 # If no valid date could be parsed, use a fallback or skip
-                logger.warning(f"Skipping '{entity_name}' due to no parsable primary date. Reported: '{reported_date_str}', Breach: '{date_of_breach_str}'")
-                skipped_count +=1
-                continue
+                publication_date_iso = current_datetime_iso
+                logger.info(f"Using current date as fallback for '{entity_name}' - preserving record with unparsable dates. Reported: '{reported_date_str}', Breach: '{date_of_breach_str}'")
 
             # Filter: Only collect breaches from today onward (exclude archived/past listings)
-            if not is_recent_breach(publication_date_iso):
+            # But only apply this filter if we successfully parsed a real date (not using fallback)
+            if publication_date_iso != current_datetime_iso and not is_recent_breach(publication_date_iso):
                 logger.info(f"Skipping '{entity_name}' - breach date {publication_date_iso.split('T')[0]} is before today")
                 skipped_count += 1
                 continue
@@ -248,11 +257,11 @@ def process_delaware_ag_breaches():
 
             # Create comprehensive summary from available information
             summary_parts = []
-            if reported_date_str and reported_date_str.lower() != 'n/a':
+            if reported_date_str and reported_date_str.strip() and reported_date_str.lower() not in ['n/a', 'unknown', '']:
                 summary_parts.append(f"Reported to Delaware AG: {reported_date_str}")
-            if date_of_breach_str and date_of_breach_str.lower() != 'n/a':
+            if date_of_breach_str and date_of_breach_str.strip() and date_of_breach_str.lower() not in ['n/a', 'unknown', '']:
                 summary_parts.append(f"Breach occurred: {date_of_breach_str}")
-            if residents_affected_text and residents_affected_text.lower() != 'n/a':
+            if residents_affected_text and residents_affected_text.strip() and residents_affected_text.lower() not in ['n/a', 'unknown', '']:
                 summary_parts.append(f"Delaware residents affected: {residents_affected_text}")
             if item_specific_url:
                 summary_parts.append("Sample notice available")
