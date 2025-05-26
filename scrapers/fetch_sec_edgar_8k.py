@@ -1,11 +1,11 @@
 import os
 import logging
 import requests
-import json
+import re
 import time
+import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
-from datetime import datetime, date, timedelta
-from urllib.parse import urljoin
+from datetime import datetime, timedelta
 
 # Assuming SupabaseClient is in utils.supabase_client
 try:
@@ -20,22 +20,59 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Constants
-SEC_API_BASE_URL = "https://data.sec.gov"
-SEC_SUBMISSIONS_URL = f"{SEC_API_BASE_URL}/submissions"
-SEC_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+SEC_BASE_URL = "https://www.sec.gov"
+SEC_RSS_URL = f"{SEC_BASE_URL}/cgi-bin/browse-edgar"
 
-# Keywords to search for in filing documents (enhanced for 2025 cybersecurity rules)
+# Enhanced cybersecurity keywords for comprehensive detection
 CYBERSECURITY_KEYWORDS = [
-    "cybersecurity", "cyber security", "data breach", "security incident",
-    "unauthorized access", "ransomware", "information security",
-    "material cybersecurity incident", "cyber attack", "cyber incident",
-    "data security", "privacy breach", "security vulnerability",
-    "malware", "phishing", "social engineering", "insider threat",
-    "business email compromise", "supply chain attack"
-]
+    # Primary indicators (high weight)
+    "item 1.05",
+    "material cybersecurity",
+    "cybersecurity incident",
+    "data breach",
+    "security incident",
+    "security breach",
 
-# 8-K Item codes related to cybersecurity (Item 1.05 and 8.01 are common)
-CYBERSECURITY_8K_ITEMS = ["1.05", "8.01"]
+    # Attack types
+    "unauthorized access",
+    "cyber attack",
+    "data compromise",
+    "ransomware",
+    "malware",
+    "phishing",
+    "social engineering",
+    "insider threat",
+
+    # Data types (common in breach descriptions)
+    "customer data",
+    "personal information",
+    "personally identifiable",
+    "social security",
+    "credit card",
+    "financial information",
+    "account information",
+    "government id",
+    "driver's license",
+    "passport",
+
+    # Impact indicators
+    "threat actor",
+    "extortion",
+    "demanded money",
+    "law enforcement",
+    "forensic investigation",
+    "customer reimbursement",
+    "remediation costs",
+
+    # Technical indicators
+    "internal systems",
+    "compromised information",
+    "accessed without authorization",
+    "improper data access",
+    "security monitoring",
+    "information security",
+    "data security incident"
+]
 
 # Source ID for SEC EDGAR 8-K
 SOURCE_ID_SEC_EDGAR_8K = 1
@@ -66,101 +103,179 @@ def rate_limit_request():
     """Implement SEC rate limiting - max 10 requests per second"""
     time.sleep(RATE_LIMIT_DELAY)
 
-def fetch_company_tickers() -> dict:
+def get_recent_8k_filings(days_back=1):
     """
-    Fetch the company tickers mapping from SEC.
-    Returns dict mapping CIK to company info.
+    Get recent 8-K filings from SEC EDGAR using RSS feeds.
+    This approach gets ALL recent 8-K filings, not just from specific companies.
+
+    Args:
+        days_back (int): Number of days back to search.
+
+    Returns:
+        list: List of 8-K filing metadata.
     """
+    filings = []
+
     try:
-        rate_limit_request()
-        response = requests.get(SEC_COMPANY_TICKERS_URL, headers=SEC_WWW_HEADERS, timeout=30)
-        response.raise_for_status()
-
-        tickers_data = response.json()
-        # Convert to CIK-keyed dict for easier lookup
-        cik_to_company = {}
-        for ticker_info in tickers_data.values():
-            cik = str(ticker_info['cik_str']).zfill(10)  # Pad to 10 digits
-            cik_to_company[cik] = {
-                'ticker': ticker_info.get('ticker', ''),
-                'title': ticker_info.get('title', ''),
-                'cik': cik
-            }
-
-        logger.info(f"Loaded {len(cik_to_company)} company ticker mappings")
-        return cik_to_company
-
-    except Exception as e:
-        logger.error(f"Error fetching company tickers: {e}")
-        return {}
-
-def fetch_company_submissions(cik: str) -> dict | None:
-    """
-    Fetch submission history for a specific company using SEC API.
-    Returns submissions data or None if error.
-    """
-    try:
-        rate_limit_request()
-        submissions_url = f"{SEC_SUBMISSIONS_URL}/CIK{cik}.json"
-        response = requests.get(submissions_url, headers=SEC_DATA_HEADERS, timeout=30)
-        response.raise_for_status()
-
-        return response.json()
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching submissions for CIK {cik}: {e}")
-        return None
-
-def get_recent_8k_filings(submissions_data: dict, days_back: int = 30) -> list:
-    """
-    Extract recent 8-K filings from submissions data.
-    Returns list of recent 8-K filings.
-    """
-    recent_filings = []
-
-    if 'filings' not in submissions_data or 'recent' not in submissions_data['filings']:
-        return recent_filings
-
-    recent = submissions_data['filings']['recent']
-
-    # Get current date for filtering
-    cutoff_date = (datetime.now() - timedelta(days=days_back)).date()
-
-    # Process each filing
-    for i in range(len(recent.get('form', []))):
-        form_type = recent['form'][i]
-
-        # Only process 8-K filings
-        if form_type != '8-K':
-            continue
-
-        filing_date_str = recent['filingDate'][i]
-        filing_date = datetime.strptime(filing_date_str, '%Y-%m-%d').date()
-
-        # Only include recent filings
-        if filing_date < cutoff_date:
-            continue
-
-        filing_info = {
-            'accessionNumber': recent['accessionNumber'][i],
-            'filingDate': filing_date_str,
-            'reportDate': recent.get('reportDate', [''])[i],
-            'acceptanceDateTime': recent.get('acceptanceDateTime', [''])[i],
-            'act': recent.get('act', [''])[i],
-            'form': form_type,
-            'fileNumber': recent.get('fileNumber', [''])[i],
-            'filmNumber': recent.get('filmNumber', [''])[i],
-            'items': recent.get('items', [''])[i],
-            'size': recent.get('size', [0])[i],
-            'isXBRL': recent.get('isXBRL', [0])[i],
-            'isInlineXBRL': recent.get('isInlineXBRL', [0])[i],
-            'primaryDocument': recent.get('primaryDocument', [''])[i],
-            'primaryDocDescription': recent.get('primaryDocDescription', [''])[i]
+        # Use SEC RSS feed for recent filings - gets ALL companies
+        params = {
+            "action": "getcurrent",
+            "type": "8-K",
+            "count": "200",  # Get more filings to catch cybersecurity incidents
+            "output": "atom"
         }
 
-        recent_filings.append(filing_info)
+        logger.info("Fetching recent 8-K filings from SEC RSS feed...")
 
-    return recent_filings
+        rate_limit_request()
+        response = requests.get(SEC_RSS_URL, params=params, headers=SEC_WWW_HEADERS, timeout=30)
+        response.raise_for_status()
+
+        # Parse RSS/Atom feed
+        try:
+            root = ET.fromstring(response.text)
+
+            # Find entries in the feed
+            entries = root.findall('.//{http://www.w3.org/2005/Atom}entry')
+
+            logger.info(f"Found {len(entries)} recent 8-K filings")
+
+            for entry in entries:
+                try:
+                    # Extract filing information
+                    title = entry.find('.//{http://www.w3.org/2005/Atom}title')
+                    link = entry.find('.//{http://www.w3.org/2005/Atom}link')
+                    updated = entry.find('.//{http://www.w3.org/2005/Atom}updated')
+                    summary = entry.find('.//{http://www.w3.org/2005/Atom}summary')
+
+                    if title is not None and link is not None:
+                        filing_info = {
+                            "title": title.text if title.text else "",
+                            "document_url": link.get('href', ''),
+                            "filing_date": updated.text if updated is not None else "",
+                            "summary": summary.text if summary is not None else "",
+                            "form_type": "8-K"
+                        }
+
+                        # Extract company name from title
+                        title_text = filing_info["title"]
+                        if " - " in title_text:
+                            company_part = title_text.split(" - ")[0]
+                            filing_info["company_name"] = company_part.strip()
+
+                        # Check if filing is recent
+                        if is_recent_filing(filing_info.get("filing_date", ""), days_back):
+                            filings.append(filing_info)
+
+                except Exception as entry_error:
+                    logger.warning(f"Error processing RSS entry: {entry_error}")
+                    continue
+
+        except ET.ParseError as parse_error:
+            logger.error(f"Failed to parse RSS feed: {parse_error}")
+            # Fallback to HTML parsing
+            filings = get_8k_filings_html_fallback(response.text, days_back)
+
+    except Exception as e:
+        logger.error(f"Error fetching 8-K filings: {e}")
+
+    return filings
+
+def get_8k_filings_html_fallback(html_content, days_back):
+    """Fallback method to parse 8-K filings from HTML."""
+    filings = []
+
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Look for filing entries in the HTML
+        filing_rows = soup.find_all('tr')
+
+        for row in filing_rows[:50]:  # Limit to recent filings
+            cells = row.find_all('td')
+            if len(cells) >= 4:
+                # Extract filing information from table cells
+                filing_info = {
+                    "company_name": cells[0].get_text(strip=True) if cells[0] else "",
+                    "form_type": cells[1].get_text(strip=True) if cells[1] else "",
+                    "filing_date": cells[2].get_text(strip=True) if cells[2] else "",
+                    "document_url": ""
+                }
+
+                # Look for document link
+                link = row.find('a')
+                if link and link.get('href'):
+                    filing_info["document_url"] = f"{SEC_BASE_URL}{link['href']}"
+
+                if filing_info["form_type"] == "8-K" and is_recent_filing(filing_info["filing_date"], days_back):
+                    filings.append(filing_info)
+
+    except Exception as e:
+        logger.error(f"Error in HTML fallback: {e}")
+
+    return filings
+
+def is_recent_filing(date_str, days_back):
+    """Check if a filing date is recent."""
+    if not date_str:
+        return True  # If no date, assume recent
+
+    try:
+        # Parse various date formats from SEC
+        if 'T' in date_str:
+            filing_date = datetime.fromisoformat(date_str.replace('Z', '+00:00')).date()
+        else:
+            filing_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+        cutoff_date = (datetime.now() - timedelta(days=days_back)).date()
+        return filing_date >= cutoff_date
+
+    except:
+        return True  # If parsing fails, assume recent
+
+def extract_filing_content(document_url):
+    """
+    Extract full text content from an 8-K filing.
+
+    Args:
+        document_url (str): URL to the SEC filing document.
+
+    Returns:
+        dict: Extracted content and metadata.
+    """
+    content_data = {}
+
+    try:
+        logger.info(f"Extracting content from: {document_url}")
+
+        rate_limit_request()
+        response = requests.get(document_url, headers=SEC_WWW_HEADERS, timeout=30)
+
+        if not response.ok:
+            logger.warning(f"Failed to fetch document: {response.status_code}")
+            return content_data
+
+        # Parse the SEC filing format
+        text_content = response.text
+
+        # Extract different sections
+        content_data["full_text"] = text_content
+        content_data["text_length"] = len(text_content)
+
+        # Look for specific cybersecurity sections
+        cyber_sections = extract_cybersecurity_sections(text_content)
+        content_data.update(cyber_sections)
+
+        # Extract business description and other metadata
+        metadata = extract_filing_metadata(text_content)
+        content_data.update(metadata)
+
+        logger.info(f"Extracted {len(content_data)} content fields")
+
+    except Exception as e:
+        logger.error(f"Error extracting filing content: {e}")
+
+    return content_data
 
 def search_text_for_keywords(text: str, keywords: list) -> list:
     """Searches text for keywords (case-insensitive) and returns found keywords."""
@@ -231,10 +346,10 @@ def is_cybersecurity_related(filing_info: dict, document_text: str = None) -> tu
 
 def process_edgar_filings():
     """
-    Process recent SEC EDGAR 8-K filings using the official SEC API.
-    Focuses on cybersecurity-related filings.
+    Process recent SEC EDGAR 8-K filings using RSS feed approach.
+    Gets ALL recent 8-K filings and analyzes them for cybersecurity content.
     """
-    logger.info("Starting SEC EDGAR 8-K processing using official API...")
+    logger.info("Starting SEC EDGAR 8-K processing using RSS feed...")
 
     # Initialize Supabase client
     try:
@@ -243,111 +358,91 @@ def process_edgar_filings():
         logger.error(f"Failed to initialize Supabase client: {e}")
         return
 
-    # Fetch company ticker mappings
-    logger.info("Fetching company ticker mappings...")
-    company_mappings = fetch_company_tickers()
-    if not company_mappings:
-        logger.error("Failed to fetch company mappings. Cannot proceed.")
+    # Get recent 8-K filings from ALL companies using RSS feed
+    logger.info("Fetching recent 8-K filings from SEC RSS feed...")
+    recent_filings = get_recent_8k_filings(days_back=2)  # Get last 2 days of filings
+
+    if not recent_filings:
+        logger.warning("No recent 8-K filings found")
         return
 
-    # Process a sample of companies (to avoid rate limits in initial implementation)
-    # In production, you might want to process all companies or focus on specific ones
-    sample_companies = list(company_mappings.items())[:50]  # Process first 50 companies
+    logger.info(f"Found {len(recent_filings)} recent 8-K filings to analyze")
 
     total_processed = 0
     total_inserted = 0
     cybersecurity_found = 0
 
-    for cik, company_info in sample_companies:
+    for filing in recent_filings:
         try:
-            logger.info(f"Processing {company_info['title']} (CIK: {cik})")
+            company_name = filing.get("company_name", "Unknown Company")
+            logger.info(f"Processing {company_name}")
 
-            # Fetch company submissions
-            submissions_data = fetch_company_submissions(cik)
-            if not submissions_data:
+            total_processed += 1
+
+            # Extract full content from the filing
+            content_data = extract_filing_content(filing.get("document_url", ""))
+
+            if not content_data.get("full_text"):
+                logger.warning(f"Could not fetch document content for {company_name}")
                 continue
 
-            # Get recent 8-K filings
-            recent_8k_filings = get_recent_8k_filings(submissions_data, days_back=30)
+            # Analyze for cybersecurity content
+            cyber_data = content_data
+            is_cybersecurity = cyber_data.get("is_cybersecurity_related", False)
+            found_keywords = cyber_data.get("cybersecurity_keywords_found", [])
 
-            if not recent_8k_filings:
-                logger.info(f"No recent 8-K filings for {company_info['title']}")
-                continue
+            if is_cybersecurity:
+                cybersecurity_found += 1
+                logger.info(f"🔒 Cybersecurity filing found: {company_name}")
 
-            logger.info(f"Found {len(recent_8k_filings)} recent 8-K filings for {company_info['title']}")
+                # Create summary snippet from cybersecurity context
+                summary_snippet = f"Cybersecurity-related 8-K filing from {company_name}."
 
-            # Process each 8-K filing
-            for filing in recent_8k_filings:
-                total_processed += 1
+                # Get context from keyword analysis
+                keyword_contexts = cyber_data.get("keyword_contexts", [])
+                if keyword_contexts:
+                    # Use the first context as summary
+                    first_context = keyword_contexts[0]["context"]
+                    summary_snippet = f"...{first_context[:300]}..."
 
-                # Fetch document content for detailed analysis
-                document_url, document_text = fetch_filing_document_content(
-                    cik, filing['accessionNumber'], filing['primaryDocument']
-                )
+                # Prepare data for insertion
+                item_data = {
+                    "source_id": SOURCE_ID_SEC_EDGAR_8K,
+                    "item_url": filing.get("document_url", ""),
+                    "title": f"SEC 8-K: {company_name} - Cybersecurity Filing",
+                    "publication_date": filing.get("filing_date", datetime.now().isoformat()),
+                    "summary_text": summary_snippet,
+                    "raw_data_json": {
+                        "company_name": company_name,
+                        "filing_date": filing.get("filing_date", ""),
+                        "form_type": filing.get("form_type", "8-K"),
+                        "keywords_found": found_keywords,
+                        "cybersecurity_keyword_count": cyber_data.get("cybersecurity_keyword_count", 0),
+                        "keyword_contexts": keyword_contexts[:5],  # First 5 contexts
+                        "item_105_content": cyber_data.get("item_105_content", ""),
+                        "dates_mentioned": cyber_data.get("dates_mentioned", [])
+                    },
+                    "tags_keywords": ["sec_filing", "8-k", "cybersecurity"] + [kw.lower().replace(" ", "_") for kw in found_keywords[:5]]
+                }
 
-                if not document_text:
-                    logger.warning(f"Could not fetch document content for {filing['accessionNumber']}")
-                    continue
-
-                # Full cybersecurity analysis
-                is_cybersecurity, found_keywords, reason = is_cybersecurity_related(filing, document_text)
-
-                if is_cybersecurity:
-                    cybersecurity_found += 1
-                    logger.info(f"🔒 Cybersecurity filing found: {company_info['title']} - {reason}")
-
-                    # Create summary snippet around first keyword
-                    summary_snippet = f"Cybersecurity-related 8-K filing. {reason}"
-                    if found_keywords and document_text:
-                        first_keyword = next((kw for kw in found_keywords if kw in CYBERSECURITY_KEYWORDS), None)
-                        if first_keyword:
-                            keyword_pos = document_text.lower().find(first_keyword.lower())
-                            if keyword_pos != -1:
-                                start_idx = max(0, keyword_pos - 200)
-                                end_idx = min(len(document_text), keyword_pos + len(first_keyword) + 200)
-                                context = document_text[start_idx:end_idx].strip()
-                                summary_snippet = f"...{context}..."
-
-                    # Prepare data for insertion
-                    item_data = {
-                        "source_id": SOURCE_ID_SEC_EDGAR_8K,
-                        "item_url": document_url,
-                        "title": f"SEC 8-K: {company_info['title']} - Cybersecurity Filing",
-                        "publication_date": filing['filingDate'] + "T00:00:00",  # Convert to ISO format
-                        "summary_text": summary_snippet,
-                        "raw_data_json": {
-                            "cik": cik,
-                            "ticker": company_info.get('ticker', ''),
-                            "accession_number": filing['accessionNumber'],
-                            "filing_date": filing['filingDate'],
-                            "report_date": filing['reportDate'],
-                            "items": filing['items'],
-                            "keywords_found": found_keywords,
-                            "cybersecurity_reason": reason,
-                            "primary_document": filing['primaryDocument'],
-                            "file_size": filing['size']
-                        },
-                        "tags_keywords": ["sec_filing", "8-k", "cybersecurity"] + [kw.lower().replace(" ", "_") for kw in found_keywords if kw in CYBERSECURITY_KEYWORDS]
-                    }
-
-                    # Insert into database
-                    try:
-                        insert_response = supabase_client.insert_item(**item_data)
-                        if insert_response:
-                            logger.info(f"✅ Successfully inserted cybersecurity filing for {company_info['title']}")
-                            total_inserted += 1
-                        else:
-                            logger.error(f"❌ Failed to insert filing for {company_info['title']}")
-                    except Exception as e:
-                        if "duplicate key value violates unique constraint" in str(e):
-                            logger.info(f"📋 Filing already exists for {company_info['title']}")
-                        else:
-                            logger.error(f"❌ Error inserting filing: {e}")
-                else:
-                    logger.debug(f"No cybersecurity content found in {company_info['title']} filing {filing['accessionNumber']}")
+                # Insert into database
+                try:
+                    insert_response = supabase_client.insert_item(**item_data)
+                    if insert_response:
+                        logger.info(f"✅ Successfully inserted cybersecurity filing for {company_name}")
+                        total_inserted += 1
+                    else:
+                        logger.error(f"❌ Failed to insert filing for {company_name}")
+                except Exception as e:
+                    if "duplicate key value violates unique constraint" in str(e):
+                        logger.info(f"📋 Filing already exists for {company_name}")
+                    else:
+                        logger.error(f"❌ Error inserting filing: {e}")
+            else:
+                logger.debug(f"No cybersecurity content found in {company_name} filing")
 
         except Exception as e:
-            logger.error(f"Error processing company {company_info.get('title', cik)}: {e}", exc_info=True)
+            logger.error(f"Error processing filing for {company_name}: {e}", exc_info=True)
 
     logger.info(f"🎯 SEC EDGAR processing complete:")
     logger.info(f"   📊 Total filings processed: {total_processed}")
