@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project aggregates data related to data breaches and security incidents from a wide array of sources. These sources include government portals (like SEC EDGAR and State Attorney General websites), cybersecurity news RSS feeds, direct API integrations (e.g., HIBP, CISA KEV), company investor relations pages, and custom scraping solutions (like using Apify for specific state data).
+This project aggregates data related to data breaches and security incidents from a wide array of sources. These sources include government portals (like SEC EDGAR and State Attorney General websites), cybersecurity news RSS feeds, direct API integrations (e.g., HIBP), company investor relations pages, and custom scraping solutions (like using Apify for specific state data).
 
 The collected data is standardized and stored in a Supabase PostgreSQL database. A simple, read-only web interface, hosted via GitHub Pages, provides a dashboard to view the aggregated breach information. The entire data collection process is automated using GitHub Actions, which run the scraper scripts daily.
 
@@ -16,7 +16,7 @@ The collected data is standardized and stored in a Supabase PostgreSQL database.
     *   Cybersecurity News RSS Feeds (10 sources, configurable)
     *   Company Investor Relations (IR) News Sections (5 major tech companies, configurable)
     *   Specialized Breach Listing Sites (Privacy Rights Clearinghouse, BreachSense)
-    *   Breach Databases via API (HIBP, CISA KEV)
+    *   Breach Databases via API (HIBP)
     *   Custom Scraper Integrations (e.g., Texas AG data via Apify)
 *   **Automated Collection:** Daily data updates via a GitHub Actions workflow.
 *   **Centralized Storage:** Uses Supabase (PostgreSQL) for robust and accessible data storage.
@@ -30,7 +30,7 @@ The project gathers data from several categories:
 *   **US Federal Government:**
     *   SEC EDGAR 8-K Filings (for material cybersecurity incidents)
     *   HHS OCR Breach Portal (healthcare breaches)
-    *   CISA Known Exploited Vulnerabilities (KEV) Catalog (via JSON feed)
+
 *   **US State Attorney General Portals & Similar:**
     *   California, Delaware, Hawaii, Indiana, Iowa, Maine, Maryland, Massachusetts, Montana, New Hampshire, New Jersey (Cybersecurity), North Dakota, Oklahoma (Cybersecurity), Texas (via Apify actor), Vermont, Wisconsin (DATCP).
 *   **Cybersecurity News & Reporting Sites:**
@@ -109,8 +109,7 @@ pip install -r requirements.txt
       *   30: Privacy Rights Clearinghouse
       *   31-35: Company IR Sites (from `config.yaml`)
       *   36: Have I Been Pwned (HIBP) API
-      *   37: CISA KEV Catalog
-      *   38: Texas AG (via Apify)
+      *   37: Texas AG (via Apify)
 
     **`scraped_items` Table:**
     This table stores the actual breach/vulnerability records.
