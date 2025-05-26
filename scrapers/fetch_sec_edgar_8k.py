@@ -43,8 +43,20 @@ SOURCE_ID_SEC_EDGAR_8K = 1
 # SEC-compliant headers (REQUIRED by SEC)
 REQUEST_HEADERS = {
     'User-Agent': 'Breach Monitor Bot admin@breachmonitor.com',  # SEC requires proper identification
+    'Accept-Encoding': 'gzip, deflate'
+}
+
+# Separate headers for different SEC endpoints
+SEC_DATA_HEADERS = {
+    'User-Agent': 'Breach Monitor Bot admin@breachmonitor.com',
     'Accept-Encoding': 'gzip, deflate',
     'Host': 'data.sec.gov'
+}
+
+SEC_WWW_HEADERS = {
+    'User-Agent': 'Breach Monitor Bot admin@breachmonitor.com',
+    'Accept-Encoding': 'gzip, deflate',
+    'Host': 'www.sec.gov'
 }
 
 # Rate limiting: SEC allows max 10 requests per second
@@ -61,7 +73,7 @@ def fetch_company_tickers() -> dict:
     """
     try:
         rate_limit_request()
-        response = requests.get(SEC_COMPANY_TICKERS_URL, headers=REQUEST_HEADERS, timeout=30)
+        response = requests.get(SEC_COMPANY_TICKERS_URL, headers=SEC_WWW_HEADERS, timeout=30)
         response.raise_for_status()
 
         tickers_data = response.json()
@@ -90,7 +102,7 @@ def fetch_company_submissions(cik: str) -> dict | None:
     try:
         rate_limit_request()
         submissions_url = f"{SEC_SUBMISSIONS_URL}/CIK{cik}.json"
-        response = requests.get(submissions_url, headers=REQUEST_HEADERS, timeout=30)
+        response = requests.get(submissions_url, headers=SEC_DATA_HEADERS, timeout=30)
         response.raise_for_status()
 
         return response.json()
@@ -173,7 +185,7 @@ def fetch_filing_document_content(cik: str, accession_number: str, primary_docum
         document_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession_no_dashes}/{primary_document}"
 
         rate_limit_request()
-        response = requests.get(document_url, headers=REQUEST_HEADERS, timeout=30)
+        response = requests.get(document_url, headers=SEC_WWW_HEADERS, timeout=30)
         response.raise_for_status()
 
         # Parse HTML content to extract text
