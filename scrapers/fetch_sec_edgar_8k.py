@@ -160,11 +160,44 @@ def get_recent_8k_filings(days_back=1):
                             "form_type": "8-K"
                         }
 
-                        # Extract company name from title
+                        # Extract company name and additional metadata from title
                         title_text = filing_info["title"]
                         if " - " in title_text:
                             company_part = title_text.split(" - ")[0]
                             filing_info["company_name"] = company_part.strip()
+
+                        # Extract CIK, ticker, and other metadata from summary if available
+                        summary_text = filing_info.get("summary", "")
+                        if summary_text:
+                            # Extract CIK (Central Index Key)
+                            import re
+                            cik_match = re.search(r'CIK:\s*(\d+)', summary_text)
+                            if cik_match:
+                                filing_info["cik"] = cik_match.group(1).zfill(10)  # Pad to 10 digits
+
+                            # Extract accession number
+                            accession_match = re.search(r'Accession Number:\s*([0-9-]+)', summary_text)
+                            if accession_match:
+                                filing_info["accession_number"] = accession_match.group(1)
+
+                            # Extract file size
+                            size_match = re.search(r'Size:\s*(\d+)', summary_text)
+                            if size_match:
+                                filing_info["file_size"] = int(size_match.group(1))
+
+                        # Extract additional metadata from document URL
+                        doc_url = filing_info.get("document_url", "")
+                        if doc_url:
+                            # Extract accession number from URL if not found in summary
+                            if "accession_number" not in filing_info:
+                                url_accession_match = re.search(r'/([0-9-]+)/', doc_url)
+                                if url_accession_match:
+                                    filing_info["accession_number"] = url_accession_match.group(1)
+
+                            # Extract primary document name
+                            primary_doc_match = re.search(r'/([^/]+\.htm?)$', doc_url)
+                            if primary_doc_match:
+                                filing_info["primary_document"] = primary_doc_match.group(1)
 
                         # Check if filing is recent
                         if is_recent_filing(filing_info.get("filing_date", ""), days_back):
@@ -468,6 +501,45 @@ def extract_filing_metadata(text_content):
 
     return metadata
 
+def extract_affected_individuals_from_content(text_content: str) -> int | None:
+    """
+    Extract the number of affected individuals from SEC filing content.
+
+    Args:
+        text_content (str): Full text of the filing.
+
+    Returns:
+        int | None: Number of affected individuals or None if not found.
+    """
+    if not text_content:
+        return None
+
+    try:
+        # Common patterns for affected individuals in SEC filings
+        patterns = [
+            r'(?:affecting|involving|impacting)\s+(?:approximately\s+)?(\d+(?:,\d+)*)\s+(?:individuals?|customers?|users?|people|persons)',
+            r'(\d+(?:,\d+)*)\s+(?:individuals?|customers?|users?|people|persons)\s+(?:were\s+)?(?:affected|impacted|involved)',
+            r'(?:data\s+of\s+)?(?:approximately\s+)?(\d+(?:,\d+)*)\s+(?:individuals?|customers?|users?)',
+            r'(?:personal\s+information\s+of\s+)?(?:approximately\s+)?(\d+(?:,\d+)*)\s+(?:individuals?|customers?)',
+            r'breach\s+(?:affecting|involving)\s+(?:approximately\s+)?(\d+(?:,\d+)*)',
+            r'incident\s+(?:affecting|involving)\s+(?:approximately\s+)?(\d+(?:,\d+)*)'
+        ]
+
+        for pattern in patterns:
+            matches = re.findall(pattern, text_content, re.IGNORECASE)
+            if matches:
+                # Take the first match and convert to integer
+                number_str = matches[0].replace(',', '')
+                try:
+                    return int(number_str)
+                except ValueError:
+                    continue
+
+    except Exception as e:
+        logger.error(f"Error extracting affected individuals: {e}")
+
+    return None
+
 def search_text_for_keywords(text: str, keywords: list) -> list:
     """Searches text for keywords (case-insensitive) and returns found keywords."""
     if not text:
@@ -596,22 +668,55 @@ def process_edgar_filings():
                     first_context = keyword_contexts[0]["context"]
                     summary_snippet = f"...{first_context[:300]}..."
 
-                # Prepare data for insertion
+                # Extract structured data for dedicated fields
+                filing_date_only = None
+                if filing.get("filing_date"):
+                    try:
+                        filing_date_only = filing["filing_date"][:10]  # Extract YYYY-MM-DD
+                    except:
+                        filing_date_only = filing.get("filing_date")
+
+                # Extract affected individuals count from cybersecurity content
+                affected_individuals = extract_affected_individuals_from_content(content_data.get("full_text", ""))
+
+                # Prepare data for insertion with structured fields
                 item_data = {
                     "source_id": SOURCE_ID_SEC_EDGAR_8K,
                     "item_url": filing.get("document_url", ""),
                     "title": f"SEC 8-K: {company_name} - Cybersecurity Filing",
                     "publication_date": filing.get("filing_date", datetime.now().isoformat()),
                     "summary_text": summary_snippet,
+
+                    # NEW: Populate dedicated structured fields
+                    "affected_individuals": affected_individuals,  # Number of people affected
+                    "breach_date": filing_date_only,  # Use filing date as breach disclosure date
+                    "reported_date": filing_date_only,  # SEC filing date
+                    "notice_document_url": filing.get("document_url", ""),  # Direct link to 8-K filing
+
+                    # Enhanced raw data with all SEC-specific information
                     "raw_data_json": {
                         "company_name": company_name,
+                        "cik": filing.get("cik", ""),
+                        "ticker": filing.get("ticker", ""),
+                        "accession_number": filing.get("accession_number", ""),
                         "filing_date": filing.get("filing_date", ""),
+                        "report_date": filing.get("report_date", ""),
                         "form_type": filing.get("form_type", "8-K"),
+                        "items": filing.get("items", ""),
+                        "file_size": filing.get("file_size", 0),
+                        "primary_document": filing.get("primary_document", ""),
+
+                        # Cybersecurity analysis results
                         "keywords_found": found_keywords,
                         "cybersecurity_keyword_count": cyber_data.get("cybersecurity_keyword_count", 0),
+                        "cybersecurity_reason": f"8-K Item {filing.get('items', '')}; Keywords: {', '.join(found_keywords[:3])}",
                         "keyword_contexts": keyword_contexts[:5],  # First 5 contexts
                         "item_105_content": cyber_data.get("item_105_content", ""),
-                        "dates_mentioned": cyber_data.get("dates_mentioned", [])
+                        "dates_mentioned": cyber_data.get("dates_mentioned", []),
+
+                        # Additional metadata
+                        "business_description": cyber_data.get("business_description", ""),
+                        "industry_description": cyber_data.get("industry_description", "")
                     },
                     "tags_keywords": ["sec_filing", "8-k", "cybersecurity"] + [kw.lower().replace(" ", "_") for kw in found_keywords[:5]]
                 }
