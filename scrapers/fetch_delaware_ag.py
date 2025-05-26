@@ -108,6 +108,36 @@ def extract_organization_name(cell) -> str:
 
     return ""
 
+def parse_affected_individuals(affected_text: str) -> int | None:
+    """
+    Parse the affected individuals count from text.
+    Handles formats like "1,023", "14,255", "N/A", etc.
+    """
+    if not affected_text or affected_text.strip().lower() in ['n/a', 'unknown', 'pending', 'tbd', 'not specified']:
+        return None
+
+    # Remove commas and extract numbers
+    import re
+    numbers = re.findall(r'[\d,]+', affected_text.strip())
+    if numbers:
+        try:
+            # Take the first number found, remove commas
+            number_str = numbers[0].replace(',', '')
+            return int(number_str)
+        except ValueError:
+            pass
+
+    return None
+
+def parse_date_to_date_only(date_str: str) -> str | None:
+    """
+    Parse a date string and return just the date part (YYYY-MM-DD).
+    """
+    iso_date = parse_date_delaware(date_str)
+    if iso_date:
+        return iso_date.split('T')[0]  # Extract just the date part
+    return None
+
 def process_delaware_ag_breaches():
     """
     Fetches Delaware AG security breach notifications, processes each notification,
@@ -202,6 +232,10 @@ def process_delaware_ag_breaches():
                 skipped_count += 1
                 continue
 
+            # Parse structured data for dedicated fields
+            affected_individuals = parse_affected_individuals(residents_affected_text)
+            breach_date_only = parse_date_to_date_only(date_of_breach_str)
+            reported_date_only = parse_date_to_date_only(reported_date_str)
 
             raw_data = {
                 "organization_name": entity_name,
@@ -240,7 +274,12 @@ def process_delaware_ag_breaches():
                 "publication_date": publication_date_iso,
                 "summary_text": summary.strip(),
                 "raw_data_json": raw_data_json,
-                "tags_keywords": ["delaware_ag", "de_breach", "data_breach"]
+                "tags_keywords": ["delaware_ag", "de_breach", "data_breach"],
+                # New dedicated fields
+                "affected_individuals": affected_individuals,
+                "breach_date": breach_date_only,
+                "reported_date": reported_date_only,
+                "notice_document_url": item_specific_url if item_specific_url else None
             }
 
             # Check for existing record before inserting

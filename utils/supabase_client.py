@@ -13,7 +13,7 @@ class SupabaseClient:
         self.client: Client = create_client(url, key)
         logger.info("Supabase client initialized.")
 
-    def insert_item(self, source_id: int, item_url: str, title: str, publication_date: str, summary_text: str = None, full_content: str = None, raw_data_json: dict = None, tags_keywords: list = None):
+    def insert_item(self, source_id: int, item_url: str, title: str, publication_date: str, summary_text: str = None, full_content: str = None, raw_data_json: dict = None, tags_keywords: list = None, affected_individuals: int = None, breach_date: str = None, reported_date: str = None, notice_document_url: str = None):
         """
         Inserts a single item into the scraped_items table.
         publication_date should be an ISO 8601 string.
@@ -28,6 +28,10 @@ class SupabaseClient:
                 "full_content": full_content,
                 "raw_data_json": raw_data_json,
                 "tags_keywords": tags_keywords,
+                "affected_individuals": affected_individuals,
+                "breach_date": breach_date,
+                "reported_date": reported_date,
+                "notice_document_url": notice_document_url,
                 # scraped_at and created_at have defaults in the DB
             }
             # Remove keys where value is None to rely on DB defaults or avoid inserting nulls unnecessarily for optional fields
