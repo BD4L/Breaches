@@ -679,44 +679,53 @@ def process_edgar_filings():
                 # Extract affected individuals count from cybersecurity content
                 affected_individuals = extract_affected_individuals_from_content(content_data.get("full_text", ""))
 
-                # Prepare data for insertion with structured fields
+                # Prepare data for insertion with STANDARDIZED CROSS-PORTAL FIELDS
                 item_data = {
                     "source_id": SOURCE_ID_SEC_EDGAR_8K,
                     "item_url": filing.get("document_url", ""),
-                    "title": f"SEC 8-K: {company_name} - Cybersecurity Filing",
+                    "title": company_name,  # STANDARDIZED: Entity name only (consistent with other portals)
                     "publication_date": filing.get("filing_date", datetime.now().isoformat()),
                     "summary_text": summary_snippet,
 
-                    # NEW: Populate dedicated structured fields
-                    "affected_individuals": affected_individuals,  # Number of people affected
-                    "breach_date": filing_date_only,  # Use filing date as breach disclosure date
-                    "reported_date": filing_date_only,  # SEC filing date
-                    "notice_document_url": filing.get("document_url", ""),  # Direct link to 8-K filing
+                    # STANDARDIZED CROSS-PORTAL FIELDS (aligned with Delaware AG, California AG, etc.)
+                    "affected_individuals": affected_individuals,  # Number of people affected (consistent across all portals)
+                    "breach_date": filing_date_only,  # When incident occurred (consistent with state AG portals)
+                    "reported_date": filing_date_only,  # When reported to authority (SEC filing date)
+                    "notice_document_url": filing.get("document_url", ""),  # Link to official notice document
 
-                    # Enhanced raw data with all SEC-specific information
+                    # Enhanced raw data with SEC-specific information (following portal standards)
                     "raw_data_json": {
-                        "company_name": company_name,
-                        "cik": filing.get("cik", ""),
-                        "ticker": filing.get("ticker", ""),
-                        "accession_number": filing.get("accession_number", ""),
-                        "filing_date": filing.get("filing_date", ""),
-                        "report_date": filing.get("report_date", ""),
-                        "form_type": filing.get("form_type", "8-K"),
-                        "items": filing.get("items", ""),
-                        "file_size": filing.get("file_size", 0),
-                        "primary_document": filing.get("primary_document", ""),
+                        # STANDARDIZED FIELDS (consistent with other portals)
+                        "organization_name": company_name,  # Matches Delaware AG format
+                        "filing_date": filing.get("filing_date", ""),  # Original date string
+                        "reported_date": filing.get("filing_date", ""),  # When reported to SEC
+                        "affected_individuals_extracted": affected_individuals,  # Parsed count
+                        "notice_document_link": filing.get("document_url", ""),  # Official document
 
-                        # Cybersecurity analysis results
-                        "keywords_found": found_keywords,
+                        # SEC-SPECIFIC FIELDS
+                        "cik": filing.get("cik", ""),  # Central Index Key
+                        "ticker_symbol": filing.get("ticker", ""),  # Stock ticker
+                        "accession_number": filing.get("accession_number", ""),  # Unique filing ID
+                        "form_type": filing.get("form_type", "8-K"),  # SEC form type
+                        "items_disclosed": filing.get("items", ""),  # 8-K items (1.05, 8.01, etc.)
+                        "file_size_bytes": filing.get("file_size", 0),  # Document size
+                        "primary_document_filename": filing.get("primary_document", ""),  # Main file
+
+                        # CYBERSECURITY ANALYSIS RESULTS
+                        "keywords_detected": found_keywords,  # All keywords found
                         "cybersecurity_keyword_count": cyber_data.get("cybersecurity_keyword_count", 0),
-                        "cybersecurity_reason": f"8-K Item {filing.get('items', '')}; Keywords: {', '.join(found_keywords[:3])}",
-                        "keyword_contexts": keyword_contexts[:5],  # First 5 contexts
-                        "item_105_content": cyber_data.get("item_105_content", ""),
-                        "dates_mentioned": cyber_data.get("dates_mentioned", []),
+                        "cybersecurity_detection_reason": f"8-K Item {filing.get('items', '')}; Keywords: {', '.join(found_keywords[:3])}",
+                        "keyword_contexts": keyword_contexts[:5],  # Context around keywords
+                        "item_105_content_extract": cyber_data.get("item_105_content", ""),  # Material cybersecurity incidents
+                        "incident_dates_mentioned": cyber_data.get("dates_mentioned", []),  # Dates found in filing
 
-                        # Additional metadata
+                        # BUSINESS CONTEXT
                         "business_description": cyber_data.get("business_description", ""),
-                        "industry_description": cyber_data.get("industry_description", "")
+                        "industry_classification": cyber_data.get("industry_description", ""),
+
+                        # METADATA
+                        "source_portal": "SEC EDGAR",
+                        "data_extraction_method": "RSS feed + content analysis"
                     },
                     "tags_keywords": ["sec_filing", "8-k", "cybersecurity"] + [kw.lower().replace(" ", "_") for kw in found_keywords[:5]]
                 }
