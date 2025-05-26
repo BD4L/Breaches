@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project aggregates data related to data breaches, security incidents, and cybersecurity vulnerabilities from a wide array of sources. These sources include government portals (like SEC EDGAR and State Attorney General websites), cybersecurity news RSS feeds, direct API integrations (e.g., HIBP, NVD, CISA KEV), company investor relations pages, and custom scraping solutions (like using Apify for specific state data).
+This project aggregates data related to data breaches and security incidents from a wide array of sources. These sources include government portals (like SEC EDGAR and State Attorney General websites), cybersecurity news RSS feeds, direct API integrations (e.g., HIBP, CISA KEV), company investor relations pages, and custom scraping solutions (like using Apify for specific state data).
 
 The collected data is standardized and stored in a Supabase PostgreSQL database. A simple, read-only web interface, hosted via GitHub Pages, provides a dashboard to view the aggregated breach information. The entire data collection process is automated using GitHub Actions, which run the scraper scripts daily.
 
@@ -16,7 +16,7 @@ The collected data is standardized and stored in a Supabase PostgreSQL database.
     *   Cybersecurity News RSS Feeds (10 sources, configurable)
     *   Company Investor Relations (IR) News Sections (5 major tech companies, configurable)
     *   Specialized Breach Listing Sites (Privacy Rights Clearinghouse, BreachSense)
-    *   Vulnerability Databases via API (HIBP, CISA KEV, NVD)
+    *   Breach Databases via API (HIBP, CISA KEV)
     *   Custom Scraper Integrations (e.g., Texas AG data via Apify)
 *   **Automated Collection:** Daily data updates via a GitHub Actions workflow.
 *   **Centralized Storage:** Uses Supabase (PostgreSQL) for robust and accessible data storage.
@@ -31,7 +31,6 @@ The project gathers data from several categories:
     *   SEC EDGAR 8-K Filings (for material cybersecurity incidents)
     *   HHS OCR Breach Portal (healthcare breaches)
     *   CISA Known Exploited Vulnerabilities (KEV) Catalog (via JSON feed)
-    *   NVD National Vulnerability Database (via API)
 *   **US State Attorney General Portals & Similar:**
     *   California, Delaware, Hawaii, Indiana, Iowa, Maine, Maryland, Massachusetts, Montana, New Hampshire, New Jersey (Cybersecurity), North Dakota, Oklahoma (Cybersecurity), Texas (via Apify actor), Vermont, Wisconsin (DATCP).
 *   **Cybersecurity News & Reporting Sites:**
@@ -111,8 +110,7 @@ pip install -r requirements.txt
       *   31-35: Company IR Sites (from `config.yaml`)
       *   36: Have I Been Pwned (HIBP) API
       *   37: CISA KEV Catalog
-      *   38: NVD API
-      *   39: Texas AG (via Apify)
+      *   38: Texas AG (via Apify)
 
     **`scraped_items` Table:**
     This table stores the actual breach/vulnerability records.
@@ -147,12 +145,11 @@ SUPABASE_SERVICE_KEY="your_supabase_service_role_key"
 # Required for HIBP API scraper
 HIBP_API_KEY="your_hibp_api_key"
 
-# Optional, but recommended for NVD API scraper (higher rate limits)
-NVD_API_KEY="your_nvd_api_key"
+
 
 # Required for Apify integration (Texas scraper)
 APIFY_API_TOKEN="your_apify_api_token"
-APIFY_TEXAS_BREACH_ACTOR_ID="your_apify_actor_id_for_texas_data" 
+APIFY_TEXAS_BREACH_ACTOR_ID="your_apify_actor_id_for_texas_data"
 ```
 **Important:** Ensure `.env` is listed in your `.gitignore` file to prevent committing secrets.
 
@@ -163,7 +160,6 @@ For the GitHub Actions workflow to run successfully, configure the following sec
 *   `SUPABASE_URL`: Your Supabase project URL.
 *   `SUPABASE_SERVICE_KEY`: Your Supabase service_role key.
 *   `HIBP_API_KEY`: Your Have I Been Pwned API key.
-*   `NVD_API_KEY`: Your NVD API key (optional, but recommended).
 *   `APIFY_API_TOKEN`: Your Apify API token.
 *   `APIFY_TEXAS_BREACH_ACTOR_ID`: The ID of your Apify actor for Texas data.
 
@@ -175,7 +171,7 @@ You can run individual scraper scripts from the project root directory:
 # Example:
 python scrapers/fetch_sec_edgar_8k.py
 python scrapers/fetch_hhs_ocr.py
-python scrapers/fetch_cybersecurity_news.py 
+python scrapers/fetch_cybersecurity_news.py
 # ...and so on for other scrapers.
 ```
 Ensure your environment variables are set (e.g., loaded from `.env` if you use a library like `python-dotenv`, or set manually in your shell).

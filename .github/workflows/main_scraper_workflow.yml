@@ -12,7 +12,6 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       HIBP_API_KEY: ${{ secrets.HIBP_API_KEY }}
-      NVD_API_KEY: ${{ secrets.NVD_API_KEY }} # Optional, but good to include
       APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
       APIFY_TEXAS_BREACH_ACTOR_ID: ${{ secrets.APIFY_TEXAS_BREACH_ACTOR_ID }}
       PYTHONUNBUFFERED: "1" # Ensures print statements appear in the GitHub Actions logs immediately
@@ -24,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10' 
+          python-version: '3.10'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -53,7 +52,7 @@ jobs:
 
       - name: Run Iowa AG Scraper
         run: python scrapers/fetch_ia_ag.py
-      
+
       - name: Run Maine AG Scraper
         run: python scrapers/fetch_me_ag.py
 
@@ -104,9 +103,6 @@ jobs:
 
       - name: Run CISA KEV Scraper
         run: python scrapers/fetch_cisa_kev.py
-
-      - name: Run NVD API Scraper
-        run: python scrapers/fetch_nvd_api.py
 
       # --- Apify Integration Scraper ---
       - name: Run Texas Apify Scraper

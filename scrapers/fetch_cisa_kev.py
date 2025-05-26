@@ -2,7 +2,7 @@ import os
 import logging
 import requests
 from datetime import datetime
-from urllib.parse import urljoin 
+from urllib.parse import urljoin
 from dateutil import parser as dateutil_parser
 
 # Assuming SupabaseClient is in utils.supabase_client
@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 # Constants
 CISA_KEV_JSON_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 SOURCE_ID_CISA_KEV = 37
-NVD_BASE_URL = "https://nvd.nist.gov/vuln/detail/"
 CVE_ORG_BASE_URL = "https://www.cve.org/CVERecord?id="
 
 # Headers for requests
@@ -60,7 +59,7 @@ def process_cisa_kev_vulnerabilities():
     try:
         response = requests.get(CISA_KEV_JSON_URL, headers=REQUEST_HEADERS, timeout=30)
         response.raise_for_status() # Raise an exception for bad status codes
-        
+
         kev_data_full = response.json()
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from CISA KEV JSON feed ({CISA_KEV_JSON_URL}): {e}", exc_info=True)
@@ -73,7 +72,7 @@ def process_cisa_kev_vulnerabilities():
     # Let's inspect the structure or assume a common one.
     # Based on CISA's documentation, it's usually:
     # { "title": "...", "catalogVersion": "...", "dateReleased": "...", "count": X, "vulnerabilities": [...] }
-    
+
     vulnerabilities_list = kev_data_full.get("vulnerabilities")
     if vulnerabilities_list is None: # Handle if the key name changes or is missing
         # Try to find a list among the values if the structure is flat or key is unknown
@@ -116,9 +115,8 @@ def process_cisa_kev_vulnerabilities():
                 skipped_count += 1
                 continue
 
-            # Construct item_url (prefer NVD for more comprehensive details)
-            item_url = urljoin(NVD_BASE_URL, cve_id) 
-            # Alternative: item_url = urljoin(CVE_ORG_BASE_URL, cve_id)
+            # Construct item_url using CVE.org for vulnerability details
+            item_url = urljoin(CVE_ORG_BASE_URL, cve_id)
 
             title = f"CISA KEV: {cve_id} - {vulnerability_name}"
             if product and product.lower() not in vulnerability_name.lower(): # Add product if not redundant
@@ -130,7 +128,7 @@ def process_cisa_kev_vulnerabilities():
                 logger.warning(f"Skipping KEV entry for '{cve_id}' due to unparsable dateAdded: '{date_added_str}'.")
                 skipped_count +=1
                 continue
-            
+
             due_date_iso = parse_date_cisa_kev(due_date_str) # Optional, might be null
 
             raw_data = {
@@ -153,7 +151,7 @@ def process_cisa_kev_vulnerabilities():
             if cve_id and cve_id.startswith("CVE-"):
                 try: tags.append(f"cve_{cve_id.split('-')[1]}")
                 except IndexError: pass # In case CVE format is unexpected
-            
+
             tags = list(set(tags)) # Ensure unique tags
 
 
@@ -166,7 +164,7 @@ def process_cisa_kev_vulnerabilities():
                 "raw_data_json": raw_data_json,
                 "tags_keywords": tags
             }
-            
+
             # TODO: Implement check for existing record before inserting (e.g., by cve_id in raw_data_json and source_id)
             # Example: query_result = supabase_client.client.table("scraped_items").select("id").eq("raw_data_json->>cve_id", cve_id).eq("source_id", SOURCE_ID_CISA_KEV).execute()
             # if query_result.data: logger.info(f"CISA KEV item for '{cve_id}' already exists. Skipping."); skipped_count +=1; continue
@@ -186,7 +184,7 @@ def process_cisa_kev_vulnerabilities():
 
 if __name__ == "__main__":
     logger.info("CISA KEV JSON Feed Scraper Started")
-    
+
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
@@ -195,5 +193,5 @@ if __name__ == "__main__":
     else:
         logger.info("Supabase environment variables seem to be set.")
         process_cisa_kev_vulnerabilities()
-        
+
     logger.info("CISA KEV JSON Feed Scraper Finished")
