@@ -74,6 +74,9 @@ CYBERSECURITY_KEYWORDS = [
     "data security incident"
 ]
 
+# 8-K Item codes related to cybersecurity (Item 1.05 and 8.01 are common)
+CYBERSECURITY_8K_ITEMS = ["1.05", "8.01"]
+
 # Source ID for SEC EDGAR 8-K
 SOURCE_ID_SEC_EDGAR_8K = 1
 
@@ -222,15 +225,34 @@ def is_recent_filing(date_str, days_back):
 
     try:
         # Parse various date formats from SEC
+        filing_date = None
+
         if 'T' in date_str:
+            # ISO format with time
             filing_date = datetime.fromisoformat(date_str.replace('Z', '+00:00')).date()
+        elif '-' in date_str and len(date_str) >= 10:
+            # YYYY-MM-DD format
+            filing_date = datetime.strptime(date_str[:10], '%Y-%m-%d').date()
         else:
-            filing_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            # Try other common formats
+            for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
+                try:
+                    filing_date = datetime.strptime(date_str, fmt).date()
+                    break
+                except:
+                    continue
 
-        cutoff_date = (datetime.now() - timedelta(days=days_back)).date()
-        return filing_date >= cutoff_date
+        if filing_date:
+            cutoff_date = (datetime.now() - timedelta(days=days_back)).date()
+            is_recent = filing_date >= cutoff_date
+            logger.debug(f"Date check: {date_str} -> {filing_date} >= {cutoff_date} = {is_recent}")
+            return is_recent
+        else:
+            logger.warning(f"Could not parse date: {date_str}")
+            return True  # If parsing fails, assume recent
 
-    except:
+    except Exception as e:
+        logger.warning(f"Error parsing date '{date_str}': {e}")
         return True  # If parsing fails, assume recent
 
 def extract_filing_content(document_url):
@@ -276,6 +298,175 @@ def extract_filing_content(document_url):
         logger.error(f"Error extracting filing content: {e}")
 
     return content_data
+
+def extract_cybersecurity_sections(text_content):
+    """
+    Extract cybersecurity-specific sections from 8-K filing.
+
+    Args:
+        text_content (str): Full text of the filing.
+
+    Returns:
+        dict: Extracted cybersecurity information.
+    """
+    cyber_data = {}
+
+    try:
+        # Check if this is a cybersecurity-related filing with context extraction
+        cyber_score = 0
+        found_keywords = []
+        keyword_contexts = []
+
+        # Extract context around each keyword match
+        for keyword in CYBERSECURITY_KEYWORDS:
+            if keyword.lower() in text_content.lower():
+                cyber_score += 1
+                found_keywords.append(keyword)
+
+                # Extract context around this keyword
+                contexts = extract_keyword_context(text_content, keyword)
+                for context in contexts:
+                    keyword_contexts.append({
+                        "keyword": keyword,
+                        "context": context["context"],
+                        "position": context["position"],
+                        "before_words": context["before_words"],
+                        "after_words": context["after_words"]
+                    })
+
+        cyber_data["cybersecurity_keyword_count"] = cyber_score
+        cyber_data["cybersecurity_keywords_found"] = found_keywords[:10]  # First 10
+        cyber_data["keyword_contexts"] = keyword_contexts[:20]  # First 20 contexts
+
+        # Special case: if "item 1.05" is found, it's definitely cybersecurity
+        has_item_105 = "item 1.05" in text_content.lower()
+        cyber_data["is_cybersecurity_related"] = has_item_105 or cyber_score >= 1
+
+        if cyber_score >= 2:
+            # Extract Item 1.05 section (Material Cybersecurity Incidents)
+            item_105_pattern = r"item\s+1\.05[^a-z]*?([^<]*?)(?=item\s+\d|signature|</text>)"
+            item_105_match = re.search(item_105_pattern, text_content, re.IGNORECASE | re.DOTALL)
+
+            if item_105_match:
+                cyber_data["item_105_content"] = item_105_match.group(1).strip()[:2000]  # Limit length
+
+            # Extract incident description patterns
+            incident_patterns = [
+                r"(?:incident|breach|attack)\s+(?:description|details?):\s*([^.]{100,500})",
+                r"(?:on|around)\s+([A-Za-z]+ \d{1,2},? \d{4})[^.]*(?:incident|breach|attack)",
+                r"(?:affecting|involving)\s+(?:approximately\s+)?(\d+(?:,\d+)*)\s+(?:individuals?|customers?|records?)",
+                r"(?:types?\s+of\s+)?(?:information|data)\s+(?:involved|affected|compromised):\s*([^.]{50,300})"
+            ]
+
+            for i, pattern in enumerate(incident_patterns):
+                match = re.search(pattern, text_content, re.IGNORECASE | re.DOTALL)
+                if match:
+                    cyber_data[f"incident_detail_{i+1}"] = match.group(1).strip()[:300]
+
+            # Extract dates mentioned in the filing
+            date_pattern = r'([A-Za-z]+ \d{1,2},? \d{4})'
+            dates_found = re.findall(date_pattern, text_content)
+            if dates_found:
+                cyber_data["dates_mentioned"] = list(set(dates_found))[:10]  # First 10 unique dates
+
+    except Exception as e:
+        logger.error(f"Error extracting cybersecurity sections: {e}")
+
+    return cyber_data
+
+def extract_keyword_context(text_content, keyword, context_words=10):
+    """
+    Extract context around keyword matches (10 words before and after).
+
+    Args:
+        text_content (str): Full text content to search
+        keyword (str): Keyword to find
+        context_words (int): Number of words before and after to extract
+
+    Returns:
+        list: List of context dictionaries for each match
+    """
+    contexts = []
+
+    try:
+        # Clean text for better word splitting
+        clean_text = re.sub(r'<[^>]+>', ' ', text_content)  # Remove HTML tags
+        clean_text = re.sub(r'\s+', ' ', clean_text)  # Normalize whitespace
+
+        # Split into words
+        words = clean_text.split()
+
+        # Find all occurrences of the keyword
+        keyword_lower = keyword.lower()
+
+        for i, word in enumerate(words):
+            # Check if this word (or sequence of words) matches the keyword
+            if keyword_lower in ' '.join(words[i:i+len(keyword.split())]).lower():
+                # Calculate context boundaries
+                start_idx = max(0, i - context_words)
+                end_idx = min(len(words), i + len(keyword.split()) + context_words)
+
+                # Extract before and after words
+                before_words = words[start_idx:i]
+                keyword_words = words[i:i+len(keyword.split())]
+                after_words = words[i+len(keyword.split()):end_idx]
+
+                # Create context string
+                context_text = ' '.join(before_words + ['**' + ' '.join(keyword_words) + '**'] + after_words)
+
+                context_info = {
+                    "context": context_text[:500],  # Limit length
+                    "position": i,
+                    "before_words": ' '.join(before_words[-context_words:]),  # Last N words before
+                    "after_words": ' '.join(after_words[:context_words])      # First N words after
+                }
+
+                contexts.append(context_info)
+
+                # Limit to 5 contexts per keyword to avoid overwhelming data
+                if len(contexts) >= 5:
+                    break
+
+    except Exception as e:
+        logger.error(f"Error extracting context for '{keyword}': {e}")
+
+    return contexts
+
+def extract_filing_metadata(text_content):
+    """
+    Extract general metadata from the filing.
+
+    Args:
+        text_content (str): Full text of the filing.
+
+    Returns:
+        dict: Extracted metadata.
+    """
+    metadata = {}
+
+    try:
+        # Extract business description
+        business_pattern = r"business\s+(?:description|overview):\s*([^<]{200,1000})"
+        business_match = re.search(business_pattern, text_content, re.IGNORECASE | re.DOTALL)
+        if business_match:
+            metadata["business_description"] = business_match.group(1).strip()[:500]
+
+        # Extract industry information
+        industry_pattern = r"(?:industry|sector|business):\s*([^<]{50,200})"
+        industry_match = re.search(industry_pattern, text_content, re.IGNORECASE)
+        if industry_match:
+            metadata["industry_description"] = industry_match.group(1).strip()[:200]
+
+        # Extract filing date from content
+        filing_date_pattern = r"filing\s+date:\s*(\d{4}-\d{2}-\d{2})"
+        filing_date_match = re.search(filing_date_pattern, text_content, re.IGNORECASE)
+        if filing_date_match:
+            metadata["content_filing_date"] = filing_date_match.group(1)
+
+    except Exception as e:
+        logger.error(f"Error extracting filing metadata: {e}")
+
+    return metadata
 
 def search_text_for_keywords(text: str, keywords: list) -> list:
     """Searches text for keywords (case-insensitive) and returns found keywords."""
@@ -360,7 +551,7 @@ def process_edgar_filings():
 
     # Get recent 8-K filings from ALL companies using RSS feed
     logger.info("Fetching recent 8-K filings from SEC RSS feed...")
-    recent_filings = get_recent_8k_filings(days_back=2)  # Get last 2 days of filings
+    recent_filings = get_recent_8k_filings(days_back=7)  # Get last 7 days of filings
 
     if not recent_filings:
         logger.warning("No recent 8-K filings found")
