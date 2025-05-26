@@ -13,13 +13,22 @@ class SupabaseClient:
         self.client: Client = create_client(url, key)
         logger.info("Supabase client initialized.")
 
-    def insert_item(self, source_id: int, item_url: str, title: str, publication_date: str, summary_text: str = None, full_content: str = None, raw_data_json: dict = None, tags_keywords: list = None, affected_individuals: int = None, breach_date: str = None, reported_date: str = None, notice_document_url: str = None):
+    def insert_item(self, source_id: int, item_url: str, title: str, publication_date: str, summary_text: str = None, full_content: str = None, raw_data_json: dict = None, tags_keywords: list = None, affected_individuals: int = None, breach_date: str = None, reported_date: str = None, notice_document_url: str = None,
+                    # SEC-specific fields
+                    cik: str = None, ticker_symbol: str = None, accession_number: str = None, form_type: str = None, filing_date: str = None, report_date: str = None, primary_document_url: str = None, xbrl_instance_url: str = None,
+                    items_disclosed: list = None, is_cybersecurity_related: bool = None, is_amendment: bool = None, is_delayed_disclosure: bool = None,
+                    incident_nature_text: str = None, incident_scope_text: str = None, incident_timing_text: str = None, incident_impact_text: str = None, incident_unknown_details_text: str = None,
+                    incident_discovery_date: str = None, incident_disclosure_date: str = None, incident_containment_date: str = None,
+                    estimated_cost_min: float = None, estimated_cost_max: float = None, estimated_cost_currency: str = None, data_types_compromised: list = None,
+                    exhibit_urls: list = None, keywords_detected: list = None, keyword_contexts: dict = None, file_size_bytes: int = None,
+                    business_description: str = None, industry_classification: str = None):
         """
         Inserts a single item into the scraped_items table.
         publication_date should be an ISO 8601 string.
         """
         try:
             data_to_insert = {
+                # Core fields
                 "source_id": source_id,
                 "item_url": item_url,
                 "title": title,
@@ -28,10 +37,44 @@ class SupabaseClient:
                 "full_content": full_content,
                 "raw_data_json": raw_data_json,
                 "tags_keywords": tags_keywords,
+
+                # Standardized breach fields
                 "affected_individuals": affected_individuals,
                 "breach_date": breach_date,
                 "reported_date": reported_date,
                 "notice_document_url": notice_document_url,
+
+                # SEC-specific fields
+                "cik": cik,
+                "ticker_symbol": ticker_symbol,
+                "accession_number": accession_number,
+                "form_type": form_type,
+                "filing_date": filing_date,
+                "report_date": report_date,
+                "primary_document_url": primary_document_url,
+                "xbrl_instance_url": xbrl_instance_url,
+                "items_disclosed": items_disclosed,
+                "is_cybersecurity_related": is_cybersecurity_related,
+                "is_amendment": is_amendment,
+                "is_delayed_disclosure": is_delayed_disclosure,
+                "incident_nature_text": incident_nature_text,
+                "incident_scope_text": incident_scope_text,
+                "incident_timing_text": incident_timing_text,
+                "incident_impact_text": incident_impact_text,
+                "incident_unknown_details_text": incident_unknown_details_text,
+                "incident_discovery_date": incident_discovery_date,
+                "incident_disclosure_date": incident_disclosure_date,
+                "incident_containment_date": incident_containment_date,
+                "estimated_cost_min": estimated_cost_min,
+                "estimated_cost_max": estimated_cost_max,
+                "estimated_cost_currency": estimated_cost_currency,
+                "data_types_compromised": data_types_compromised,
+                "exhibit_urls": exhibit_urls,
+                "keywords_detected": keywords_detected,
+                "keyword_contexts": keyword_contexts,
+                "file_size_bytes": file_size_bytes,
+                "business_description": business_description,
+                "industry_classification": industry_classification,
                 # scraped_at and created_at have defaults in the DB
             }
             # Remove keys where value is None to rely on DB defaults or avoid inserting nulls unnecessarily for optional fields

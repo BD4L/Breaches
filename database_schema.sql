@@ -28,17 +28,63 @@ CREATE TABLE scraped_items (
     raw_data_json JSONB, -- Store original or additional data from source
     tags_keywords TEXT[], -- Array of tags/keywords
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     -- STANDARDIZED BREACH FIELDS (added for cross-portal analysis)
     affected_individuals INTEGER, -- Number of people affected
     breach_date DATE, -- When incident occurred (or TEXT for unparseable dates)
     reported_date DATE, -- When reported to authority (or TEXT for unparseable dates)
-    notice_document_url TEXT -- Link to official notice document
+    notice_document_url TEXT, -- Link to official notice document
+
+    -- SEC-SPECIFIC FIELDS (Enhanced for comprehensive SEC data extraction)
+    -- Core Filing Metadata
+    cik TEXT, -- Central Index Key (company identifier)
+    ticker_symbol TEXT, -- Stock ticker
+    accession_number TEXT, -- Unique EDGAR filing ID
+    form_type TEXT, -- 8-K, 8-K/A, 10-K, 10-Q, etc.
+    filing_date DATE, -- When filed with SEC
+    report_date DATE, -- Period of report (earliest event date)
+    primary_document_url TEXT, -- Direct link to main filing document
+    xbrl_instance_url TEXT, -- Link to XBRL instance document
+
+    -- Filing Classification
+    items_disclosed TEXT[], -- 8-K items (1.05, 8.01, etc.)
+    is_cybersecurity_related BOOLEAN DEFAULT FALSE, -- Cybersecurity incident flag
+    is_amendment BOOLEAN DEFAULT FALSE, -- Whether this is an 8-K/A amendment
+    is_delayed_disclosure BOOLEAN DEFAULT FALSE, -- National security delay flag
+
+    -- Cybersecurity Incident Details (from CYD taxonomy)
+    incident_nature_text TEXT, -- MaterialCybersecurityIncidentNatureTextBlock
+    incident_scope_text TEXT, -- MaterialCybersecurityIncidentScopeTextBlock
+    incident_timing_text TEXT, -- MaterialCybersecurityIncidentTimingTextBlock
+    incident_impact_text TEXT, -- MaterialCybersecurityIncidentMaterialImpactTextBlock
+    incident_unknown_details_text TEXT, -- InformationNotAvailableOrUndeterminedTextBlock
+
+    -- Incident Timeline
+    incident_discovery_date DATE, -- When incident was discovered
+    incident_disclosure_date DATE, -- When publicly disclosed
+    incident_containment_date DATE, -- When incident was contained
+
+    -- Impact Assessment
+    estimated_cost_min DECIMAL, -- Minimum estimated financial impact
+    estimated_cost_max DECIMAL, -- Maximum estimated financial impact
+    estimated_cost_currency TEXT DEFAULT 'USD', -- Currency for cost estimates
+    data_types_compromised TEXT[], -- Types of data affected (PII, PHI, etc.)
+
+    -- Document Analysis
+    exhibit_urls TEXT[], -- Links to exhibits (customer notices, press releases)
+    keywords_detected TEXT[], -- Specific cybersecurity keywords found
+    keyword_contexts JSONB, -- Context around detected keywords
+    file_size_bytes INTEGER, -- Size of filing document
+
+    -- Business Context
+    business_description TEXT, -- Company business description
+    industry_classification TEXT -- Industry/sector classification
 );
 
 -- ============================================================================
 -- 3. CREATE INDEXES FOR PERFORMANCE
 -- ============================================================================
+-- Original indexes
 CREATE INDEX idx_scraped_items_source_id ON scraped_items(source_id);
 CREATE INDEX idx_scraped_items_publication_date ON scraped_items(publication_date);
 CREATE INDEX idx_scraped_items_scraped_at ON scraped_items(scraped_at);
@@ -47,6 +93,21 @@ CREATE INDEX idx_scraped_items_breach_date ON scraped_items(breach_date);
 CREATE INDEX idx_scraped_items_reported_date ON scraped_items(reported_date);
 CREATE INDEX idx_scraped_items_tags ON scraped_items USING GIN(tags_keywords);
 CREATE INDEX idx_scraped_items_raw_data ON scraped_items USING GIN(raw_data_json);
+
+-- SEC-specific indexes for enhanced performance
+CREATE INDEX idx_scraped_items_cik ON scraped_items(cik);
+CREATE INDEX idx_scraped_items_ticker ON scraped_items(ticker_symbol);
+CREATE INDEX idx_scraped_items_accession ON scraped_items(accession_number);
+CREATE INDEX idx_scraped_items_form_type ON scraped_items(form_type);
+CREATE INDEX idx_scraped_items_filing_date ON scraped_items(filing_date);
+CREATE INDEX idx_scraped_items_cybersecurity_flag ON scraped_items(is_cybersecurity_related);
+CREATE INDEX idx_scraped_items_amendment_flag ON scraped_items(is_amendment);
+CREATE INDEX idx_scraped_items_items_disclosed ON scraped_items USING GIN(items_disclosed);
+CREATE INDEX idx_scraped_items_keywords_detected ON scraped_items USING GIN(keywords_detected);
+CREATE INDEX idx_scraped_items_data_types ON scraped_items USING GIN(data_types_compromised);
+CREATE INDEX idx_scraped_items_incident_discovery ON scraped_items(incident_discovery_date);
+CREATE INDEX idx_scraped_items_estimated_cost ON scraped_items(estimated_cost_min, estimated_cost_max);
+CREATE INDEX idx_scraped_items_keyword_contexts ON scraped_items USING GIN(keyword_contexts);
 
 -- ============================================================================
 -- 4. INSERT DATA SOURCES (All Current Breach Portals)
@@ -130,12 +191,12 @@ INSERT INTO data_sources (id, name, url, type, description) VALUES
 -- ============================================================================
 -- SCHEMA CREATION COMPLETE
 -- ============================================================================
--- 
+--
 -- This schema includes:
 -- ✅ data_sources table with all 37 breach portal sources
 -- ✅ scraped_items table with standardized cross-portal fields
 -- ✅ Performance indexes for fast querying
 -- ✅ Standardized fields: affected_individuals, breach_date, reported_date, notice_document_url
 -- ✅ All current breach portals (no vulnerability databases)
--- 
+--
 -- The database is now ready for breach data collection!
