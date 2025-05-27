@@ -155,8 +155,7 @@ INSERT INTO data_sources (id, name, url, type, description) VALUES
 (29, 'Cyber News Feed', NULL, 'News Feed', 'Additional cybersecurity news source');
 
 -- Privacy and Breach Databases
-INSERT INTO data_sources (id, name, url, type, description) VALUES
-(30, 'Privacy Rights Clearinghouse', 'https://privacyrights.org/data-breaches', 'Breach Database', 'Comprehensive data breach database and privacy advocacy');
+-- (Privacy Rights Clearinghouse removed per user request)
 
 -- Company IR Sites (31-35 reserved for config.yaml companies)
 INSERT INTO data_sources (id, name, url, type, description) VALUES

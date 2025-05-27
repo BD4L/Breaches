@@ -56,7 +56,7 @@ This document tracks the implementation status and quality of scraping logic for
 |--------|--------|----------------------|-------|
 | **Cybersecurity News RSS** | 🟡 GOOD | Configurable RSS feeds, 10 sources | Uses config.yaml |
 | **BreachSense** | 🟠 BASIC | Basic scraping functionality | Needs verification |
-| **Privacy Rights Clearinghouse** | 🟠 BASIC | Basic scraping functionality | Needs verification |
+
 
 ---
 
@@ -87,8 +87,7 @@ This document tracks the implementation status and quality of scraping logic for
 
 ### 🔧 Needs Investigation (Medium Priority)
 1. **BreachSense** - Verify current functionality
-2. **Privacy Rights Clearinghouse** - Update scraping logic
-3. **Company IR Sites** - Update for current page structures
+2. **Company IR Sites** - Update for current page structures
 
 ### 📋 Standardization Tasks (Ongoing)
 1. Apply Delaware AG's 3-tier data structure to other AG portals
@@ -155,10 +154,10 @@ This document tracks the implementation status and quality of scraping logic for
 
 ## 🎯 Success Metrics
 
-- **Total Sources**: 37 configured
+- **Total Sources**: 36 configured (Privacy Rights Clearinghouse removed)
 - **Fully Implemented**: 3 (SEC, Delaware AG, HHS OCR)
 - **Good Implementation**: 5 sources
-- **Basic Implementation**: 14 sources
+- **Basic Implementation**: 13 sources
 - **Needs Work**: 14 sources
 - **Not Implemented**: 1 source (Texas AG - new direct portal)
 

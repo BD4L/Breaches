@@ -90,8 +90,7 @@ jobs:
       - name: Run Cybersecurity News RSS Scraper
         run: python scrapers/fetch_cybersecurity_news.py
 
-      - name: Run Privacy Rights Clearinghouse Scraper
-        run: python scrapers/fetch_privacyrights.py
+
 
       # --- Company IR Scraper ---
       - name: Run Company IR Scraper

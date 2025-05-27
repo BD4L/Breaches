@@ -15,7 +15,7 @@ The collected data is standardized and stored in a Supabase PostgreSQL database.
     *   State Attorney General (AG) Data Breach Notification Sites (13 states)
     *   Cybersecurity News RSS Feeds (10 sources, configurable)
     *   Company Investor Relations (IR) News Sections (5 major tech companies, configurable)
-    *   Specialized Breach Listing Sites (Privacy Rights Clearinghouse, BreachSense)
+    *   Specialized Breach Listing Sites (BreachSense)
     *   Breach Databases via API (HIBP)
     *   Custom Scraper Integrations (e.g., Texas AG data via Apify)
 *   **Automated Collection:** Daily data updates via a GitHub Actions workflow.
@@ -36,7 +36,7 @@ The project gathers data from several categories:
 *   **Cybersecurity News & Reporting Sites:**
     *   KrebsOnSecurity, BleepingComputer, The Hacker News, SecurityWeek, Dark Reading, DataBreaches.net, Cybersecurity Ventures, Reddit r/cybersecurity, Reddit r/databreaches. (Configurable via `config.yaml`)
     *   BreachSense
-    *   Privacy Rights Clearinghouse
+
 *   **Company Investor Relations (IR) Pages:**
     *   Microsoft, Apple, Amazon, Alphabet, Meta. (Configurable via `config.yaml`)
 *   **API-based Services:**
