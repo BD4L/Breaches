@@ -365,6 +365,35 @@ def process_hhs_ocr_breaches():
             if state:
                 tags.append(f"state_{state.lower()}")
 
+            # Store ALL enhanced data in raw_data_json for future normalization
+            enhanced_data = {
+                # All the 3-tier data structure we extracted
+                **raw_data_json,
+
+                # Additional normalized fields for easy access and future database migration
+                "normalized_fields": {
+                    "data_types_compromised": data_types_compromised,
+                    "incident_discovery_date": discovery_date,
+                    "keywords_detected": tags,
+                    "credit_monitoring_offered": credit_monitoring_offered,
+                    "monitoring_duration_months": monitoring_duration,
+                    "business_associate_involved": business_associate_present.lower() == "yes",
+                    "entity_state": state,
+                    "entity_type": entity_type,
+                    "breach_type_category": breach_type,
+                    "location_categories": location_breached_array,
+                    "incident_containment_date": None,  # Placeholder for future extraction
+                    "estimated_cost_min": None,  # Placeholder for future extraction
+                    "estimated_cost_max": None,  # Placeholder for future extraction
+                    "exhibit_urls": [item_url] if item_url else [],
+                    "keyword_contexts": {
+                        "breach_type": breach_type,
+                        "location": location_breached_raw,
+                        "entity_type": entity_type
+                    }
+                }
+            }
+
             item_data = {
                 "source_id": SOURCE_ID_HHS_OCR,
                 "item_url": item_url,
@@ -372,16 +401,15 @@ def process_hhs_ocr_breaches():
                 "publication_date": publication_date_iso,
                 "summary_text": summary.strip(),
                 "full_content": web_description,
-                "raw_data_json": raw_data_json,
+                "raw_data_json": enhanced_data,  # Contains ALL extracted data for future normalization
                 "tags_keywords": list(set(tags)),
 
-                # Map to existing schema fields for dashboard compatibility
+                # Map to basic existing schema fields (safe fields that should exist)
                 "affected_individuals": individuals_affected,
                 "breach_date": discovery_date.split('T')[0] if discovery_date else None,
                 "reported_date": publication_date_iso.split('T')[0],
-                "data_types_compromised": data_types_compromised,
-                "incident_discovery_date": discovery_date.split('T')[0] if discovery_date else None,
-                "keywords_detected": tags[:5],  # First 5 tags as keywords
+                "notice_document_url": item_url,
+                # ALL advanced analysis is preserved in raw_data_json for future normalization
             }
 
             # TODO: Implement check for existing record before inserting to avoid duplicates.
