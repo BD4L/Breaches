@@ -233,7 +233,7 @@ def process_california_ag_breaches():
                 }
 
                 # Insert into database
-                supabase_client.insert_scraped_item(db_item)
+                supabase_client.insert_item(**db_item)
                 processed_count += 1
                 logger.info(f"Processed: {enhanced_record['organization_name']}")
 
