@@ -22,7 +22,7 @@ This document tracks the implementation status and quality of scraping logic for
 | Source | Status | Implementation Quality | Notes |
 |--------|--------|----------------------|-------|
 | **SEC EDGAR 8-K** | 🟢 EXCELLENT | Enhanced cybersecurity detection, comprehensive field mapping, XBRL parsing | Full documentation available |
-| **HHS OCR Breach Portal** | 🟠 BASIC | Basic functionality, may require JavaScript handling | Detects HTML vs CSV properly |
+| **HHS OCR Breach Portal** | 🟢 EXCELLENT | Enhanced 3-tier data structure, comprehensive field mapping, NLP analysis | Implements full "Wall of Shame" schema |
 
 ---
 
@@ -86,10 +86,9 @@ This document tracks the implementation status and quality of scraping logic for
 5. **Hawaii AG** - Verify enhanced date parsing
 
 ### 🔧 Needs Investigation (Medium Priority)
-1. **HHS OCR** - JavaScript handling for dynamic content
-2. **BreachSense** - Verify current functionality
-3. **Privacy Rights Clearinghouse** - Update scraping logic
-4. **Company IR Sites** - Update for current page structures
+1. **BreachSense** - Verify current functionality
+2. **Privacy Rights Clearinghouse** - Update scraping logic
+3. **Company IR Sites** - Update for current page structures
 
 ### 📋 Standardization Tasks (Ongoing)
 1. Apply Delaware AG's 3-tier data structure to other AG portals
@@ -142,6 +141,9 @@ This document tracks the implementation status and quality of scraping logic for
 - ✅ Added Texas AG direct portal (https://oag.my.site.com/datasecuritybreachreport/apex/DataSecurityReportsPage)
 - ✅ Replaced Apify-based Texas scraper with direct portal approach
 - ✅ Created placeholder scraper for Salesforce-based Texas AG portal
+- ✅ Enhanced HHS OCR scraper with full 3-tier "Wall of Shame" implementation
+- ✅ Added comprehensive NLP analysis for data types, discovery dates, credit monitoring
+- ✅ Implemented OCR incident UID generation and duplicate detection
 
 ### Previous
 - ✅ Fixed foreign key constraint violations across all scrapers
@@ -154,9 +156,9 @@ This document tracks the implementation status and quality of scraping logic for
 ## 🎯 Success Metrics
 
 - **Total Sources**: 37 configured
-- **Fully Implemented**: 2 (SEC, Delaware AG)
+- **Fully Implemented**: 3 (SEC, Delaware AG, HHS OCR)
 - **Good Implementation**: 5 sources
-- **Basic Implementation**: 15 sources
+- **Basic Implementation**: 14 sources
 - **Needs Work**: 14 sources
 - **Not Implemented**: 1 source (Texas AG - new direct portal)
 

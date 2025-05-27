@@ -1,17 +1,16 @@
 import os
 import logging
 import requests
-import csv
-import io
+import hashlib
+from bs4 import BeautifulSoup
 from datetime import datetime
+from urllib.parse import urljoin
+import re
 
 # Assuming SupabaseClient is in utils.supabase_client
-# Adjust the import path if your project structure is different
 try:
     from utils.supabase_client import SupabaseClient
 except ImportError:
-    # This is to allow the script to be run directly for testing
-    # without having the utils package installed in the traditional sense.
     import sys
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from utils.supabase_client import SupabaseClient
@@ -21,75 +20,203 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Constants
-HHS_OCR_CSV_DOWNLOAD_URL = "https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf?download=true"
-# Placeholder for the source_id from the 'data_sources' table in Supabase
-# This ID should correspond to "HHS OCR Breach Portal"
-SOURCE_ID_HHS_OCR = 2
+HHS_OCR_BREACH_URL = "https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf"
+SOURCE_ID_HHS_OCR = 2  # HHS OCR Breach Portal
 
 # Headers for requests
 REQUEST_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
 
-def parse_date(date_str: str, formats: list = ["%m/%d/%Y"]) -> str | None:
+def parse_date_hhs(date_str: str) -> str | None:
     """
-    Tries to parse a date string with a list of formats.
+    Parse HHS OCR date strings (typically MM/DD/YYYY format).
     Returns ISO 8601 format string or None if parsing fails.
     """
-    if not date_str:
+    if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending']:
         return None
+
+    date_str = date_str.strip()
+    formats = ["%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d", "%B %d, %Y"]
+
     for fmt in formats:
         try:
             return datetime.strptime(date_str, fmt).isoformat()
         except ValueError:
             continue
-    logger.warning(f"Could not parse date string: {date_str} with formats {formats}")
+
+    logger.warning(f"Could not parse HHS OCR date string: '{date_str}'")
     return None
 
-def process_hhs_ocr_csv():
+def generate_ocr_incident_uid(covered_entity_name: str, breach_submission_date: str) -> str:
     """
-    Fetches the HHS OCR breach data as CSV, processes each record,
-    and inserts relevant data into Supabase.
+    Generate OCR incident UID following your proposed schema.
+    Uses hash of covered_entity_name + breach_submission_date since OCR doesn't provide stable IDs.
     """
-    logger.info("Starting HHS OCR Breach Report CSV processing...")
+    combined = f"{covered_entity_name.lower().strip()}_{breach_submission_date}"
+    return hashlib.md5(combined.encode()).hexdigest()[:12]
+
+def parse_individuals_affected(affected_str: str) -> tuple[int | None, str]:
+    """
+    Parse individuals affected, handling edge cases like "0" or "<500".
+    Returns: (parsed_integer, raw_string)
+    """
+    if not affected_str:
+        return None, ""
+
+    affected_str = affected_str.strip()
+    raw_string = affected_str
+
+    # Handle special cases
+    if affected_str.lower() in ['n/a', 'unknown', 'pending', 'tbd']:
+        return None, raw_string
+
+    # Remove commas and extract numbers
+    numbers = re.findall(r'[\d,]+', affected_str)
+    if numbers:
+        try:
+            number_str = numbers[0].replace(',', '')
+            return int(number_str), raw_string
+        except ValueError:
+            pass
+
+    return None, raw_string
+
+def parse_location_breached(location_str: str) -> list[str]:
+    """
+    Parse location of breached information into array.
+    Handles comma-separated values like "Network Server, Email".
+    """
+    if not location_str:
+        return []
+
+    # Split by comma and clean up
+    locations = [loc.strip() for loc in location_str.split(',') if loc.strip()]
+    return locations
+
+def extract_data_types_from_description(description: str) -> list[str]:
+    """
+    Extract data types compromised from web description using regex patterns.
+    This implements Layer C of your proposed schema.
+    """
+    if not description:
+        return []
+
+    description_lower = description.lower()
+    data_types = []
+
+    # Common PHI/PII patterns
+    patterns = {
+        'ssn': r'social security|ssn|social security number',
+        'financial': r'financial|credit card|bank|account number|payment',
+        'clinical': r'medical|clinical|health|diagnosis|treatment|prescription',
+        'demographic': r'name|address|phone|email|date of birth|dob',
+        'insurance': r'insurance|policy|member id|subscriber',
+        'biometric': r'biometric|fingerprint|facial|retinal'
+    }
+
+    for data_type, pattern in patterns.items():
+        if re.search(pattern, description_lower):
+            data_types.append(data_type)
+
+    return data_types
+
+def extract_discovery_date(description: str) -> str | None:
+    """
+    Extract discovery date from web description using regex.
+    Looks for patterns like "discovered on [date]".
+    """
+    if not description:
+        return None
+
+    # Common discovery date patterns
+    patterns = [
+        r'discovered on (\d{1,2}/\d{1,2}/\d{4})',
+        r'discovered (\d{1,2}/\d{1,2}/\d{4})',
+        r'became aware on (\d{1,2}/\d{1,2}/\d{4})',
+        r'learned of.*on (\d{1,2}/\d{1,2}/\d{4})'
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, description, re.IGNORECASE)
+        if match:
+            date_str = match.group(1)
+            return parse_date_hhs(date_str)
+
+    return None
+
+def check_credit_monitoring(description: str) -> tuple[bool | None, int | None]:
+    """
+    Check if credit monitoring is offered and extract duration.
+    Returns: (is_offered, duration_months)
+    """
+    if not description:
+        return None, None
+
+    description_lower = description.lower()
+
+    # Check for credit monitoring mentions
+    monitoring_patterns = [
+        r'credit monitoring',
+        r'identity monitoring',
+        r'identity protection',
+        r'credit protection'
+    ]
+
+    is_offered = any(re.search(pattern, description_lower) for pattern in monitoring_patterns)
+
+    # Extract duration
+    duration = None
+    duration_patterns = [
+        r'(\d+)\s*year.*monitoring',
+        r'(\d+)\s*month.*monitoring',
+        r'monitoring.*(\d+)\s*year',
+        r'monitoring.*(\d+)\s*month'
+    ]
+
+    for pattern in duration_patterns:
+        match = re.search(pattern, description_lower)
+        if match:
+            num = int(match.group(1))
+            if 'year' in pattern:
+                duration = num * 12
+            else:
+                duration = num
+            break
+
+    return is_offered if is_offered else None, duration
+
+def process_hhs_ocr_breaches():
+    """
+    Fetches HHS OCR breach data from the HTML portal and processes each record
+    using the 3-tier approach: Raw extraction → Derived/enrichment → Deep analysis.
+
+    Since CSV export is not available, we scrape the HTML table directly.
+    """
+    logger.info("Starting HHS OCR Breach Report processing...")
 
     try:
-        response = requests.get(HHS_OCR_CSV_DOWNLOAD_URL, headers=REQUEST_HEADERS, timeout=60)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-
-        # Check if we got HTML instead of CSV (indicates dynamic page)
-        content_type = response.headers.get('content-type', '').lower()
-        if 'text/html' in content_type or response.text.strip().startswith('<!DOCTYPE') or response.text.strip().startswith('<html'):
-            logger.error("Received HTML page instead of CSV data. The HHS OCR site may require JavaScript or session handling.")
-            logger.error(f"Content type: {content_type}")
-            logger.error(f"Response preview: {response.text[:500]}")
-            return
-
-        # Check if content looks like CSV
-        if not (response.text.strip().startswith('"') or ',' in response.text[:100]):
-            logger.error("Response doesn't appear to be CSV format")
-            logger.error(f"Content preview: {response.text[:200]}")
-            return
-
-        # The content is binary, decode it to utf-8, common for CSVs from web sources
-        # Some sources might use other encodings like 'latin-1' or 'cp1252'
-        # If encoding issues arise, chardet library could be used to detect it.
-        csv_content = response.content.decode('utf-8-sig') # utf-8-sig handles potential BOM
-
+        response = requests.get(HHS_OCR_BREACH_URL, headers=REQUEST_HEADERS, timeout=30)
+        response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching HHS OCR CSV data: {e}")
+        logger.error(f"Error fetching HHS OCR breach data page: {e}")
         return
-    except UnicodeDecodeError as e:
-        logger.error(f"Error decoding CSV content: {e}. Trying 'latin-1'.")
-        try:
-            csv_content = response.content.decode('latin-1')
-        except UnicodeDecodeError as e_latin1:
-            logger.error(f"Error decoding CSV content with 'latin-1': {e_latin1}. Aborting.")
-            return
 
+    soup = BeautifulSoup(response.content, 'html.parser')
 
-    csvfile = io.StringIO(csv_content)
-    reader = csv.DictReader(csvfile)
+    # Find the main data table
+    table = soup.find('table')
+    if not table:
+        logger.error("Could not find breach data table on the page. The page structure might have changed.")
+        return
+
+    tbody = table.find('tbody')
+    if not tbody:
+        logger.error("Could not find table body (tbody) for breaches. Page structure might have changed.")
+        return
+
+    rows = tbody.find_all('tr')
+    logger.info(f"Found {len(rows)} potential breach records on the page.")
 
     supabase_client = None
     try:
@@ -102,70 +229,147 @@ def process_hhs_ocr_csv():
     processed_count = 0
     skipped_count = 0
 
-    for row in reader:
+    for row in rows:
         processed_count += 1
+        cols = row.find_all('td')
+
+        # Expected columns based on portal analysis:
+        # 0: Expand All (skip)
+        # 1: Name of Covered Entity
+        # 2: State
+        # 3: Covered Entity Type
+        # 4: Individuals Affected
+        # 5: Breach Submission Date
+        # 6: Type of Breach
+        # 7: Location of Breached Information
+        # 8: Business Associate Present
+        # 9: Web Description
+
+        if len(cols) < 9:  # Need at least 9 columns for complete data
+            logger.warning(f"Skipping row due to insufficient columns ({len(cols)})")
+            skipped_count += 1
+            continue
+
         try:
-            name_of_covered_entity = row.get("Name of Covered Entity")
-            breach_submission_date_str = row.get("Breach Submission Date") # Format: "12/12/2023"
-            individuals_affected_str = row.get("Individuals Affected")
-            type_of_breach = row.get("Type of Breach") # e.g., "Hacking/IT Incident"
-            location_of_breached_info = row.get("Location of Breached Information") # e.g., "Network Server"
+            # A. Raw extraction (Layer A from your schema)
+            covered_entity_name = cols[1].get_text(strip=True)
+            state = cols[2].get_text(strip=True)
+            entity_type = cols[3].get_text(strip=True)
+            individuals_affected_raw = cols[4].get_text(strip=True)
+            breach_submission_date_str = cols[5].get_text(strip=True)
+            breach_type = cols[6].get_text(strip=True)
+            location_breached_raw = cols[7].get_text(strip=True)
+            business_associate_present = cols[8].get_text(strip=True)
+            web_description = cols[9].get_text(strip=True) if len(cols) > 9 else ""
 
-            if not name_of_covered_entity or not breach_submission_date_str:
-                logger.warning(f"Skipping row due to missing Name of Covered Entity or Breach Submission Date: {row}")
-                skipped_count +=1
+            if not covered_entity_name or not breach_submission_date_str:
+                logger.warning(f"Skipping row due to missing entity name or submission date")
+                skipped_count += 1
                 continue
 
-            publication_date_iso = parse_date(breach_submission_date_str)
+            # Parse and validate submission date
+            publication_date_iso = parse_date_hhs(breach_submission_date_str)
             if not publication_date_iso:
-                logger.warning(f"Skipping row for '{name_of_covered_entity}' due to unparsable date: {breach_submission_date_str}")
-                skipped_count +=1
+                logger.warning(f"Skipping '{covered_entity_name}' due to unparsable date: {breach_submission_date_str}")
+                skipped_count += 1
                 continue
 
-            # Construct a pseudo-unique URL if none is directly available.
-            # This is tricky without a true unique ID per breach in the CSV.
-            # One approach is to use the main portal URL and append some row data,
-            # but this isn't a stable link to a specific breach report.
-            # For now, we can use the entity name and date as part of a reference,
-            # or leave item_url as None if no clear unique identifier for a URL exists.
-            # A better approach might be to use a hash of key row data if we need a unique ID for item_url.
-            item_url_slug = f"{name_of_covered_entity.replace(' ', '-').lower()}-{publication_date_iso}"
-            item_url = f"https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf#details-{item_url_slug}" # Example, not a real link
+            # B. Derived/enrichment (Layer B from your schema)
+            individuals_affected, individuals_affected_raw_clean = parse_individuals_affected(individuals_affected_raw)
+            location_breached_array = parse_location_breached(location_breached_raw)
+            ocr_incident_uid = generate_ocr_incident_uid(covered_entity_name, breach_submission_date_str)
+            breach_year = datetime.fromisoformat(publication_date_iso).year
 
-            # Prepare data for Supabase
+            # C. Deep-dive from web_description (Layer C from your schema)
+            data_types_compromised = extract_data_types_from_description(web_description)
+            discovery_date = extract_discovery_date(web_description)
+            credit_monitoring_offered, monitoring_duration = check_credit_monitoring(web_description)
+
+            # Enhanced raw_data_json structure following your 3-tier schema
             raw_data = {
-                "name_of_covered_entity": name_of_covered_entity,
-                "state": row.get("State"),
-                "covered_entity_type": row.get("Covered Entity Type"),
-                "individuals_affected": int(individuals_affected_str) if individuals_affected_str and individuals_affected_str.isdigit() else None,
-                "breach_submission_date": breach_submission_date_str, # Original date string
-                "type_of_breach": type_of_breach,
-                "location_of_breached_information": location_of_breached_info,
-                "business_associate_present": row.get("Business Associate Present"),
-                "web_description": row.get("Web Description"), # Often empty or very brief
-                # Include any other columns you find relevant
-                "year_of_breach": breach_submission_date_str.split('/')[-1] if breach_submission_date_str else None
+                # A. Portal row (direct from HTML table)
+                "hhs_ocr_raw": {
+                    "covered_entity_name": covered_entity_name,
+                    "state": state,
+                    "entity_type": entity_type,
+                    "individuals_affected_raw": individuals_affected_raw,
+                    "breach_submission_date": breach_submission_date_str,
+                    "breach_type": breach_type,
+                    "location_of_breached_info": location_breached_raw,
+                    "business_associate_present": business_associate_present,
+                    "web_description": web_description
+                },
+
+                # B. Derived/housekeeping (computed fields)
+                "hhs_ocr_derived": {
+                    "ocr_incident_uid": ocr_incident_uid,
+                    "portal_status": "under_investigation",  # Default, could be enhanced
+                    "portal_first_seen_utc": datetime.now().isoformat(),
+                    "portal_last_seen_utc": datetime.now().isoformat(),
+                    "is_repeat_listing": False,  # TODO: Implement duplicate detection
+                    "breach_year": breach_year,
+                    "location_breached_array": location_breached_array
+                },
+
+                # C. Deep-parse from web_description
+                "hhs_ocr_analysis": {
+                    "data_types_compromised": data_types_compromised,
+                    "date_discovered": discovery_date,
+                    "credit_monitoring_offered": credit_monitoring_offered,
+                    "monitoring_duration_months": monitoring_duration,
+                    "root_cause_keywords": [],  # TODO: Implement root cause extraction
+                    "system_vectors": location_breached_array,  # Use parsed locations
+                    "full_text_blob": web_description
+                }
             }
-             # Remove keys where value is None from raw_data to keep it clean
-            raw_data_json = {k: v for k, v in raw_data.items() if v is not None and v != ""}
 
+            # Clean up the raw data (remove empty/null values)
+            raw_data_json = {k: v for k, v in raw_data.items() if v is not None}
 
-            tags = ["hhs_ocr", "healthcare_breach"]
-            if type_of_breach:
-                tags.append(type_of_breach.lower().replace("/", "_").replace(" ", "_"))
-            if raw_data.get("business_associate_present", "").lower() == "yes":
+            # Generate unique URL using incident UID
+            item_url = f"{HHS_OCR_BREACH_URL}#incident-{ocr_incident_uid}"
+
+            # Create comprehensive summary
+            summary_parts = []
+            if breach_type:
+                summary_parts.append(f"Type: {breach_type}")
+            if location_breached_raw:
+                summary_parts.append(f"Location: {location_breached_raw}")
+            if individuals_affected:
+                summary_parts.append(f"Affected: {individuals_affected:,} individuals")
+            if business_associate_present.lower() == "yes":
+                summary_parts.append("Business Associate involved")
+
+            summary = ". ".join(summary_parts) + "." if summary_parts else "Healthcare data breach notification."
+
+            # Enhanced tags
+            tags = ["hhs_ocr", "healthcare_breach", "wall_of_shame"]
+            if breach_type:
+                tags.append(breach_type.lower().replace("/", "_").replace(" ", "_"))
+            if business_associate_present.lower() == "yes":
                 tags.append("business_associate_involved")
-
+            if entity_type:
+                tags.append(entity_type.lower().replace(" ", "_"))
+            if state:
+                tags.append(f"state_{state.lower()}")
 
             item_data = {
                 "source_id": SOURCE_ID_HHS_OCR,
-                "item_url": item_url, # Or None if a meaningful URL cannot be constructed
-                "title": name_of_covered_entity,
+                "item_url": item_url,
+                "title": covered_entity_name,
                 "publication_date": publication_date_iso,
-                "summary_text": f"Type: {type_of_breach}. Location: {location_of_breached_info}.",
-                "full_content": row.get("Web Description"), # Or concatenate more fields if desired
+                "summary_text": summary.strip(),
+                "full_content": web_description,
                 "raw_data_json": raw_data_json,
-                "tags_keywords": list(set(tags)) # Ensure unique tags
+                "tags_keywords": list(set(tags)),
+
+                # Map to existing schema fields for dashboard compatibility
+                "affected_individuals": individuals_affected,
+                "breach_date": discovery_date.split('T')[0] if discovery_date else None,
+                "reported_date": publication_date_iso.split('T')[0],
+                "data_types_compromised": data_types_compromised,
+                "incident_discovery_date": discovery_date.split('T')[0] if discovery_date else None,
+                "keywords_detected": tags[:5],  # First 5 tags as keywords
             }
 
             # TODO: Implement check for existing record before inserting to avoid duplicates.
@@ -181,18 +385,36 @@ def process_hhs_ocr_csv():
             # else:
             #    logger.info(f"Item already exists for {name_of_covered_entity} on {publication_date_iso}. Skipping.")
 
-            insert_response = supabase_client.insert_item(**item_data)
-            if insert_response:
-                logger.info(f"Successfully inserted item for '{name_of_covered_entity}'.")
-                inserted_count += 1
-            else:
-                logger.error(f"Failed to insert item for '{name_of_covered_entity}'.")
+            # Check for existing record before inserting
+            try:
+                query_result = supabase_client.client.table("scraped_items").select("id").eq("title", covered_entity_name).eq("publication_date", publication_date_iso).eq("source_id", SOURCE_ID_HHS_OCR).execute()
+                if query_result.data:
+                    logger.info(f"Item '{covered_entity_name}' on {publication_date_iso} already exists. Skipping.")
+                    skipped_count += 1
+                    continue
+            except Exception as e_check:
+                logger.warning(f"Could not check for existing record: {e_check}. Proceeding with insert.")
+
+            try:
+                insert_response = supabase_client.insert_item(**item_data)
+                if insert_response:
+                    logger.info(f"Successfully inserted item for '{covered_entity_name}'.")
+                    inserted_count += 1
+                else:
+                    logger.error(f"Failed to insert item for '{covered_entity_name}'.")
+            except Exception as e_insert:
+                if "duplicate key value violates unique constraint" in str(e_insert):
+                    logger.info(f"Item '{covered_entity_name}' already exists (duplicate URL). Skipping.")
+                    skipped_count += 1
+                else:
+                    logger.error(f"Error inserting item for '{covered_entity_name}' into Supabase: {e_insert}")
+                    skipped_count += 1
 
         except Exception as e:
-            logger.error(f"Error processing row: {row}. Error: {e}", exc_info=True)
-            skipped_count +=1
+            logger.error(f"Error processing row for '{covered_entity_name if 'covered_entity_name' in locals() else 'Unknown Entity'}': {e}", exc_info=True)
+            skipped_count += 1
 
-    logger.info(f"Finished processing HHS OCR CSV. Total rows processed: {processed_count}. Items inserted: {inserted_count}. Items skipped: {skipped_count}")
+    logger.info(f"Finished processing HHS OCR breaches. Total rows processed: {processed_count}. Items inserted: {inserted_count}. Items skipped: {skipped_count}")
 
 if __name__ == "__main__":
     logger.info("HHS OCR Breach Scraper Started")
@@ -204,6 +426,6 @@ if __name__ == "__main__":
         logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
     else:
         logger.info("Supabase environment variables seem to be set.")
-        process_hhs_ocr_csv()
+        process_hhs_ocr_breaches()
 
     logger.info("HHS OCR Breach Scraper Finished")
