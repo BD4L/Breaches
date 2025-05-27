@@ -31,7 +31,7 @@ This document tracks the implementation status and quality of scraping logic for
 | State | Source | Status | Implementation Quality | Notes |
 |-------|--------|--------|----------------------|-------|
 | **Delaware** | Delaware AG | 🟢 EXCELLENT | Enhanced 3-tier data structure, PDF analysis framework, comprehensive field mapping | Recently enhanced with structured data capture |
-| **California** | California AG | 🟡 GOOD | Basic scraping, foreign key issues fixed | May have page structure issues |
+| **California** | California AG | 🟢 EXCELLENT | Enhanced 3-tier CSV-based scraper, comprehensive field mapping | Uses CSV endpoint for reliable data collection |
 | **Washington** | Washington AG | 🟡 GOOD | Foreign key issues fixed | Should work now |
 | **Hawaii** | Hawaii AG | 🟡 GOOD | Date parsing and foreign key issues fixed | Enhanced date handling |
 | **Indiana** | Indiana AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
@@ -80,10 +80,10 @@ This document tracks the implementation status and quality of scraping logic for
 
 ### 🚀 Next to Enhance (High Priority)
 1. **Texas AG** - NEW: Direct portal scraper needed for Salesforce-based system
-2. **California AG** - Large state, high volume of breaches
-3. **Washington AG** - Recently fixed, verify functionality
-4. **Massachusetts AG** - Fix 403 errors
-5. **Hawaii AG** - Verify enhanced date parsing
+2. **Washington AG** - Recently fixed, verify functionality
+3. **Massachusetts AG** - Fix 403 errors
+4. **Hawaii AG** - Verify enhanced date parsing
+5. **Wisconsin DATCP** - Verify recent fixes
 
 ### 🔧 Needs Investigation (Medium Priority)
 1. **BreachSense** - Verify current functionality
@@ -133,6 +133,15 @@ This document tracks the implementation status and quality of scraping logic for
 
 ## 🔄 Recent Updates
 
+### 2025-05-27
+- ✅ **Enhanced California AG scraper to EXCELLENT status**
+- ✅ Implemented 3-tier CSV-based data collection approach
+- ✅ Added comprehensive field mapping with standardized breach fields
+- ✅ Implemented incident UID generation for deduplication
+- ✅ Added date filtering for recent breaches (today onward)
+- ✅ Enhanced error handling and logging
+- ✅ Moved California AG from priority queue to fully implemented
+
 ### 2025-01-26
 - ✅ Enhanced Delaware AG scraper with 3-tier data structure
 - ✅ Added comprehensive field mapping and PDF analysis framework
@@ -155,8 +164,8 @@ This document tracks the implementation status and quality of scraping logic for
 ## 🎯 Success Metrics
 
 - **Total Sources**: 36 configured (Privacy Rights Clearinghouse removed)
-- **Fully Implemented**: 3 (SEC, Delaware AG, HHS OCR)
-- **Good Implementation**: 5 sources
+- **Fully Implemented**: 4 (SEC, Delaware AG, HHS OCR, California AG)
+- **Good Implementation**: 4 sources
 - **Basic Implementation**: 13 sources
 - **Needs Work**: 14 sources
 - **Not Implemented**: 1 source (Texas AG - new direct portal)
