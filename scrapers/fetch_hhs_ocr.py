@@ -204,10 +204,21 @@ def process_hhs_ocr_breaches():
 
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Find the main data table
-    table = soup.find('table')
-    if not table:
-        logger.error("Could not find breach data table on the page. The page structure might have changed.")
+    # Find the main data table (it's the second table on the page)
+    # The first table contains only informational text
+    tables = soup.find_all('table')
+    if len(tables) < 2:
+        logger.error("Could not find the breach data table. Expected at least 2 tables on the page.")
+        return
+
+    # The actual breach data is in the second table
+    table = tables[1]
+
+    # Verify this is the correct table by checking for expected headers
+    headers = [th.get_text(strip=True) for th in table.find_all('th')]
+    if 'Name of Covered Entity' not in headers:
+        logger.error("Found table but it doesn't contain expected headers. Page structure might have changed.")
+        logger.error(f"Found headers: {headers}")
         return
 
     tbody = table.find('tbody')
@@ -217,6 +228,7 @@ def process_hhs_ocr_breaches():
 
     rows = tbody.find_all('tr')
     logger.info(f"Found {len(rows)} potential breach records on the page.")
+    logger.info(f"Table headers: {headers}")
 
     supabase_client = None
     try:
@@ -246,7 +258,7 @@ def process_hhs_ocr_breaches():
         # 9: Web Description
 
         if len(cols) < 9:  # Need at least 9 columns for complete data
-            logger.warning(f"Skipping row due to insufficient columns ({len(cols)})")
+            logger.warning(f"Skipping row due to insufficient columns ({len(cols)}). Row content: {[col.get_text(strip=True)[:50] for col in cols]}")
             skipped_count += 1
             continue
 
