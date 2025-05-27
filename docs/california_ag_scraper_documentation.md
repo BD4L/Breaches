@@ -19,7 +19,7 @@ The California Attorney General's Office enhanced scraper implements a **3-tier 
 #### **Tier 1: Portal Raw Data (CSV-based)**
 - **Source**: CSV export endpoint (`/privacy/databreach/list-export`)
 - **Method**: Direct CSV download and parsing
-- **Advantages**: 
+- **Advantages**:
   - Reliable data structure
   - Complete dataset access
   - No HTML parsing complexity
@@ -98,9 +98,10 @@ The California Attorney General's Office enhanced scraper implements a **3-tier 
 - Format: MD5 hash of "ca_ag_{org}_{date}"
 - Ensures consistent UIDs across runs
 
-### Date Filtering
-- **Filter Criteria**: Reported date >= today
-- **Purpose**: Collect only recent breaches (user preference)
+### Date Filtering (Configurable)
+- **Testing Mode**: `CA_AG_FILTER_FROM_DATE` not set → Collect ALL historical data
+- **Production Mode**: `CA_AG_FILTER_FROM_DATE="2025-05-27"` → Filter from specified date
+- **Purpose**: Flexible data collection for testing vs production
 - **Fallback**: Include records with unparseable dates
 
 ## 📈 Performance Characteristics
@@ -138,8 +139,19 @@ Reported Date: 04/09/2025
 ## 🚀 Usage
 
 ### Manual Execution
+
+#### Testing Mode (All Historical Data)
 ```bash
 cd /path/to/Breaches
+# No date filter - collects all historical data
+python3 scrapers/fetch_california_ag.py
+```
+
+#### Production Mode (Date Filtered)
+```bash
+cd /path/to/Breaches
+# Filter from specific date onward
+export CA_AG_FILTER_FROM_DATE="2025-05-27"
 python3 scrapers/fetch_california_ag.py
 ```
 
@@ -153,6 +165,9 @@ python3 scrapers/fetch_california_ag.py
 ### Environment Variables
 - `SUPABASE_URL`: Database connection URL
 - `SUPABASE_SERVICE_KEY`: Database service key
+- `CA_AG_FILTER_FROM_DATE`: Optional date filter (YYYY-MM-DD format)
+  - **Not set**: Collect all historical data (testing mode)
+  - **Set**: Filter breaches from specified date onward (production mode)
 
 ### Constants
 ```python
@@ -214,6 +229,6 @@ SOURCE_ID_CALIFORNIA_AG = 4
 
 ---
 
-**Last Updated**: May 27, 2025  
-**Version**: 2.0 Enhanced  
+**Last Updated**: May 27, 2025
+**Version**: 2.0 Enhanced
 **Maintainer**: Breach Monitoring System

@@ -24,6 +24,11 @@ CALIFORNIA_AG_BREACH_URL = "https://oag.ca.gov/privacy/databreach/list"
 CALIFORNIA_AG_CSV_URL = "https://oag.ca.gov/privacy/databreach/list-export"
 SOURCE_ID_CALIFORNIA_AG = 4 # California AG source ID
 
+# Configuration for date filtering
+# Set to None to collect all historical data (for testing)
+# Set to a date string like "2025-05-27" for production filtering
+FILTER_FROM_DATE = os.environ.get("CA_AG_FILTER_FROM_DATE", None)  # None = collect all data
+
 # Headers for requests
 REQUEST_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -158,30 +163,47 @@ def process_california_ag_breaches():
             logger.error("No CSV data retrieved, aborting")
             return
 
-        # Filter for recent breaches (today onward as per user preference)
-        today = date.today()
-        recent_breaches = []
+        # Filter breaches based on configuration
+        if FILTER_FROM_DATE:
+            # Production mode: filter from specified date
+            try:
+                filter_date = datetime.strptime(FILTER_FROM_DATE, '%Y-%m-%d').date()
+                logger.info(f"Production mode: filtering breaches from {filter_date} onward")
+            except ValueError:
+                logger.warning(f"Invalid FILTER_FROM_DATE format '{FILTER_FROM_DATE}', using today's date")
+                filter_date = date.today()
+        else:
+            # Testing mode: collect all historical data
+            filter_date = None
+            logger.info("Testing mode: collecting ALL historical breach data (no date filtering)")
+
+        filtered_breaches = []
 
         for breach in csv_breach_data:
-            # Check if reported date is today or later
-            if breach['reported_date']:
+            if filter_date is None:
+                # No filtering - include all breaches
+                filtered_breaches.append(breach)
+            elif breach['reported_date']:
                 try:
                     # Parse the YYYY-MM-DD format from our parse_date_flexible function
                     reported_date_obj = datetime.strptime(breach['reported_date'], '%Y-%m-%d').date()
-                    if reported_date_obj >= today:
-                        recent_breaches.append(breach)
+                    if reported_date_obj >= filter_date:
+                        filtered_breaches.append(breach)
                 except ValueError:
                     # If date parsing fails, include the breach to be safe
-                    recent_breaches.append(breach)
+                    filtered_breaches.append(breach)
             else:
                 # If no reported date, include the breach
-                recent_breaches.append(breach)
+                filtered_breaches.append(breach)
 
-        logger.info(f"Filtered to {len(recent_breaches)} recent breaches (from {today} onward)")
+        if filter_date:
+            logger.info(f"Filtered to {len(filtered_breaches)} breaches (from {filter_date} onward)")
+        else:
+            logger.info(f"Collected {len(filtered_breaches)} total historical breaches (no filtering)")
 
         # Process each breach record
         processed_count = 0
-        for breach_record in recent_breaches:
+        for breach_record in filtered_breaches:
             try:
                 # Tier 2: Enhance with additional data
                 enhanced_record = enhance_breach_data(breach_record)
