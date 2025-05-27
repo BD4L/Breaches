@@ -101,9 +101,9 @@ jobs:
       - name: Run HIBP API Scraper
         run: python scrapers/fetch_hibp_api.py
 
-      # --- Apify Integration Scraper ---
-      - name: Run Texas Apify Scraper
-        run: python scrapers/fetch_texas_apify.py
+      # --- Texas AG Direct Portal Scraper ---
+      - name: Run Texas AG Scraper
+        run: python scrapers/fetch_texas_ag.py
 
       # --- Final Step ---
       - name: All scrapers finished

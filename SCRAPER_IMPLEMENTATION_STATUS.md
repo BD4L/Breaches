@@ -46,7 +46,7 @@ This document tracks the implementation status and quality of scraping logic for
 | **Oklahoma** | Oklahoma Cybersecurity | 🟠 BASIC | Foreign key fixed | Needs verification |
 | **Vermont** | Vermont AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
 | **Wisconsin** | Wisconsin DATCP | 🟡 GOOD | Foreign key issues fixed | Should work now |
-| **Texas** | Texas AG (Apify) | 🟡 GOOD | Custom Apify integration | Uses external service |
+| **Texas** | Texas AG | ⚫ NOT IMPLEMENTED | Direct portal scraper needed | New Salesforce-based portal discovered |
 
 ---
 
@@ -79,10 +79,11 @@ This document tracks the implementation status and quality of scraping logic for
 ## 📈 Implementation Priority Queue
 
 ### 🚀 Next to Enhance (High Priority)
-1. **California AG** - Large state, high volume of breaches
-2. **Washington AG** - Recently fixed, verify functionality
-3. **Massachusetts AG** - Fix 403 errors
-4. **Hawaii AG** - Verify enhanced date parsing
+1. **Texas AG** - NEW: Direct portal scraper needed for Salesforce-based system
+2. **California AG** - Large state, high volume of breaches
+3. **Washington AG** - Recently fixed, verify functionality
+4. **Massachusetts AG** - Fix 403 errors
+5. **Hawaii AG** - Verify enhanced date parsing
 
 ### 🔧 Needs Investigation (Medium Priority)
 1. **HHS OCR** - JavaScript handling for dynamic content
@@ -138,6 +139,9 @@ This document tracks the implementation status and quality of scraping logic for
 - ✅ Enhanced Delaware AG scraper with 3-tier data structure
 - ✅ Added comprehensive field mapping and PDF analysis framework
 - ✅ Created implementation status tracking document
+- ✅ Added Texas AG direct portal (https://oag.my.site.com/datasecuritybreachreport/apex/DataSecurityReportsPage)
+- ✅ Replaced Apify-based Texas scraper with direct portal approach
+- ✅ Created placeholder scraper for Salesforce-based Texas AG portal
 
 ### Previous
 - ✅ Fixed foreign key constraint violations across all scrapers
@@ -151,8 +155,9 @@ This document tracks the implementation status and quality of scraping logic for
 
 - **Total Sources**: 37 configured
 - **Fully Implemented**: 2 (SEC, Delaware AG)
-- **Good Implementation**: 6 sources
+- **Good Implementation**: 5 sources
 - **Basic Implementation**: 15 sources
 - **Needs Work**: 14 sources
+- **Not Implemented**: 1 source (Texas AG - new direct portal)
 
 **Target**: Achieve "Good" or better implementation for all high-volume sources (major state AGs, federal sources) by Q2 2025.

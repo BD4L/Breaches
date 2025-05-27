@@ -172,7 +172,7 @@ INSERT INTO data_sources (id, name, url, type, description) VALUES
 
 -- Custom Integrations
 INSERT INTO data_sources (id, name, url, type, description) VALUES
-(37, 'Texas AG (Apify)', 'https://www.texasattorneygeneral.gov/', 'State AG', 'Texas Attorney General data breach notifications via Apify scraper');
+(37, 'Texas AG', 'https://oag.my.site.com/datasecuritybreachreport/apex/DataSecurityReportsPage', 'State AG', 'Texas Attorney General data security breach reports portal');
 
 -- ============================================================================
 -- 5. ENABLE ROW LEVEL SECURITY (Optional - for public access)
