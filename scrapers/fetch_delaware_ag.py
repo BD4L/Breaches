@@ -88,25 +88,98 @@ def is_recent_breach(date_str: str) -> bool:
     except:
         return False
 
-def extract_organization_name(cell) -> str:
+def extract_organization_name(cell) -> tuple[str, str]:
     """
-    Extract organization name from potentially complex cell structure.
+    Extract organization name and row notes from potentially complex cell structure.
     Some cells have nested tables or complex HTML.
+    Returns: (org_name, row_notes)
     """
     # First try to get text directly
     text = cell.get_text(strip=True)
-    if text and not text.isspace():
-        return text
+    if not text or text.isspace():
+        # If that fails, look for nested tables
+        nested_table = cell.find('table')
+        if nested_table:
+            # Get text from the first cell of the nested table
+            first_cell = nested_table.find('td')
+            if first_cell:
+                text = first_cell.get_text(strip=True)
+            else:
+                return "", ""
+        else:
+            return "", ""
 
-    # If that fails, look for nested tables
-    nested_table = cell.find('table')
-    if nested_table:
-        # Get text from the first cell of the nested table
-        first_cell = nested_table.find('td')
-        if first_cell:
-            return first_cell.get_text(strip=True)
+    # Extract row notes (text in parentheses like "(Supplemental)" or "(Addendum)")
+    import re
+    row_notes = ""
+    notes_match = re.search(r'\((.*?)\)', text)
+    if notes_match:
+        row_notes = notes_match.group(1)
+        # Remove the notes from the org name
+        text = re.sub(r'\s*\([^)]*\)', '', text).strip()
 
-    return ""
+    return text, row_notes
+
+def generate_incident_uid(org_name: str, breach_date: str) -> str:
+    """
+    Generate a unique incident identifier based on org name and breach date.
+    """
+    import hashlib
+    combined = f"{org_name.lower().strip()}_{breach_date}"
+    return hashlib.md5(combined.encode()).hexdigest()[:12]
+
+def check_multiple_dates(date_str: str) -> bool:
+    """
+    Check if the date string contains multiple dates or date types.
+    """
+    if not date_str:
+        return False
+
+    # Look for indicators of multiple dates
+    indicators = ['substitute', 'media', 'and', '&', 'multiple', 'various']
+    date_str_lower = date_str.lower()
+
+    # Count date-like patterns
+    import re
+    date_patterns = re.findall(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', date_str)
+
+    return len(date_patterns) > 1 or any(indicator in date_str_lower for indicator in indicators)
+
+def analyze_pdf_notice(pdf_url: str) -> dict:
+    """
+    Future function to analyze PDF notice documents.
+    This is a placeholder for PDF analysis functionality.
+
+    Args:
+        pdf_url: URL to the PDF notice document
+
+    Returns:
+        Dictionary with extracted PDF data following your schema
+    """
+    # TODO: Implement PDF analysis using pdfminer or Apache Tika
+    # This would extract:
+    # - incident_description (first paragraph under "What Happened?")
+    # - data_types_compromised (keywords from "What Information Was Involved?")
+    # - date_discovered (regex for "discovered on <date>")
+    # - date_contained/date_confirmed
+    # - credit_monitoring_offered (Y/N) and monitoring_duration_months
+    # - consumer_callcenter_phone
+    # - regulator_contact or AG_reference_no
+    # - pdf_text_blob (full text for future re-parse)
+
+    return {
+        "pdf_processed": False,
+        "incident_description": None,
+        "data_types_compromised": [],
+        "date_discovered": None,
+        "date_contained": None,
+        "credit_monitoring_offered": None,
+        "monitoring_duration_months": None,
+        "consumer_callcenter_phone": None,
+        "regulator_contact": None,
+        "pdf_text_blob": None,
+        "pdf_analysis_error": "PDF analysis not yet implemented"
+    }
 
 def parse_affected_individuals(affected_text: str) -> int | None:
     """
@@ -204,8 +277,8 @@ def process_delaware_ag_breaches():
             # 3: Number of Potentially Affected Delaware Residents
             # 4: Sample of Notice (contains PDF link)
 
-            # Use improved organization name extraction
-            entity_name = extract_organization_name(cols[0])
+            # Use improved organization name extraction with row notes
+            entity_name, row_notes = extract_organization_name(cols[0])
             date_of_breach_str = cols[1].get_text(strip=True)
             reported_date_str = cols[2].get_text(strip=True)
             residents_affected_text = cols[3].get_text(strip=True)
@@ -246,14 +319,51 @@ def process_delaware_ag_breaches():
             breach_date_only = parse_date_to_date_only(date_of_breach_str)
             reported_date_only = parse_date_to_date_only(reported_date_str)
 
+            # Enhanced raw_data_json structure following your proposed schema
+            # Generate derived fields
+            incident_uid = generate_incident_uid(entity_name, breach_date_only or date_of_breach_str)
+            is_supplemental = "supplemental" in row_notes.lower() or "addendum" in row_notes.lower()
+            seen_multiple_dates = check_multiple_dates(reported_date_str)
+
             raw_data = {
-                "organization_name": entity_name,
-                "date_of_breach": date_of_breach_str,
-                "reported_date": reported_date_str,
-                "delaware_residents_affected": residents_affected_text,
-                "sample_notice_link": item_specific_url if item_specific_url else None
+                # A. Raw extraction (direct from HTML table)
+                "delaware_ag_raw": {
+                    "org_name": entity_name,
+                    "breach_date_raw": date_of_breach_str,
+                    "reported_date_raw": reported_date_str,
+                    "de_residents_affected_raw": residents_affected_text,
+                    "sample_notice_url": item_specific_url if item_specific_url else None,
+                    "row_notes": row_notes,
+                    "listing_year": datetime.now().year  # TODO: Extract from page heading if available
+                },
+
+                # B. Derived/enrichment (computed fields)
+                "delaware_ag_derived": {
+                    "incident_uid": incident_uid,
+                    "portal_first_seen_utc": datetime.now().isoformat(),
+                    "portal_last_seen_utc": datetime.now().isoformat(),
+                    "is_supplemental": is_supplemental,
+                    "breach_duration_days": None,  # TODO: calculate if start & end dates parsed
+                    "seen_multiple_report_dates": seen_multiple_dates
+                },
+
+                # C. Deep-dive from PDF (placeholder for future implementation)
+                "delaware_ag_pdf_analysis": {
+                    "pdf_processed": False,
+                    "incident_description": None,
+                    "data_types_compromised": [],
+                    "date_discovered": None,
+                    "date_contained": None,
+                    "credit_monitoring_offered": None,
+                    "monitoring_duration_months": None,
+                    "consumer_callcenter_phone": None,
+                    "regulator_contact": None,
+                    "pdf_text_blob": None
+                }
             }
-            raw_data_json = {k: v for k, v in raw_data.items() if v is not None and v.strip() != "" and v.lower() != 'n/a'}
+
+            # Clean up the raw data (remove empty/null values)
+            raw_data_json = {k: v for k, v in raw_data.items() if v is not None}
 
             # Create comprehensive summary from available information
             summary_parts = []
@@ -284,11 +394,20 @@ def process_delaware_ag_breaches():
                 "summary_text": summary.strip(),
                 "raw_data_json": raw_data_json,
                 "tags_keywords": ["delaware_ag", "de_breach", "data_breach"],
-                # New dedicated fields
+
+                # Standardized breach fields (existing schema)
                 "affected_individuals": affected_individuals,
                 "breach_date": breach_date_only,
                 "reported_date": reported_date_only,
-                "notice_document_url": item_specific_url if item_specific_url else None
+                "notice_document_url": item_specific_url if item_specific_url else None,
+
+                # Map to existing schema fields for future PDF analysis
+                "exhibit_urls": [item_specific_url] if item_specific_url else None,  # Document links
+                "data_types_compromised": None,  # Will be populated from PDF analysis
+                "incident_discovery_date": None,  # Will be extracted from PDF
+                "incident_disclosure_date": None,  # Will be extracted from PDF
+                "keywords_detected": ["data_breach", "delaware", "notification"],  # Basic keywords
+                "keyword_contexts": None  # Will be populated from PDF text analysis
             }
 
             # Check for existing record before inserting
