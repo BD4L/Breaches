@@ -24,6 +24,107 @@ class SupabaseClient:
             logger.error(f"Error checking if item exists for URL {item_url}: {e}")
             return False
 
+    def get_item_enhancement_status(self, item_url: str) -> dict:
+        """
+        Get the enhancement status of an existing item to determine if it needs updating.
+        Returns information about enhancement attempts and success/failure status.
+        """
+        try:
+            response = self.client.table("scraped_items").select(
+                "id, raw_data_json, affected_individuals, notice_document_url"
+            ).eq("item_url", item_url).execute()
+
+            if not response.data:
+                return {'exists': False}
+
+            item = response.data[0]
+            raw_data = item.get('raw_data_json', {})
+
+            # Check enhancement status
+            enhancement_status = {
+                'exists': True,
+                'item_id': item['id'],
+                'has_enhancement_errors': False,
+                'has_successful_enhancement': False,
+                'has_pdf_analysis': False,
+                'affected_individuals': item.get('affected_individuals'),
+                'notice_document_url': item.get('notice_document_url'),
+                'enhancement_errors': []
+            }
+
+            # Check for enhancement errors in tier_2_enhanced
+            tier_2_data = raw_data.get('tier_2_enhanced', {})
+            if isinstance(tier_2_data, dict):
+                enhancement_errors = tier_2_data.get('enhancement_errors', [])
+                if enhancement_errors:
+                    enhancement_status['has_enhancement_errors'] = True
+                    enhancement_status['enhancement_errors'] = enhancement_errors
+
+                # Check if enhancement was attempted but failed
+                enhancement_attempted = tier_2_data.get('enhancement_attempted', False)
+                detail_page_data = tier_2_data.get('detail_page_data', {})
+
+                if enhancement_attempted and detail_page_data:
+                    if detail_page_data.get('detail_page_scraped', False):
+                        enhancement_status['has_successful_enhancement'] = True
+
+            # Check for PDF analysis
+            tier_3_data = raw_data.get('tier_3_pdf_analysis', [])
+            if tier_3_data:
+                # Check if any PDF was successfully analyzed
+                for pdf_analysis in tier_3_data:
+                    if isinstance(pdf_analysis, dict) and pdf_analysis.get('pdf_analyzed', False):
+                        enhancement_status['has_pdf_analysis'] = True
+                        break
+
+            return enhancement_status
+
+        except Exception as e:
+            logger.error(f"Error getting item enhancement status: {e}")
+            return {'exists': False}
+
+    def update_item_enhancement(self, item_id: str, enhanced_data: dict) -> bool:
+        """
+        Update an existing item with new enhancement data.
+        Used when we have better enhancement data than what was previously stored.
+        """
+        try:
+            # Prepare update data
+            update_data = {}
+
+            # Update affected individuals if we have new data
+            if enhanced_data.get('affected_individuals') is not None:
+                update_data['affected_individuals'] = enhanced_data['affected_individuals']
+
+            # Update notice document URL if we have new data
+            if enhanced_data.get('notice_document_url'):
+                update_data['notice_document_url'] = enhanced_data['notice_document_url']
+
+            # Update summary and content if we have enhanced versions
+            if enhanced_data.get('summary_text'):
+                update_data['summary_text'] = enhanced_data['summary_text']
+
+            if enhanced_data.get('full_content'):
+                update_data['full_content'] = enhanced_data['full_content']
+
+            # Update raw_data_json with new enhancement data
+            if enhanced_data.get('raw_data_json'):
+                update_data['raw_data_json'] = enhanced_data['raw_data_json']
+
+            # Perform the update
+            response = self.client.table("scraped_items").update(update_data).eq("id", item_id).execute()
+
+            if response.data:
+                logger.info(f"Successfully updated item enhancement data for ID: {item_id}")
+                return True
+            else:
+                logger.error(f"Failed to update item enhancement data for ID: {item_id}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error updating item enhancement: {e}")
+            return False
+
     def insert_item(self, source_id: int, item_url: str, title: str, publication_date: str, summary_text: str = None, full_content: str = None, raw_data_json: dict = None, tags_keywords: list = None, affected_individuals: int = None, breach_date: str = None, reported_date: str = None, notice_document_url: str = None,
                     # SEC-specific fields
                     cik: str = None, ticker_symbol: str = None, accession_number: str = None, form_type: str = None, filing_date: str = None, report_date: str = None, primary_document_url: str = None, xbrl_instance_url: str = None,

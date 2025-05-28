@@ -930,10 +930,63 @@ def process_california_ag_breaches():
                     logger.warning(f"⚠️  Enhancement errors for {enhanced_record['organization_name']}: {enhanced_record['enhancement_errors']}")
                     # Still proceed - we have the core breach data which is most important
 
-                # Check if item already exists before inserting
+                # Smart duplicate handling: Check if item exists and if it needs enhancement updates
                 item_url = db_item['item_url']
-                if supabase_client.check_item_exists(item_url):
-                    logger.info(f"Skipping duplicate item: {enhanced_record['organization_name']} (URL: {item_url})")
+                enhancement_status = supabase_client.get_item_enhancement_status(item_url)
+
+                if enhancement_status['exists']:
+                    # Item exists - check if we should update it with better enhancement data
+                    should_update = False
+                    update_reasons = []
+
+                    # Check if previous enhancement had errors and we now have successful data
+                    if enhancement_status['has_enhancement_errors'] and not enhanced_record.get('enhancement_errors'):
+                        should_update = True
+                        update_reasons.append("previous enhancement had errors, now successful")
+
+                    # Check if we now have PDF analysis when we didn't before
+                    if not enhancement_status['has_pdf_analysis'] and enhanced_record.get('tier_3_pdf_analysis'):
+                        has_successful_pdf = any(
+                            pdf.get('pdf_analyzed', False)
+                            for pdf in enhanced_record['tier_3_pdf_analysis']
+                            if isinstance(pdf, dict)
+                        )
+                        if has_successful_pdf:
+                            should_update = True
+                            update_reasons.append("now has successful PDF analysis")
+
+                    # Check if we now have affected individuals count when we didn't before
+                    current_affected = enhancement_status.get('affected_individuals')
+                    new_affected = db_item.get('affected_individuals')
+                    if not current_affected and new_affected:
+                        should_update = True
+                        update_reasons.append("now has affected individuals count")
+
+                    # Check if we now have notice document URL when we didn't before
+                    current_notice_url = enhancement_status.get('notice_document_url')
+                    new_notice_url = db_item.get('notice_document_url')
+                    if not current_notice_url and new_notice_url:
+                        should_update = True
+                        update_reasons.append("now has notice document URL")
+
+                    if should_update:
+                        logger.info(f"🔄 Updating existing item with enhanced data: {enhanced_record['organization_name']}")
+                        logger.info(f"   Update reasons: {', '.join(update_reasons)}")
+
+                        # Update the existing item with enhanced data
+                        update_success = supabase_client.update_item_enhancement(
+                            enhancement_status['item_id'],
+                            db_item
+                        )
+
+                        if update_success:
+                            processed_count += 1
+                            logger.info(f"✅ Successfully updated existing item: {enhanced_record['organization_name']}")
+                        else:
+                            logger.error(f"❌ Failed to update existing item: {enhanced_record['organization_name']}")
+                    else:
+                        logger.info(f"⏭️  Skipping existing item (no enhancement improvements): {enhanced_record['organization_name']}")
+
                     continue
 
                 # CRITICAL: Always attempt database insertion - core breach data must be saved
