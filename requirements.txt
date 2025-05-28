@@ -5,3 +5,6 @@ feedparser
 python-dateutil
 apify-client
 PyYAML
+PyPDF2
+pdfplumber
+firecrawl-py

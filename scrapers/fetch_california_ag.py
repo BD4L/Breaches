@@ -262,79 +262,376 @@ def scrape_detail_page(detail_url: str) -> dict:
         'error': str(last_error)
     }
 
+def extract_affected_individuals(content: str) -> dict:
+    """
+    Enhanced extraction of affected individuals count with confidence scoring.
+    """
+    import re
+
+    result = {
+        'count': None,
+        'raw_text': None,
+        'confidence': 'none',
+        'extraction_method': None
+    }
+
+    # Enhanced patterns for affected individuals with priority order
+    patterns = [
+        # High confidence patterns (specific numbers with clear context)
+        (r'(?:exactly|precisely)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'high', 'exact_count'),
+        (r'(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)\s+(?:were|are|have been)\s+(?:affected|impacted|involved|compromised)', 'high', 'direct_statement'),
+
+        # Medium confidence patterns (approximate numbers)
+        (r'(?:approximately|about|around|roughly)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'medium', 'approximate'),
+        (r'(?:up to|as many as|no more than)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'medium', 'upper_bound'),
+        (r'(?:over|more than|at least|minimum of)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'medium', 'lower_bound'),
+
+        # Lower confidence patterns (general mentions)
+        (r'(\d+(?:,\d+)*)\s+(?:affected|impacted|involved|compromised)', 'low', 'general_affected'),
+        (r'total of\s+(\d+(?:,\d+)*)', 'low', 'total_mention'),
+        (r'(\d+(?:,\d+)*)\s+(?:records?|accounts?|files?)', 'low', 'record_count'),
+    ]
+
+    for pattern, confidence, method in patterns:
+        matches = re.finditer(pattern, content, re.IGNORECASE)
+        for match in matches:
+            try:
+                count = int(match.group(1).replace(',', ''))
+                # Skip unrealistic numbers (too small or too large)
+                if 1 <= count <= 100000000:  # Reasonable range for breach notifications
+                    result['count'] = count
+                    result['raw_text'] = match.group(0)
+                    result['confidence'] = confidence
+                    result['extraction_method'] = method
+                    return result  # Return first valid match with highest confidence
+            except ValueError:
+                continue
+
+    return result
+
+def extract_data_types(content: str) -> list:
+    """
+    Enhanced data type extraction with comprehensive categories and context awareness.
+    """
+    import re
+    data_types = []
+
+    # Enhanced data type patterns with context
+    data_type_patterns = {
+        'Social Security Numbers': [
+            r'social security numbers?',
+            r'\bssn\b',
+            r'social security information',
+            r'taxpayer identification numbers?'
+        ],
+        'Driver License Numbers': [
+            r'driver\'?s? licen[sc]e numbers?',
+            r'state id numbers?',
+            r'identification numbers?',
+            r'driver licen[sc]e information'
+        ],
+        'Payment Card Information': [
+            r'credit card numbers?',
+            r'debit card numbers?',
+            r'payment card information',
+            r'card numbers?',
+            r'financial account numbers?',
+            r'bank account numbers?',
+            r'routing numbers?'
+        ],
+        'Medical Information': [
+            r'medical information',
+            r'health information',
+            r'protected health information',
+            r'\bphi\b',
+            r'medical records?',
+            r'patient data',
+            r'health records?',
+            r'medical data',
+            r'clinical information'
+        ],
+        'Personal Identifiers': [
+            r'personally identifiable information',
+            r'\bpii\b',
+            r'personal information',
+            r'names? and addresses?',
+            r'full names?',
+            r'date of birth',
+            r'birth dates?'
+        ],
+        'Contact Information': [
+            r'email addresses?',
+            r'phone numbers?',
+            r'telephone numbers?',
+            r'mailing addresses?',
+            r'home addresses?',
+            r'contact information'
+        ],
+        'Financial Information': [
+            r'financial information',
+            r'banking information',
+            r'account balances?',
+            r'financial data',
+            r'investment information',
+            r'tax information'
+        ],
+        'Employment Information': [
+            r'employment information',
+            r'employee data',
+            r'payroll information',
+            r'salary information',
+            r'w-2 information',
+            r'employment records?'
+        ],
+        'Insurance Information': [
+            r'insurance information',
+            r'policy numbers?',
+            r'insurance data',
+            r'coverage information'
+        ],
+        'Biometric Data': [
+            r'biometric data',
+            r'fingerprints?',
+            r'biometric information',
+            r'facial recognition data'
+        ]
+    }
+
+    # Check for each data type
+    for data_type, patterns in data_type_patterns.items():
+        for pattern in patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                if data_type not in data_types:
+                    data_types.append(data_type)
+                break  # Found this type, move to next
+
+    return data_types
+
+def extract_incident_timeline(content: str) -> dict:
+    """
+    Extract incident timeline information from breach notification.
+    """
+    import re
+
+    timeline = {}
+
+    # Date patterns for different timeline events
+    date_patterns = [
+        # Discovery dates
+        (r'discovered on (\w+ \d{1,2}, \d{4})', 'discovery_date'),
+        (r'became aware on (\w+ \d{1,2}, \d{4})', 'discovery_date'),
+        (r'learned of (?:the )?(?:incident|breach) on (\w+ \d{1,2}, \d{4})', 'discovery_date'),
+
+        # Incident dates
+        (r'incident occurred on (\w+ \d{1,2}, \d{4})', 'incident_date'),
+        (r'breach took place on (\w+ \d{1,2}, \d{4})', 'incident_date'),
+        (r'occurred between (\w+ \d{1,2}, \d{4}) and (\w+ \d{1,2}, \d{4})', 'incident_period'),
+
+        # Notification dates
+        (r'notifying (?:you|customers|individuals) on (\w+ \d{1,2}, \d{4})', 'notification_date'),
+        (r'this letter is dated (\w+ \d{1,2}, \d{4})', 'notification_date'),
+
+        # Containment dates
+        (r'contained (?:the )?(?:incident|breach) on (\w+ \d{1,2}, \d{4})', 'containment_date'),
+        (r'secured (?:the )?(?:system|data) on (\w+ \d{1,2}, \d{4})', 'containment_date'),
+    ]
+
+    for pattern, event_type in date_patterns:
+        matches = re.finditer(pattern, content, re.IGNORECASE)
+        for match in matches:
+            try:
+                if event_type == 'incident_period':
+                    timeline['incident_start_date'] = match.group(1)
+                    timeline['incident_end_date'] = match.group(2)
+                else:
+                    timeline[event_type] = match.group(1)
+            except Exception:
+                continue
+
+    return timeline
+
+def extract_breach_details(content: str) -> dict:
+    """
+    Extract additional breach details and context.
+    """
+    import re
+
+    details = {}
+
+    # Breach type patterns
+    breach_types = {
+        'cyber_attack': [r'cyber attack', r'hacking', r'malicious attack', r'unauthorized access'],
+        'ransomware': [r'ransomware', r'malware', r'encryption', r'ransom'],
+        'phishing': [r'phishing', r'email attack', r'fraudulent email'],
+        'insider_threat': [r'employee', r'insider', r'internal'],
+        'accidental': [r'accidental', r'inadvertent', r'human error', r'misconfiguration'],
+        'physical': [r'theft', r'stolen', r'lost', r'physical']
+    }
+
+    detected_types = []
+    for breach_type, patterns in breach_types.items():
+        for pattern in patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                detected_types.append(breach_type)
+                break
+
+    details['breach_types'] = detected_types
+
+    # Look for remediation actions
+    remediation_patterns = [
+        r'credit monitoring',
+        r'identity protection',
+        r'fraud alert',
+        r'security measures',
+        r'additional safeguards',
+        r'enhanced security'
+    ]
+
+    remediation_actions = []
+    for pattern in remediation_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            remediation_actions.append(pattern.replace(r'\b', '').replace(r'\\', ''))
+
+    details['remediation_offered'] = remediation_actions
+
+    # Look for regulatory mentions
+    regulatory_patterns = [
+        r'hipaa', r'hitech', r'gdpr', r'ccpa', r'ferpa', r'glba',
+        r'state attorney general', r'federal trade commission', r'ftc'
+    ]
+
+    regulations_mentioned = []
+    for pattern in regulatory_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            regulations_mentioned.append(pattern.upper())
+
+    details['regulations_mentioned'] = regulations_mentioned
+
+    return details
+
 def analyze_pdf_content(pdf_url: str) -> dict:
     """
-    Analyze PDF content for breach details (Tier 3).
+    Enhanced PDF content analysis for comprehensive breach details (Tier 3).
+    Extracts affected individuals, data types, timeline, and incident details.
     """
     try:
         logger.info(f"Analyzing PDF: {pdf_url}")
-
-        # Use Firecrawl to extract PDF content
-        import requests as req_lib
-
-        # For now, we'll use a simple approach to extract basic info
-        # In a full implementation, we'd use proper PDF parsing
 
         pdf_analysis = {
             'pdf_analyzed': True,
             'pdf_url': pdf_url,
             'affected_individuals': None,
             'data_types_compromised': [],
-            'incident_details': None,
-            'contact_information': None
+            'incident_timeline': {},
+            'breach_details': {},
+            'raw_text': '',
+            'extraction_confidence': 'low'  # Track confidence in extraction
         }
 
-        # Try to extract content using requests (basic approach)
+        # Try to extract content using Firecrawl for better PDF parsing
         try:
             # Add rate limiting delay before PDF request
             rate_limit_delay()
 
-            response = req_lib.get(pdf_url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
-            if response.status_code == 200:
-                # Basic text extraction (this would be enhanced with proper PDF parsing)
-                content = response.text.lower()
+            # Try Firecrawl first for better PDF extraction
+            try:
+                from firecrawl import FirecrawlApp
+                app = FirecrawlApp()
 
-                # Look for affected individuals count
-                import re
+                # Use Firecrawl to extract PDF content
+                result = app.scrape_url(pdf_url, params={'formats': ['markdown', 'html']})
+                if result and result.get('markdown'):
+                    content = result['markdown'].lower()
+                    pdf_analysis['raw_text'] = result['markdown'][:1000]  # Store sample for debugging
+                    pdf_analysis['extraction_confidence'] = 'high'
+                else:
+                    raise Exception("Firecrawl extraction failed")
 
-                # Common patterns for affected individuals
-                patterns = [
-                    r'(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?)',
-                    r'(?:approximately|about|over|more than|up to)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?)',
-                    r'(\d+(?:,\d+)*)\s+(?:affected|impacted|involved)'
-                ]
+            except Exception as firecrawl_error:
+                logger.debug(f"Firecrawl failed, falling back to PDF text extraction: {firecrawl_error}")
 
-                for pattern in patterns:
-                    match = re.search(pattern, content)
-                    if match:
+                # Fallback to PDF text extraction
+                try:
+                    import requests as req_lib
+                    import io
+
+                    # Download PDF content
+                    response = req_lib.get(pdf_url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
+                    if response.status_code == 200:
+                        # Try to extract text from PDF using PyPDF2
                         try:
-                            count = int(match.group(1).replace(',', ''))
-                            pdf_analysis['affected_individuals'] = count
-                            break
-                        except ValueError:
-                            continue
+                            import PyPDF2
+                            pdf_file = io.BytesIO(response.content)
+                            pdf_reader = PyPDF2.PdfReader(pdf_file)
 
-                # Look for data types
-                data_types = []
-                if 'social security' in content or 'ssn' in content:
-                    data_types.append('Social Security Numbers')
-                if 'driver' in content and 'license' in content:
-                    data_types.append('Driver License Numbers')
-                if 'credit card' in content or 'payment card' in content:
-                    data_types.append('Payment Card Information')
-                if 'medical' in content or 'health' in content:
-                    data_types.append('Medical Information')
-                if 'email' in content:
-                    data_types.append('Email Addresses')
-                if 'phone' in content:
-                    data_types.append('Phone Numbers')
-                if 'address' in content:
-                    data_types.append('Addresses')
+                            text_content = ""
+                            for page in pdf_reader.pages:
+                                text_content += page.extract_text() + "\n"
 
-                pdf_analysis['data_types_compromised'] = data_types
+                            if text_content.strip():
+                                content = text_content.lower()
+                                pdf_analysis['raw_text'] = text_content[:1000]  # Store sample
+                                pdf_analysis['extraction_confidence'] = 'high'
+                            else:
+                                raise Exception("No text extracted from PDF")
+
+                        except ImportError:
+                            logger.debug("PyPDF2 not available, trying pdfplumber")
+                            # Try pdfplumber as alternative
+                            try:
+                                import pdfplumber
+                                pdf_file = io.BytesIO(response.content)
+
+                                text_content = ""
+                                with pdfplumber.open(pdf_file) as pdf:
+                                    for page in pdf.pages:
+                                        page_text = page.extract_text()
+                                        if page_text:
+                                            text_content += page_text + "\n"
+
+                                if text_content.strip():
+                                    content = text_content.lower()
+                                    pdf_analysis['raw_text'] = text_content[:1000]  # Store sample
+                                    pdf_analysis['extraction_confidence'] = 'high'
+                                else:
+                                    raise Exception("No text extracted from PDF")
+
+                            except ImportError:
+                                logger.debug("No PDF parsing libraries available, using basic text extraction")
+                                # Last resort: try to extract any readable text
+                                content = response.text.lower()
+                                pdf_analysis['raw_text'] = content[:1000]  # Store sample
+                                pdf_analysis['extraction_confidence'] = 'low'
+
+                        except Exception as pdf_parse_error:
+                            logger.debug(f"PDF parsing failed: {pdf_parse_error}")
+                            # Last resort: try to extract any readable text
+                            content = response.text.lower()
+                            pdf_analysis['raw_text'] = content[:1000]  # Store sample
+                            pdf_analysis['extraction_confidence'] = 'low'
+                    else:
+                        raise Exception(f"HTTP request failed: {response.status_code}")
+
+                except Exception as fallback_error:
+                    logger.debug(f"All PDF extraction methods failed: {fallback_error}")
+                    raise Exception(f"PDF extraction failed: {fallback_error}")
+
+            # Enhanced affected individuals extraction
+            pdf_analysis['affected_individuals'] = extract_affected_individuals(content)
+
+            # Enhanced data types extraction
+            pdf_analysis['data_types_compromised'] = extract_data_types(content)
+
+            # Extract incident timeline
+            pdf_analysis['incident_timeline'] = extract_incident_timeline(content)
+
+            # Extract breach details
+            pdf_analysis['breach_details'] = extract_breach_details(content)
 
         except Exception as e:
             logger.warning(f"Could not extract PDF content from {pdf_url}: {e}")
+            pdf_analysis['extraction_confidence'] = 'failed'
+            pdf_analysis['error'] = str(e)
 
         return pdf_analysis
 
@@ -343,7 +640,8 @@ def analyze_pdf_content(pdf_url: str) -> dict:
         return {
             'pdf_analyzed': False,
             'pdf_url': pdf_url,
-            'error': str(e)
+            'error': str(e),
+            'extraction_confidence': 'failed'
         }
 
 def enhance_breach_data(breach_record: dict) -> dict:
@@ -546,11 +844,19 @@ def process_california_ag_breaches():
                 data_types_compromised = []
                 notice_document_url = None
 
-                # Extract from PDF analysis if available
+                # Extract from enhanced PDF analysis if available
                 if enhanced_record.get('tier_3_pdf_analysis'):
                     for pdf_analysis in enhanced_record['tier_3_pdf_analysis']:
+                        # Extract affected individuals with confidence scoring
                         if pdf_analysis.get('affected_individuals'):
-                            affected_individuals = pdf_analysis['affected_individuals']
+                            if isinstance(pdf_analysis['affected_individuals'], dict):
+                                # New enhanced format with confidence
+                                affected_individuals = pdf_analysis['affected_individuals'].get('count')
+                            else:
+                                # Legacy format (simple number)
+                                affected_individuals = pdf_analysis['affected_individuals']
+
+                        # Extract data types
                         if pdf_analysis.get('data_types_compromised'):
                             data_types_compromised.extend(pdf_analysis['data_types_compromised'])
 
