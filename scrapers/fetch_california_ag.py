@@ -4,7 +4,10 @@ import requests
 import csv
 import io
 import hashlib
+import re
 from datetime import datetime, date
+from urllib.parse import urljoin
+from bs4 import BeautifulSoup
 from dateutil import parser as dateutil_parser # For flexible date parsing
 
 # Assuming SupabaseClient is in utils.supabase_client
@@ -128,18 +131,196 @@ def fetch_csv_data() -> list:
         logger.error(f"Failed to fetch CSV data: {e}")
         return []
 
-def enhance_breach_data(breach_record: dict) -> dict:
+def extract_detail_page_info(detail_url: str) -> dict:
+    """
+    Extract information from individual breach detail pages (Tier 2).
+    """
+    try:
+        logger.info(f"Fetching detail page: {detail_url}")
+        response = requests.get(detail_url, headers=REQUEST_HEADERS, timeout=30)
+        response.raise_for_status()
+
+        # Parse the detail page
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        detail_info = {
+            'detail_page_url': detail_url,
+            'pdf_links': [],
+            'organization_name_detail': None,
+            'breach_dates_detail': None,
+            'additional_info': None
+        }
+
+        # Extract organization name from detail page
+        org_name_elem = soup.find('strong', string='Organization Name:')
+        if org_name_elem and org_name_elem.next_sibling:
+            detail_info['organization_name_detail'] = org_name_elem.next_sibling.strip()
+
+        # Extract breach dates from detail page
+        breach_date_elem = soup.find('strong', string='Date(s) of Breach (if known):')
+        if breach_date_elem and breach_date_elem.next_sibling:
+            detail_info['breach_dates_detail'] = breach_date_elem.next_sibling.strip()
+
+        # Find PDF links (Sample Notification)
+        pdf_links = soup.find_all('a', href=True)
+        for link in pdf_links:
+            href = link.get('href', '')
+            if href.endswith('.pdf') or 'pdf' in href.lower():
+                full_pdf_url = urljoin(detail_url, href)
+                detail_info['pdf_links'].append({
+                    'url': full_pdf_url,
+                    'text': link.get_text(strip=True),
+                    'title': link.get('title', '')
+                })
+
+        return detail_info
+
+    except Exception as e:
+        logger.error(f"Failed to extract detail page info from {detail_url}: {e}")
+        return {
+            'detail_page_url': detail_url,
+            'error': str(e),
+            'pdf_links': [],
+            'organization_name_detail': None,
+            'breach_dates_detail': None,
+            'additional_info': None
+        }
+
+def analyze_pdf_content(pdf_url: str) -> dict:
+    """
+    Analyze PDF content to extract breach details (Tier 3).
+    """
+    try:
+        logger.info(f"Analyzing PDF: {pdf_url}")
+
+        # For now, we'll use a simple requests approach to get PDF content
+        # In production, this would use Firecrawl or another PDF extraction service
+        response = requests.get(pdf_url, headers=REQUEST_HEADERS, timeout=30)
+        response.raise_for_status()
+
+        # For this initial implementation, we'll create a placeholder analysis
+        # In production, this would use proper PDF parsing (PyPDF2, pdfplumber, or Firecrawl)
+        analysis = {
+            'pdf_url': pdf_url,
+            'content_length': len(response.content),
+            'affected_individuals': None,
+            'data_types_compromised': [],
+            'discovery_date': None,
+            'notification_date': None,
+            'incident_description': None,
+            'contact_info': None,
+            'analysis_status': 'placeholder_implementation',
+            'note': 'PDF analysis requires proper PDF parsing library integration'
+        }
+
+        # Extract basic info from PDF filename if possible
+        filename = pdf_url.split('/')[-1].lower()
+        if 'security' in filename or 'breach' in filename or 'notification' in filename:
+            analysis['incident_description'] = f"Security notification document: {filename}"
+
+        return analysis
+
+    except Exception as e:
+        logger.error(f"Failed to analyze PDF {pdf_url}: {e}")
+        return {
+            'pdf_url': pdf_url,
+            'error': str(e),
+            'content_length': 0,
+            'affected_individuals': None,
+            'data_types_compromised': [],
+            'discovery_date': None,
+            'notification_date': None,
+            'incident_description': None,
+            'contact_info': None
+        }
+
+def fetch_html_table_urls() -> dict:
+    """
+    Fetch the HTML table from the main page to get organization name to detail URL mapping.
+    """
+    try:
+        logger.info("Fetching HTML table to map organization names to detail URLs...")
+        response = requests.get(CALIFORNIA_AG_BREACH_URL, headers=REQUEST_HEADERS, timeout=30)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Find the table with breach data
+        table = soup.find('table')
+        if not table:
+            logger.warning("No table found on the main page")
+            return {}
+
+        org_url_mapping = {}
+
+        # Process table rows (skip header row)
+        rows = table.find_all('tr')[1:]  # Skip header
+
+        for row in rows:
+            cells = row.find_all('td')
+            if len(cells) >= 3:  # Organization Name, Breach Dates, Reported Date
+                # First cell contains the organization name and link
+                org_cell = cells[0]
+                org_link = org_cell.find('a', href=True)
+
+                if org_link:
+                    org_name = org_link.get_text(strip=True)
+                    detail_url = urljoin(CALIFORNIA_AG_BREACH_URL, org_link.get('href'))
+                    org_url_mapping[org_name] = detail_url
+
+        logger.info(f"Mapped {len(org_url_mapping)} organizations to detail URLs")
+        return org_url_mapping
+
+    except Exception as e:
+        logger.error(f"Failed to fetch HTML table URLs: {e}")
+        return {}
+
+def enhance_breach_data(breach_record: dict, org_url_mapping: dict) -> dict:
     """
     Enhance breach data by fetching detailed information (Tier 2 - Derived/Enriched).
     """
     try:
-        # Look for potential detail page URLs in the main listing
-        # This would require additional scraping of the main page to find actual URLs
-        # For now, we'll use the data we have and mark for future enhancement
+        org_name = breach_record['organization_name']
 
         enhanced_data = breach_record.copy()
         enhanced_data['enhancement_attempted'] = True
         enhanced_data['enhancement_timestamp'] = datetime.now().isoformat()
+
+        # Check if we have a detail URL for this organization
+        detail_url = org_url_mapping.get(org_name)
+
+        if detail_url:
+            logger.info(f"Enhancing data for {org_name} with detail URL: {detail_url}")
+
+            # Tier 2: Extract detail page information
+            detail_info = extract_detail_page_info(detail_url)
+            enhanced_data['detail_page_info'] = detail_info
+
+            # Tier 3: Analyze PDFs if available
+            pdf_analyses = []
+            for pdf_link in detail_info.get('pdf_links', []):
+                pdf_url = pdf_link['url']
+                logger.info(f"Analyzing PDF for {org_name}: {pdf_url}")
+                pdf_analysis = analyze_pdf_content(pdf_url)
+                pdf_analyses.append(pdf_analysis)
+
+            enhanced_data['pdf_analyses'] = pdf_analyses
+
+            # Extract the best affected individuals count from PDF analysis
+            affected_individuals = None
+            for analysis in pdf_analyses:
+                if analysis.get('affected_individuals'):
+                    affected_individuals = analysis['affected_individuals']
+                    break
+
+            enhanced_data['affected_individuals_from_pdf'] = affected_individuals
+
+        else:
+            logger.warning(f"No detail URL found for organization: {org_name}")
+            enhanced_data['detail_page_info'] = {
+                'status': 'no_url_mapping',
+                'note': f'No detail URL found for {org_name}'
+            }
 
         return enhanced_data
 
@@ -162,6 +343,9 @@ def process_california_ag_breaches():
         if not csv_breach_data:
             logger.error("No CSV data retrieved, aborting")
             return
+
+        # Fetch HTML table to map organization names to detail URLs
+        org_url_mapping = fetch_html_table_urls()
 
         # Filter breaches based on configuration
         if FILTER_FROM_DATE:
@@ -206,28 +390,79 @@ def process_california_ag_breaches():
         for breach_record in filtered_breaches:
             try:
                 # Tier 2: Enhance with additional data
-                enhanced_record = enhance_breach_data(breach_record)
+                enhanced_record = enhance_breach_data(breach_record, org_url_mapping)
+
+                # Extract enhanced information
+                detail_page_info = enhanced_record.get('detail_page_info', {})
+                pdf_analyses = enhanced_record.get('pdf_analyses', [])
+                affected_individuals_from_pdf = enhanced_record.get('affected_individuals_from_pdf')
+
+                # Get the detail page URL if available
+                detail_url = detail_page_info.get('detail_page_url', CALIFORNIA_AG_BREACH_URL)
+
+                # Get PDF URLs for notice_document_url
+                pdf_urls = []
+                for pdf_link in detail_page_info.get('pdf_links', []):
+                    pdf_urls.append(pdf_link['url'])
+                notice_document_url = pdf_urls[0] if pdf_urls else None
+
+                # Create enhanced summary with PDF analysis
+                summary_parts = [f"Data breach reported by {enhanced_record['organization_name']}"]
+
+                if affected_individuals_from_pdf:
+                    summary_parts.append(f"Affected individuals: {affected_individuals_from_pdf:,}")
+
+                if pdf_analyses:
+                    for analysis in pdf_analyses:
+                        data_types = analysis.get('data_types_compromised', [])
+                        if data_types:
+                            summary_parts.append(f"Data types: {', '.join(data_types[:3])}")  # Limit to first 3
+                            break
+
+                summary_text = ". ".join(summary_parts)
+
+                # Create enhanced full content
+                full_content_parts = [
+                    f"Organization: {enhanced_record['organization_name']}",
+                    f"Breach Date(s): {', '.join(enhanced_record['breach_dates']) if enhanced_record['breach_dates'] else 'Not specified'}",
+                    f"Reported Date: {enhanced_record['reported_date'] or 'Not specified'}"
+                ]
+
+                if affected_individuals_from_pdf:
+                    full_content_parts.append(f"Affected Individuals: {affected_individuals_from_pdf:,}")
+
+                if pdf_analyses:
+                    for analysis in pdf_analyses:
+                        if analysis.get('incident_description'):
+                            full_content_parts.append(f"Incident Description: {analysis['incident_description']}")
+                            break
+
+                full_content = "\n".join(full_content_parts)
 
                 # Convert to database format
                 db_item = {
                     'source_id': SOURCE_ID_CALIFORNIA_AG,
-                    'item_url': enhanced_record.get('detail_url', CALIFORNIA_AG_BREACH_URL),
+                    'item_url': detail_url,
                     'title': enhanced_record['organization_name'],
                     'publication_date': enhanced_record['reported_date'],
-                    'summary_text': f"Data breach reported by {enhanced_record['organization_name']}",
-                    'full_content': f"Organization: {enhanced_record['organization_name']}\n"
-                                  f"Breach Date(s): {', '.join(enhanced_record['breach_dates']) if enhanced_record['breach_dates'] else 'Not specified'}\n"
-                                  f"Reported Date: {enhanced_record['reported_date'] or 'Not specified'}",
+                    'summary_text': summary_text,
+                    'full_content': full_content,
                     'reported_date': enhanced_record['reported_date'],
                     'breach_date': enhanced_record['breach_dates'][0] if enhanced_record['breach_dates'] else None,
+                    'affected_individuals': affected_individuals_from_pdf,
+                    'notice_document_url': notice_document_url,
                     'raw_data_json': {
-                        'scraper_version': '2.0_enhanced',
+                        'scraper_version': '3.0_full_enhanced',
                         'tier_1_csv_data': enhanced_record['raw_csv_data'],
-                        'tier_2_enhanced': {
+                        'tier_2_detail_page': detail_page_info,
+                        'tier_3_pdf_analyses': pdf_analyses,
+                        'enhancement_metadata': {
                             'incident_uid': enhanced_record['incident_uid'],
                             'breach_dates_all': enhanced_record['breach_dates'],
                             'enhancement_attempted': enhanced_record.get('enhancement_attempted', False),
-                            'enhancement_timestamp': enhanced_record.get('enhancement_timestamp')
+                            'enhancement_timestamp': enhanced_record.get('enhancement_timestamp'),
+                            'affected_individuals_from_pdf': affected_individuals_from_pdf,
+                            'pdf_count': len(pdf_analyses)
                         }
                     }
                 }
