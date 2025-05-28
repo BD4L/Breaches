@@ -603,93 +603,75 @@ def analyze_pdf_content(pdf_url: str) -> dict:
             'extraction_confidence': 'low'  # Track confidence in extraction
         }
 
-        # Try to extract content using Firecrawl for better PDF parsing
+        # Extract PDF content using local libraries (PyPDF2 and pdfplumber)
         try:
             # Add rate limiting delay before PDF request
             rate_limit_delay()
 
-            # Try Firecrawl first for better PDF extraction
-            try:
-                from firecrawl import FirecrawlApp
-                app = FirecrawlApp()
+            import requests as req_lib
+            import io
 
-                # Use Firecrawl to extract PDF content
-                result = app.scrape_url(pdf_url, params={'formats': ['markdown', 'html']})
-                if result and result.get('markdown'):
-                    content = result['markdown'].lower()
-                    pdf_analysis['raw_text'] = result['markdown'][:1000]  # Store sample for debugging
-                    pdf_analysis['extraction_confidence'] = 'high'
-                else:
-                    raise Exception("Firecrawl extraction failed")
-
-            except Exception as firecrawl_error:
-                logger.debug(f"Firecrawl failed, falling back to PDF text extraction: {firecrawl_error}")
-
-                # Fallback to PDF text extraction
+            # Download PDF content
+            response = req_lib.get(pdf_url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
+            if response.status_code == 200:
+                # Try to extract text from PDF using PyPDF2 first
                 try:
-                    import requests as req_lib
-                    import io
+                    import PyPDF2
+                    pdf_file = io.BytesIO(response.content)
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
 
-                    # Download PDF content
-                    response = req_lib.get(pdf_url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
-                    if response.status_code == 200:
-                        # Try to extract text from PDF using PyPDF2
-                        try:
-                            import PyPDF2
-                            pdf_file = io.BytesIO(response.content)
-                            pdf_reader = PyPDF2.PdfReader(pdf_file)
+                    text_content = ""
+                    for page in pdf_reader.pages:
+                        text_content += page.extract_text() + "\n"
 
-                            text_content = ""
-                            for page in pdf_reader.pages:
-                                text_content += page.extract_text() + "\n"
-
-                            if text_content.strip():
-                                content = text_content.lower()
-                                pdf_analysis['raw_text'] = text_content[:1000]  # Store sample
-                                pdf_analysis['extraction_confidence'] = 'high'
-                            else:
-                                raise Exception("No text extracted from PDF")
-
-                        except ImportError:
-                            logger.debug("PyPDF2 not available, trying pdfplumber")
-                            # Try pdfplumber as alternative
-                            try:
-                                import pdfplumber
-                                pdf_file = io.BytesIO(response.content)
-
-                                text_content = ""
-                                with pdfplumber.open(pdf_file) as pdf:
-                                    for page in pdf.pages:
-                                        page_text = page.extract_text()
-                                        if page_text:
-                                            text_content += page_text + "\n"
-
-                                if text_content.strip():
-                                    content = text_content.lower()
-                                    pdf_analysis['raw_text'] = text_content[:1000]  # Store sample
-                                    pdf_analysis['extraction_confidence'] = 'high'
-                                else:
-                                    raise Exception("No text extracted from PDF")
-
-                            except ImportError:
-                                logger.debug("No PDF parsing libraries available, using basic text extraction")
-                                # Last resort: try to extract any readable text
-                                content = response.text.lower()
-                                pdf_analysis['raw_text'] = content[:1000]  # Store sample
-                                pdf_analysis['extraction_confidence'] = 'low'
-
-                        except Exception as pdf_parse_error:
-                            logger.debug(f"PDF parsing failed: {pdf_parse_error}")
-                            # Last resort: try to extract any readable text
-                            content = response.text.lower()
-                            pdf_analysis['raw_text'] = content[:1000]  # Store sample
-                            pdf_analysis['extraction_confidence'] = 'low'
+                    if text_content.strip():
+                        content = text_content.lower()
+                        pdf_analysis['raw_text'] = text_content[:1000]  # Store sample
+                        pdf_analysis['extraction_confidence'] = 'high'
+                        logger.debug(f"PyPDF2 extraction successful for {pdf_url}")
                     else:
-                        raise Exception(f"HTTP request failed: {response.status_code}")
+                        raise Exception("No text extracted from PDF with PyPDF2")
 
-                except Exception as fallback_error:
-                    logger.debug(f"All PDF extraction methods failed: {fallback_error}")
-                    raise Exception(f"PDF extraction failed: {fallback_error}")
+                except ImportError:
+                    logger.debug("PyPDF2 not available, trying pdfplumber")
+                    raise Exception("PyPDF2 not available")
+
+                except Exception as pypdf_error:
+                    logger.debug(f"PyPDF2 extraction failed: {pypdf_error}, trying pdfplumber")
+
+                    # Try pdfplumber as alternative
+                    try:
+                        import pdfplumber
+                        pdf_file = io.BytesIO(response.content)
+
+                        text_content = ""
+                        with pdfplumber.open(pdf_file) as pdf:
+                            for page in pdf.pages:
+                                page_text = page.extract_text()
+                                if page_text:
+                                    text_content += page_text + "\n"
+
+                        if text_content.strip():
+                            content = text_content.lower()
+                            pdf_analysis['raw_text'] = text_content[:1000]  # Store sample
+                            pdf_analysis['extraction_confidence'] = 'high'
+                            logger.debug(f"pdfplumber extraction successful for {pdf_url}")
+                        else:
+                            raise Exception("No text extracted from PDF with pdfplumber")
+
+                    except ImportError:
+                        logger.error("Neither PyPDF2 nor pdfplumber available for PDF parsing")
+                        raise Exception("No PDF parsing libraries available")
+
+                    except Exception as pdfplumber_error:
+                        logger.debug(f"pdfplumber extraction failed: {pdfplumber_error}")
+                        # Last resort: try to extract any readable text from response
+                        content = response.text.lower()
+                        pdf_analysis['raw_text'] = content[:1000]  # Store sample
+                        pdf_analysis['extraction_confidence'] = 'low'
+                        logger.warning(f"Using low-confidence text extraction for {pdf_url}")
+            else:
+                raise Exception(f"HTTP request failed: {response.status_code}")
 
             # Enhanced affected individuals extraction
             pdf_analysis['affected_individuals'] = extract_affected_individuals(content)
