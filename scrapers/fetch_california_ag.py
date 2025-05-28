@@ -448,7 +448,7 @@ def process_california_ag_breaches():
 
                 full_content = "\n".join(content_parts)
 
-                # Convert to database format
+                # Convert to database format - be conservative with field mapping
                 db_item = {
                     'source_id': SOURCE_ID_CALIFORNIA_AG,
                     'item_url': enhanced_record.get('tier_2_detail', {}).get('detail_page_url', CALIFORNIA_AG_BREACH_URL),
@@ -460,7 +460,6 @@ def process_california_ag_breaches():
                     'breach_date': enhanced_record['breach_dates'][0] if enhanced_record['breach_dates'] else None,
                     'affected_individuals': affected_individuals,
                     'notice_document_url': notice_document_url,
-                    'data_types_compromised': data_types_compromised if data_types_compromised else None,
                     'raw_data_json': {
                         'scraper_version': '3.0_enhanced_with_pdfs',
                         'tier_1_csv_data': enhanced_record['raw_csv_data'],
@@ -471,9 +470,19 @@ def process_california_ag_breaches():
                             'enhancement_timestamp': enhanced_record.get('enhancement_timestamp'),
                             'detail_page_data': enhanced_record.get('tier_2_detail', {})
                         },
-                        'tier_3_pdf_analysis': enhanced_record.get('tier_3_pdf_analysis', [])
+                        'tier_3_pdf_analysis': enhanced_record.get('tier_3_pdf_analysis', []),
+                        # Store data types in raw_data_json for now (until schema is updated)
+                        'data_types_compromised': data_types_compromised,
+                        'pdf_analysis_summary': {
+                            'affected_individuals_extracted': affected_individuals,
+                            'data_types_found': data_types_compromised,
+                            'pdf_documents_analyzed': len(enhanced_record.get('tier_3_pdf_analysis', []))
+                        }
                     }
                 }
+
+                # Note: data_types_compromised field is stored in raw_data_json
+                # The database schema may not have this field in all instances
 
                 # Insert into database
                 supabase_client.insert_item(**db_item)
