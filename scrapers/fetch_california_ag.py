@@ -1058,6 +1058,14 @@ def process_california_ag_breaches():
                         should_update = True
                         update_reasons.append("now has notice document URL")
 
+                    # Check if we now have "What information was involved?" text when we didn't before
+                    current_raw_data = enhancement_status.get('raw_data_json', {})
+                    current_what_info = current_raw_data.get('what_information_involved_text') if isinstance(current_raw_data, dict) else None
+                    new_what_info = what_information_involved_text
+                    if not current_what_info and new_what_info:
+                        should_update = True
+                        update_reasons.append("now has 'What information was involved?' text")
+
                     if should_update:
                         logger.info(f"🔄 Updating existing item with enhanced data: {enhanced_record['organization_name']}")
                         logger.info(f"   Update reasons: {', '.join(update_reasons)}")

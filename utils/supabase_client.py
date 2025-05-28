@@ -49,6 +49,7 @@ class SupabaseClient:
                 'has_pdf_analysis': False,
                 'affected_individuals': item.get('affected_individuals'),
                 'notice_document_url': item.get('notice_document_url'),
+                'raw_data_json': raw_data,  # Include raw data for detailed checking
                 'enhancement_errors': []
             }
 

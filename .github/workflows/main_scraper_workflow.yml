@@ -17,8 +17,8 @@ jobs:
       PYTHONUNBUFFERED: "1" # Ensures print statements appear in the GitHub Actions logs immediately
 
       # California AG scraper configuration for GitHub Actions
-      CA_AG_FILTER_FROM_DATE: "2025-05-20" # One week back for reliable testing
-      CA_AG_PROCESSING_MODE: "ENHANCED" # Reliable production mode with error handling
+      CA_AG_FILTER_FROM_DATE: "2025-05-21" # One week back for reliable testing
+      CA_AG_PROCESSING_MODE: "FULL" # Complete PDF analysis with "What information was involved?" extraction
 
     steps:
       - name: Checkout repository
