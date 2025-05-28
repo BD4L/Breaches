@@ -31,12 +31,23 @@ SOURCE_ID_CALIFORNIA_AG = 4 # California AG source ID
 # Configuration for date filtering
 # Set to None to collect all historical data (for testing)
 # Set to a date string like "2025-05-27" for production filtering
-FILTER_FROM_DATE = os.environ.get("CA_AG_FILTER_FROM_DATE", None)  # None = collect all data
+# Default to one week back for better testing coverage
+# GitHub Actions should use recent date to avoid timeouts
+from datetime import timedelta
+default_date = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
+FILTER_FROM_DATE = os.environ.get("CA_AG_FILTER_FROM_DATE", default_date)
+
+# Processing mode configuration
+# BASIC: Only CSV data (fast, reliable for daily collection)
+# ENHANCED: CSV + detail page URLs (moderate speed, good for regular collection)
+# FULL: Everything including PDF analysis (slow, for research/analysis)
+PROCESSING_MODE = os.environ.get("CA_AG_PROCESSING_MODE", "ENHANCED")  # BASIC, ENHANCED, FULL
 
 # Rate limiting configuration
 MIN_DELAY_SECONDS = 2  # Minimum delay between requests
 MAX_DELAY_SECONDS = 5  # Maximum delay between requests
-REQUEST_TIMEOUT = 45   # Increased timeout for detail pages
+REQUEST_TIMEOUT = 60   # Increased timeout for detail pages
+MAX_RETRIES = 3        # Maximum number of retries for failed requests
 
 # Headers for requests
 REQUEST_HEADERS = {
@@ -87,10 +98,16 @@ def parse_breach_dates(date_str: str) -> list:
 
     dates = []
     for date_part in date_str.split(','):
-        parsed_date = parse_date_flexible(date_part.strip())
-        if parsed_date:
-            dates.append(parsed_date)
+        date_part = date_part.strip()
+        if date_part:  # Only process non-empty date parts
+            parsed_date = parse_date_flexible(date_part)
+            if parsed_date:
+                dates.append(parsed_date)
+                logger.debug(f"Successfully parsed breach date: '{date_part}' -> {parsed_date}")
+            else:
+                logger.warning(f"Failed to parse breach date part: '{date_part}'")
 
+    logger.debug(f"Parsed {len(dates)} breach dates from: '{date_str}' -> {dates}")
     return dates
 
 def rate_limit_delay():
@@ -122,9 +139,16 @@ def fetch_csv_data() -> list:
                 row.get('Reported Date', '')
             )
 
-            # Parse dates
-            breach_dates = parse_breach_dates(row.get('Date(s) of Breach (if known)', ''))
+            # Parse dates - handle potential column name variations
+            breach_date_raw = (row.get('Date(s) of Breach (if known)', '') or
+                              row.get('Date(s) of Breach  (if known)', '') or  # Extra space variant
+                              '')
+            breach_dates = parse_breach_dates(breach_date_raw)
             reported_date = parse_date_flexible(row.get('Reported Date', ''))
+
+            # Debug logging for date parsing
+            if breach_date_raw:
+                logger.debug(f"Parsing breach dates for {row.get('Organization Name', 'Unknown')}: '{breach_date_raw}' -> {breach_dates}")
 
             # Create standardized breach record
             breach_record = {
@@ -149,83 +173,94 @@ def scrape_detail_page(detail_url: str) -> dict:
     """
     Scrape the detail page for additional breach information (Tier 2).
     """
-    try:
-        logger.info(f"Scraping detail page: {detail_url}")
+    last_error = None
 
-        # Add rate limiting delay before making request
-        rate_limit_delay()
+    for attempt in range(MAX_RETRIES):
+        try:
+            logger.info(f"Scraping detail page (attempt {attempt + 1}/{MAX_RETRIES}): {detail_url}")
 
-        response = requests.get(detail_url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
+            # Add rate limiting delay before making request
+            rate_limit_delay()
 
-        soup = BeautifulSoup(response.content, 'html.parser')
+            response = requests.get(detail_url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
+            response.raise_for_status()
 
-        detail_data = {
-            'detail_page_scraped': True,
-            'detail_page_url': detail_url,
-            'pdf_links': [],
-            'organization_name_detail': None,
-            'breach_date_detail': None
-        }
+            soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Extract organization name from detail page
-        org_name_elem = soup.find('strong', string='Organization Name:')
-        if org_name_elem and org_name_elem.next_sibling:
-            detail_data['organization_name_detail'] = org_name_elem.next_sibling.strip()
+            detail_data = {
+                'detail_page_scraped': True,
+                'detail_page_url': detail_url,
+                'pdf_links': [],
+                'organization_name_detail': None,
+                'breach_date_detail': None
+            }
 
-        # Extract breach date from detail page
-        breach_date_elem = soup.find('strong', string='Date(s) of Breach (if known):')
-        if breach_date_elem and breach_date_elem.next_sibling:
-            detail_data['breach_date_detail'] = breach_date_elem.next_sibling.strip()
+            # Extract organization name from detail page
+            org_name_elem = soup.find('strong', string='Organization Name:')
+            if org_name_elem and org_name_elem.next_sibling:
+                detail_data['organization_name_detail'] = org_name_elem.next_sibling.strip()
 
-        # Find PDF links - only look for breach notification PDFs, not general site PDFs
-        pdf_links = []
+            # Extract breach date from detail page
+            breach_date_elem = soup.find('strong', string='Date(s) of Breach (if known):')
+            if breach_date_elem and breach_date_elem.next_sibling:
+                detail_data['breach_date_detail'] = breach_date_elem.next_sibling.strip()
 
-        # Look for PDFs in the main content area, specifically under "Sample of Notice:"
-        # First, try to find the main content section
-        main_content = soup.find('div', {'id': 'main-content'}) or soup
+            # Find PDF links - only look for breach notification PDFs, not general site PDFs
+            pdf_links = []
 
-        # Look for PDF links that are likely breach notifications
-        for link in main_content.find_all('a', href=True):
-            href = link.get('href', '')
-            if href.endswith('.pdf'):
-                # Filter out generic site PDFs (annual reports, etc.)
-                href_lower = href.lower()
+            # Look for PDFs in the main content area, specifically under "Sample of Notice:"
+            # First, try to find the main content section
+            main_content = soup.find('div', {'id': 'main-content'}) or soup
 
-                # Skip generic annual reports and site-wide PDFs
-                skip_patterns = [
-                    'data-breach-report',  # Annual reports
-                    'data_breach_rpt',     # Annual reports
-                    'annual',
-                    'report.pdf',
-                    '/agweb/pdfs/',        # General site PDFs
-                    '/sites/all/files/agweb/'  # Old site structure
-                ]
+            # Look for PDF links that are likely breach notifications
+            for link in main_content.find_all('a', href=True):
+                href = link.get('href', '')
+                if href.endswith('.pdf'):
+                    # Filter out generic site PDFs (annual reports, etc.)
+                    href_lower = href.lower()
 
-                # Check if this is a generic PDF to skip
-                should_skip = any(pattern in href_lower for pattern in skip_patterns)
+                    # Skip generic annual reports and site-wide PDFs
+                    skip_patterns = [
+                        'data-breach-report',  # Annual reports
+                        'data_breach_rpt',     # Annual reports
+                        'annual',
+                        'report.pdf',
+                        '/agweb/pdfs/',        # General site PDFs
+                        '/sites/all/files/agweb/'  # Old site structure
+                    ]
 
-                if not should_skip:
-                    # This looks like a breach notification PDF
-                    full_pdf_url = urljoin(detail_url, href)
-                    pdf_title = link.get_text(strip=True) or 'Sample Notification'
-                    pdf_links.append({
-                        'url': full_pdf_url,
-                        'title': pdf_title
-                    })
+                    # Check if this is a generic PDF to skip
+                    should_skip = any(pattern in href_lower for pattern in skip_patterns)
 
-        detail_data['pdf_links'] = pdf_links
+                    if not should_skip:
+                        # This looks like a breach notification PDF
+                        full_pdf_url = urljoin(detail_url, href)
+                        pdf_title = link.get_text(strip=True) or 'Sample Notification'
+                        pdf_links.append({
+                            'url': full_pdf_url,
+                            'title': pdf_title
+                        })
 
-        logger.info(f"Found {len(detail_data['pdf_links'])} PDF links on detail page")
-        return detail_data
+            detail_data['pdf_links'] = pdf_links
 
-    except Exception as e:
-        logger.error(f"Failed to scrape detail page {detail_url}: {e}")
-        return {
-            'detail_page_scraped': False,
-            'detail_page_url': detail_url,
-            'error': str(e)
-        }
+            logger.info(f"Found {len(detail_data['pdf_links'])} PDF links on detail page")
+            return detail_data
+
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Attempt {attempt + 1} failed for {detail_url}: {e}")
+            if attempt < MAX_RETRIES - 1:
+                logger.info(f"Retrying in {MIN_DELAY_SECONDS} seconds...")
+                time.sleep(MIN_DELAY_SECONDS)
+            continue
+
+    # All attempts failed
+    logger.error(f"Failed to scrape detail page {detail_url} after {MAX_RETRIES} attempts: {last_error}")
+    return {
+        'detail_page_scraped': False,
+        'detail_page_url': detail_url,
+        'error': str(last_error)
+    }
 
 def analyze_pdf_content(pdf_url: str) -> dict:
     """
@@ -314,11 +349,21 @@ def analyze_pdf_content(pdf_url: str) -> dict:
 def enhance_breach_data(breach_record: dict) -> dict:
     """
     Enhance breach data by fetching detailed information (Tier 2 - Derived/Enriched).
+    Respects GitHub Actions optimization settings to avoid timeouts.
     """
     try:
         enhanced_data = breach_record.copy()
         enhanced_data['enhancement_attempted'] = True
         enhanced_data['enhancement_timestamp'] = datetime.now().isoformat()
+
+        # Handle different processing modes
+        if PROCESSING_MODE == "BASIC":
+            logger.debug(f"BASIC mode: Skipping detail scraping for {enhanced_data['organization_name']}")
+            enhanced_data['tier_2_detail'] = {
+                'detail_page_scraped': False,
+                'skip_reason': 'BASIC mode - detail scraping disabled'
+            }
+            return enhanced_data
 
         # Construct detail page URL from organization name and CSV data
         # The URLs follow pattern: https://oag.ca.gov/ecrime/databreach/reports/sb24-XXXXXX
@@ -356,12 +401,21 @@ def enhance_breach_data(breach_record: dict) -> dict:
             detail_data = scrape_detail_page(detail_url)
             enhanced_data['tier_2_detail'] = detail_data
 
-            # Tier 3: Analyze PDFs if found
-            if detail_data.get('pdf_links'):
+            # Tier 3: Handle PDF analysis based on processing mode
+            if PROCESSING_MODE == "FULL" and detail_data.get('pdf_links'):
                 enhanced_data['tier_3_pdf_analysis'] = []
                 for pdf_link in detail_data['pdf_links']:
                     pdf_analysis = analyze_pdf_content(pdf_link['url'])
                     enhanced_data['tier_3_pdf_analysis'].append(pdf_analysis)
+            elif detail_data.get('pdf_links'):
+                # Store PDF URLs for later analysis but don't process them now
+                logger.debug(f"ENHANCED mode: Storing PDF URLs for {enhanced_data['organization_name']} (analysis can be done separately)")
+                enhanced_data['tier_3_pdf_analysis'] = [{
+                    'pdf_analyzed': False,
+                    'skip_reason': f'{PROCESSING_MODE} mode - PDF analysis deferred',
+                    'pdf_url': link['url'],
+                    'pdf_title': link['title']
+                } for link in detail_data['pdf_links']]
 
         return enhanced_data
 
@@ -374,6 +428,12 @@ def process_california_ag_breaches():
     Enhanced California AG breach scraper using 3-tier approach.
     """
     logger.info("Starting enhanced California AG breach data fetch...")
+
+    # Log processing configuration
+    logger.info(f"Processing Configuration:")
+    logger.info(f"  - Processing mode: {PROCESSING_MODE}")
+    logger.info(f"  - Date filter: {FILTER_FROM_DATE}")
+    logger.info(f"  - BASIC: CSV only | ENHANCED: CSV + URLs | FULL: Everything")
 
     try:
         # Initialize Supabase client
@@ -390,10 +450,10 @@ def process_california_ag_breaches():
             # Production mode: filter from specified date
             try:
                 filter_date = datetime.strptime(FILTER_FROM_DATE, '%Y-%m-%d').date()
-                logger.info(f"Production mode: filtering breaches from {filter_date} onward")
+                logger.info(f"Date filtering enabled: collecting breaches from {filter_date} onward")
             except ValueError:
-                logger.warning(f"Invalid FILTER_FROM_DATE format '{FILTER_FROM_DATE}', using today's date")
-                filter_date = date.today()
+                logger.warning(f"Invalid FILTER_FROM_DATE format '{FILTER_FROM_DATE}', using one week back")
+                filter_date = (date.today() - timedelta(days=7))
         else:
             # Testing mode: collect all historical data
             filter_date = None
@@ -514,10 +574,19 @@ def process_california_ag_breaches():
                 # Note: data_types_compromised field is stored in raw_data_json
                 # The database schema may not have this field in all instances
 
+                # Check if item already exists before inserting
+                item_url = db_item['item_url']
+                if supabase_client.check_item_exists(item_url):
+                    logger.info(f"Skipping duplicate item: {enhanced_record['organization_name']} (URL: {item_url})")
+                    continue
+
                 # Insert into database
-                supabase_client.insert_item(**db_item)
-                processed_count += 1
-                logger.info(f"Processed: {enhanced_record['organization_name']}")
+                insert_result = supabase_client.insert_item(**db_item)
+                if insert_result:
+                    processed_count += 1
+                    logger.info(f"Successfully processed: {enhanced_record['organization_name']}")
+                else:
+                    logger.error(f"Failed to insert: {enhanced_record['organization_name']}")
 
             except Exception as e:
                 logger.error(f"Failed to process breach record for {breach_record.get('organization_name', 'Unknown')}: {e}")

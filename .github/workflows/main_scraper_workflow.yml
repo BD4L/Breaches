@@ -16,6 +16,10 @@ jobs:
       APIFY_TEXAS_BREACH_ACTOR_ID: ${{ secrets.APIFY_TEXAS_BREACH_ACTOR_ID }}
       PYTHONUNBUFFERED: "1" # Ensures print statements appear in the GitHub Actions logs immediately
 
+      # California AG scraper configuration for GitHub Actions
+      CA_AG_FILTER_FROM_DATE: "2025-05-27" # Today only for PDF testing
+      CA_AG_PROCESSING_MODE: "FULL" # Test complete PDF analysis functionality
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

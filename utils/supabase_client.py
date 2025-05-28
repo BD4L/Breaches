@@ -13,6 +13,17 @@ class SupabaseClient:
         self.client: Client = create_client(url, key)
         logger.info("Supabase client initialized.")
 
+    def check_item_exists(self, item_url: str) -> bool:
+        """
+        Check if an item with the given URL already exists in the database.
+        """
+        try:
+            response = self.client.table("scraped_items").select("id").eq("item_url", item_url).execute()
+            return len(response.data) > 0
+        except Exception as e:
+            logger.error(f"Error checking if item exists for URL {item_url}: {e}")
+            return False
+
     def insert_item(self, source_id: int, item_url: str, title: str, publication_date: str, summary_text: str = None, full_content: str = None, raw_data_json: dict = None, tags_keywords: list = None, affected_individuals: int = None, breach_date: str = None, reported_date: str = None, notice_document_url: str = None,
                     # SEC-specific fields
                     cik: str = None, ticker_symbol: str = None, accession_number: str = None, form_type: str = None, filing_date: str = None, report_date: str = None, primary_document_url: str = None, xbrl_instance_url: str = None,
