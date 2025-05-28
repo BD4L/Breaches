@@ -349,13 +349,16 @@ def analyze_pdf_content(pdf_url: str) -> dict:
 def enhance_breach_data(breach_record: dict) -> dict:
     """
     Enhance breach data by fetching detailed information (Tier 2 - Derived/Enriched).
-    Respects GitHub Actions optimization settings to avoid timeouts.
+    CRITICAL: Always returns enhanced_data even if enhancement fails.
+    This ensures we never lose core breach data due to PDF/detail page failures.
     """
-    try:
-        enhanced_data = breach_record.copy()
-        enhanced_data['enhancement_attempted'] = True
-        enhanced_data['enhancement_timestamp'] = datetime.now().isoformat()
+    # Start with core data - this is our fallback if everything fails
+    enhanced_data = breach_record.copy()
+    enhanced_data['enhancement_attempted'] = True
+    enhanced_data['enhancement_timestamp'] = datetime.now().isoformat()
+    enhanced_data['enhancement_errors'] = []  # Track any errors that occur
 
+    try:
         # Handle different processing modes
         if PROCESSING_MODE == "BASIC":
             logger.debug(f"BASIC mode: Skipping detail scraping for {enhanced_data['organization_name']}")
@@ -394,34 +397,76 @@ def enhance_breach_data(breach_record: dict) -> dict:
                     break
 
         except Exception as e:
-            logger.warning(f"Could not find detail URL for {enhanced_data['organization_name']}: {e}")
+            error_msg = f"Could not find detail URL for {enhanced_data['organization_name']}: {e}"
+            logger.warning(error_msg)
+            enhanced_data['enhancement_errors'].append(f"Detail URL lookup failed: {str(e)}")
 
+        # Always initialize tier_2_detail, even if we couldn't find the URL
         if detail_url:
-            # Tier 2: Scrape detail page
-            detail_data = scrape_detail_page(detail_url)
-            enhanced_data['tier_2_detail'] = detail_data
+            # Tier 2: Scrape detail page (with error handling)
+            try:
+                detail_data = scrape_detail_page(detail_url)
+                enhanced_data['tier_2_detail'] = detail_data
 
-            # Tier 3: Handle PDF analysis based on processing mode
-            if PROCESSING_MODE == "FULL" and detail_data.get('pdf_links'):
-                enhanced_data['tier_3_pdf_analysis'] = []
-                for pdf_link in detail_data['pdf_links']:
-                    pdf_analysis = analyze_pdf_content(pdf_link['url'])
-                    enhanced_data['tier_3_pdf_analysis'].append(pdf_analysis)
-            elif detail_data.get('pdf_links'):
-                # Store PDF URLs for later analysis but don't process them now
-                logger.debug(f"ENHANCED mode: Storing PDF URLs for {enhanced_data['organization_name']} (analysis can be done separately)")
-                enhanced_data['tier_3_pdf_analysis'] = [{
-                    'pdf_analyzed': False,
-                    'skip_reason': f'{PROCESSING_MODE} mode - PDF analysis deferred',
-                    'pdf_url': link['url'],
-                    'pdf_title': link['title']
-                } for link in detail_data['pdf_links']]
+                # Tier 3: Handle PDF analysis based on processing mode (with error handling)
+                if PROCESSING_MODE == "FULL" and detail_data.get('pdf_links'):
+                    enhanced_data['tier_3_pdf_analysis'] = []
+                    for pdf_link in detail_data['pdf_links']:
+                        try:
+                            pdf_analysis = analyze_pdf_content(pdf_link['url'])
+                            enhanced_data['tier_3_pdf_analysis'].append(pdf_analysis)
+                        except Exception as pdf_error:
+                            error_msg = f"PDF analysis failed for {pdf_link['url']}: {pdf_error}"
+                            logger.error(error_msg)
+                            enhanced_data['enhancement_errors'].append(error_msg)
+                            # Still add the PDF info but mark as failed
+                            enhanced_data['tier_3_pdf_analysis'].append({
+                                'pdf_analyzed': False,
+                                'pdf_url': pdf_link['url'],
+                                'pdf_title': pdf_link.get('title', 'Unknown'),
+                                'error': str(pdf_error),
+                                'skip_reason': 'PDF analysis failed - error logged'
+                            })
+
+                elif detail_data.get('pdf_links'):
+                    # Store PDF URLs for later analysis but don't process them now
+                    logger.debug(f"ENHANCED mode: Storing PDF URLs for {enhanced_data['organization_name']} (analysis can be done separately)")
+                    enhanced_data['tier_3_pdf_analysis'] = [{
+                        'pdf_analyzed': False,
+                        'skip_reason': f'{PROCESSING_MODE} mode - PDF analysis deferred',
+                        'pdf_url': link['url'],
+                        'pdf_title': link['title']
+                    } for link in detail_data['pdf_links']]
+
+            except Exception as detail_error:
+                error_msg = f"Detail page scraping failed for {enhanced_data['organization_name']}: {detail_error}"
+                logger.error(error_msg)
+                enhanced_data['enhancement_errors'].append(error_msg)
+                enhanced_data['tier_2_detail'] = {
+                    'detail_page_scraped': False,
+                    'detail_page_url': detail_url,
+                    'error': str(detail_error),
+                    'skip_reason': 'Detail page scraping failed - error logged'
+                }
+        else:
+            # No detail URL found - still save what we have
+            enhanced_data['tier_2_detail'] = {
+                'detail_page_scraped': False,
+                'skip_reason': 'Detail URL not found - core data preserved'
+            }
 
         return enhanced_data
 
     except Exception as e:
-        logger.error(f"Failed to enhance breach data for {breach_record.get('organization_name', 'Unknown')}: {e}")
-        return breach_record
+        # CRITICAL: Even if everything fails, we still return the core breach data
+        error_msg = f"Enhancement completely failed for {breach_record.get('organization_name', 'Unknown')}: {e}"
+        logger.error(error_msg)
+        enhanced_data['enhancement_errors'].append(f"Complete enhancement failure: {str(e)}")
+        enhanced_data['tier_2_detail'] = {
+            'detail_page_scraped': False,
+            'skip_reason': 'Enhancement failed - core data preserved'
+        }
+        return enhanced_data  # Return enhanced_data with errors logged, not the original record
 
 def process_california_ag_breaches():
     """
@@ -574,22 +619,37 @@ def process_california_ag_breaches():
                 # Note: data_types_compromised field is stored in raw_data_json
                 # The database schema may not have this field in all instances
 
+                # Log enhancement errors if any occurred (but still proceed with database insertion)
+                if enhanced_record.get('enhancement_errors'):
+                    logger.warning(f"⚠️  Enhancement errors for {enhanced_record['organization_name']}: {enhanced_record['enhancement_errors']}")
+                    # Still proceed - we have the core breach data which is most important
+
                 # Check if item already exists before inserting
                 item_url = db_item['item_url']
                 if supabase_client.check_item_exists(item_url):
                     logger.info(f"Skipping duplicate item: {enhanced_record['organization_name']} (URL: {item_url})")
                     continue
 
-                # Insert into database
-                insert_result = supabase_client.insert_item(**db_item)
-                if insert_result:
-                    processed_count += 1
-                    logger.info(f"Successfully processed: {enhanced_record['organization_name']}")
-                else:
-                    logger.error(f"Failed to insert: {enhanced_record['organization_name']}")
+                # CRITICAL: Always attempt database insertion - core breach data must be saved
+                try:
+                    insert_result = supabase_client.insert_item(**db_item)
+                    if insert_result:
+                        processed_count += 1
+                        enhancement_status = "with enhancement errors" if enhanced_record.get('enhancement_errors') else "successfully"
+                        logger.info(f"✅ Saved breach data {enhancement_status}: {enhanced_record['organization_name']}")
+                    else:
+                        logger.error(f"❌ Database insertion failed: {enhanced_record['organization_name']}")
+                except Exception as db_error:
+                    logger.error(f"❌ Database insertion error for {enhanced_record['organization_name']}: {db_error}")
+                    # Continue processing other records even if this one fails
 
             except Exception as e:
-                logger.error(f"Failed to process breach record for {breach_record.get('organization_name', 'Unknown')}: {e}")
+                # CRITICAL: Even if record processing completely fails, log it and continue
+                # We must not let one bad record stop the entire scraper
+                org_name = breach_record.get('organization_name', 'Unknown')
+                logger.error(f"❌ Complete failure processing breach record for {org_name}: {e}")
+                logger.error(f"   This breach will be missed in this run but scraper continues")
+                # Continue to next record - don't let one failure stop everything
 
         logger.info(f"California AG enhanced breach fetch completed. Processed {processed_count} items.")
 
