@@ -4,6 +4,8 @@ import requests
 import csv
 import io
 import hashlib
+import time
+import random
 from bs4 import BeautifulSoup
 from datetime import datetime, date
 from urllib.parse import urljoin
@@ -30,6 +32,11 @@ SOURCE_ID_CALIFORNIA_AG = 4 # California AG source ID
 # Set to None to collect all historical data (for testing)
 # Set to a date string like "2025-05-27" for production filtering
 FILTER_FROM_DATE = os.environ.get("CA_AG_FILTER_FROM_DATE", None)  # None = collect all data
+
+# Rate limiting configuration
+MIN_DELAY_SECONDS = 2  # Minimum delay between requests
+MAX_DELAY_SECONDS = 5  # Maximum delay between requests
+REQUEST_TIMEOUT = 45   # Increased timeout for detail pages
 
 # Headers for requests
 REQUEST_HEADERS = {
@@ -86,6 +93,14 @@ def parse_breach_dates(date_str: str) -> list:
 
     return dates
 
+def rate_limit_delay():
+    """
+    Add a random delay between requests to avoid overwhelming the server.
+    """
+    delay = random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS)
+    logger.debug(f"Rate limiting: waiting {delay:.1f} seconds")
+    time.sleep(delay)
+
 def fetch_csv_data() -> list:
     """
     Fetch breach data from the CSV endpoint (Tier 1 - Portal Raw Data).
@@ -137,7 +152,10 @@ def scrape_detail_page(detail_url: str) -> dict:
     try:
         logger.info(f"Scraping detail page: {detail_url}")
 
-        response = requests.get(detail_url, headers=REQUEST_HEADERS, timeout=30)
+        # Add rate limiting delay before making request
+        rate_limit_delay()
+
+        response = requests.get(detail_url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -233,7 +251,10 @@ def analyze_pdf_content(pdf_url: str) -> dict:
 
         # Try to extract content using requests (basic approach)
         try:
-            response = req_lib.get(pdf_url, headers=REQUEST_HEADERS, timeout=30)
+            # Add rate limiting delay before PDF request
+            rate_limit_delay()
+
+            response = req_lib.get(pdf_url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
             if response.status_code == 200:
                 # Basic text extraction (this would be enhanced with proper PDF parsing)
                 content = response.text.lower()
@@ -310,7 +331,10 @@ def enhance_breach_data(breach_record: dict) -> dict:
         detail_url = None
         try:
             # Scrape the main page to find the actual detail URL
-            response = requests.get(CALIFORNIA_AG_BREACH_URL, headers=REQUEST_HEADERS, timeout=30)
+            # Add rate limiting delay before main page request
+            rate_limit_delay()
+
+            response = requests.get(CALIFORNIA_AG_BREACH_URL, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -401,8 +425,14 @@ def process_california_ag_breaches():
 
         # Process each breach record
         processed_count = 0
-        for breach_record in filtered_breaches:
+        total_breaches = len(filtered_breaches)
+
+        for i, breach_record in enumerate(filtered_breaches, 1):
             try:
+                # Log progress every 10 records
+                if i % 10 == 0 or i == 1:
+                    logger.info(f"Processing breach {i}/{total_breaches} ({(i/total_breaches)*100:.1f}%)")
+
                 # Tier 2: Enhance with additional data
                 enhanced_record = enhance_breach_data(breach_record)
 
