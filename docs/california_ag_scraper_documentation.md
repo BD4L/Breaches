@@ -31,10 +31,12 @@ The California Attorney General's Office enhanced scraper implements a **3-tier 
 - **Filtering**: Recent breaches only (today onward)
 - **Structure**: Standardized field mapping
 
-#### **Tier 3: Deep Analysis (Future Enhancement)**
-- **Planned**: PDF notification analysis
-- **Planned**: Affected individuals extraction
-- **Planned**: Data type classification
+#### **Tier 3: Deep Analysis (PDF Processing)**
+- **PDF Download**: Retrieves breach notification documents
+- **Content Extraction**: Analyzes PDF text for breach details
+- **Affected Individuals**: Extracts count using regex patterns
+- **Data Classification**: Identifies compromised data types (SSN, driver license, etc.)
+- **Contact Information**: Captures breach response contacts
 
 ## 📊 Data Structure
 
@@ -45,30 +47,52 @@ The California Attorney General's Office enhanced scraper implements a **3-tier 
 
 ### Enhanced Database Fields
 - `source_id`: 4 (California AG)
-- `item_url`: Detail page URL (constructed)
+- `item_url`: Detail page URL (from hyperlink following)
 - `title`: Organization name
 - `publication_date`: Reported date (YYYY-MM-DD)
-- `summary_text`: Generated summary
-- `full_content`: Formatted breach details
+- `summary_text`: Enhanced summary with data types and affected count
+- `full_content`: Comprehensive breach details with PDF analysis
 - `reported_date`: Standardized reported date
 - `breach_date`: First breach date (if available)
-- `raw_data_json`: Complete tier data structure
+- `affected_individuals`: Count extracted from PDF analysis
+- `notice_document_url`: Direct link to PDF notification
+- `data_types_compromised`: Array of compromised data types
+- `raw_data_json`: Complete 3-tier data structure
 
 ### Raw Data JSON Structure
 ```json
 {
-  "scraper_version": "2.0_enhanced",
+  "scraper_version": "3.0_enhanced_with_pdfs",
   "tier_1_csv_data": {
-    "Organization Name": "...",
-    "Date(s) of Breach (if known)": "...",
-    "Reported Date": "..."
+    "Organization Name": "Mission Bell Mfg Inc",
+    "Date(s) of Breach (if known)": "01/31/2025",
+    "Reported Date": "04/04/2025"
   },
   "tier_2_enhanced": {
-    "incident_uid": "...",
-    "breach_dates_all": ["2025-01-15", "2025-01-16"],
+    "incident_uid": "ca_ag_mission_bell_mfg_inc_2025-04-04",
+    "breach_dates_all": ["2025-01-31"],
     "enhancement_attempted": true,
-    "enhancement_timestamp": "2025-05-27T..."
-  }
+    "enhancement_timestamp": "2025-05-27T...",
+    "detail_page_data": {
+      "detail_page_scraped": true,
+      "detail_page_url": "https://oag.ca.gov/ecrime/databreach/reports/sb24-600915",
+      "pdf_links": [
+        {
+          "url": "https://oag.ca.gov/system/files/Data%20Security%20Letter%20Final.pdf",
+          "title": "Data Security Letter"
+        }
+      ]
+    }
+  },
+  "tier_3_pdf_analysis": [
+    {
+      "pdf_analyzed": true,
+      "pdf_url": "https://oag.ca.gov/system/files/Data%20Security%20Letter%20Final.pdf",
+      "affected_individuals": null,
+      "data_types_compromised": ["Social Security Numbers", "Driver License Numbers"],
+      "incident_details": "Security breach discovered on February 1st, occurred on January 31st"
+    }
+  ]
 }
 ```
 
@@ -92,6 +116,18 @@ The California Attorney General's Office enhanced scraper implements a **3-tier 
 - Extracts multiple breach dates from single field
 - Returns list of standardized dates
 - Handles various date formats and separators
+
+#### `scrape_detail_page(detail_url)`
+- Scrapes individual breach detail pages
+- Extracts organization name and breach dates
+- Finds PDF notification document links
+- Returns structured detail page data
+
+#### `analyze_pdf_content(pdf_url)`
+- Downloads and analyzes PDF notification documents
+- Extracts affected individuals count using regex patterns
+- Identifies data types compromised (SSN, driver license, etc.)
+- Returns comprehensive PDF analysis data
 
 #### `generate_incident_uid(org_name, reported_date)`
 - Creates unique identifier for deduplication
