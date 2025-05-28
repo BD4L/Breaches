@@ -160,17 +160,43 @@ def scrape_detail_page(detail_url: str) -> dict:
         if breach_date_elem and breach_date_elem.next_sibling:
             detail_data['breach_date_detail'] = breach_date_elem.next_sibling.strip()
 
-        # Find PDF links
-        pdf_links = soup.find_all('a', href=True)
-        for link in pdf_links:
+        # Find PDF links - only look for breach notification PDFs, not general site PDFs
+        pdf_links = []
+
+        # Look for PDFs in the main content area, specifically under "Sample of Notice:"
+        # First, try to find the main content section
+        main_content = soup.find('div', {'id': 'main-content'}) or soup
+
+        # Look for PDF links that are likely breach notifications
+        for link in main_content.find_all('a', href=True):
             href = link.get('href', '')
-            if href.endswith('.pdf') or 'pdf' in href.lower():
-                full_pdf_url = urljoin(detail_url, href)
-                pdf_title = link.get_text(strip=True) or 'Sample Notification'
-                detail_data['pdf_links'].append({
-                    'url': full_pdf_url,
-                    'title': pdf_title
-                })
+            if href.endswith('.pdf'):
+                # Filter out generic site PDFs (annual reports, etc.)
+                href_lower = href.lower()
+
+                # Skip generic annual reports and site-wide PDFs
+                skip_patterns = [
+                    'data-breach-report',  # Annual reports
+                    'data_breach_rpt',     # Annual reports
+                    'annual',
+                    'report.pdf',
+                    '/agweb/pdfs/',        # General site PDFs
+                    '/sites/all/files/agweb/'  # Old site structure
+                ]
+
+                # Check if this is a generic PDF to skip
+                should_skip = any(pattern in href_lower for pattern in skip_patterns)
+
+                if not should_skip:
+                    # This looks like a breach notification PDF
+                    full_pdf_url = urljoin(detail_url, href)
+                    pdf_title = link.get_text(strip=True) or 'Sample Notification'
+                    pdf_links.append({
+                        'url': full_pdf_url,
+                        'title': pdf_title
+                    })
+
+        detail_data['pdf_links'] = pdf_links
 
         logger.info(f"Found {len(detail_data['pdf_links'])} PDF links on detail page")
         return detail_data
