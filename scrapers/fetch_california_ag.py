@@ -450,6 +450,77 @@ def extract_incident_timeline(content: str) -> dict:
 
     return timeline
 
+def extract_what_information_involved(content: str) -> dict:
+    """
+    Extract the "What information was involved?" section from California AG breach notifications.
+    This is a standardized section that contains critical data type information.
+    """
+    import re
+
+    result = {
+        'what_information_involved_text': None,
+        'extraction_method': None,
+        'confidence': 'none'
+    }
+
+    # Patterns to find the "What information was involved?" section
+    section_patterns = [
+        # Standard California AG format
+        r'what information was involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
+        r'what information was involved\?[\s\n]*(.+?)(?=\n\s*what|$)',
+
+        # Alternative phrasings
+        r'what type of information was involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
+        r'what personal information was involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
+
+        # More flexible patterns
+        r'information.*?involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
+        r'data.*?involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
+    ]
+
+    for i, pattern in enumerate(section_patterns):
+        matches = re.finditer(pattern, content, re.IGNORECASE | re.DOTALL)
+        for match in matches:
+            extracted_text = match.group(1).strip()
+
+            # Clean up the extracted text
+            extracted_text = re.sub(r'\s+', ' ', extracted_text)  # Normalize whitespace
+            extracted_text = re.sub(r'^\s*[-•]\s*', '', extracted_text)  # Remove leading bullets
+
+            # Skip if too short (likely not the real section)
+            if len(extracted_text) < 20:
+                continue
+
+            # Skip if it looks like a question or header
+            if extracted_text.strip().endswith('?'):
+                continue
+
+            result['what_information_involved_text'] = extracted_text
+            result['extraction_method'] = f'pattern_{i+1}'
+            result['confidence'] = 'high' if i < 2 else 'medium'
+            return result
+
+    # Fallback: Look for common data type listings that might be the answer
+    fallback_patterns = [
+        r'the following.*?information.*?:[\s\n]*([^.]+\.)',
+        r'personal information.*?including[\s\n]*([^.]+\.)',
+        r'data.*?may.*?include[\s\n]*([^.]+\.)',
+    ]
+
+    for i, pattern in enumerate(fallback_patterns):
+        matches = re.finditer(pattern, content, re.IGNORECASE | re.DOTALL)
+        for match in matches:
+            extracted_text = match.group(1).strip()
+            extracted_text = re.sub(r'\s+', ' ', extracted_text)
+
+            if len(extracted_text) > 20:
+                result['what_information_involved_text'] = extracted_text
+                result['extraction_method'] = f'fallback_{i+1}'
+                result['confidence'] = 'low'
+                return result
+
+    return result
+
 def extract_breach_details(content: str) -> dict:
     """
     Extract additional breach details and context.
@@ -457,6 +528,10 @@ def extract_breach_details(content: str) -> dict:
     import re
 
     details = {}
+
+    # Extract the "What information was involved?" section
+    what_info_result = extract_what_information_involved(content)
+    details['what_information_involved'] = what_info_result
 
     # Breach type patterns
     breach_types = {
@@ -845,6 +920,7 @@ def process_california_ag_breaches():
                 notice_document_url = None
 
                 # Extract from enhanced PDF analysis if available
+                what_information_involved_text = None
                 if enhanced_record.get('tier_3_pdf_analysis'):
                     for pdf_analysis in enhanced_record['tier_3_pdf_analysis']:
                         # Extract affected individuals with confidence scoring
@@ -859,6 +935,15 @@ def process_california_ag_breaches():
                         # Extract data types
                         if pdf_analysis.get('data_types_compromised'):
                             data_types_compromised.extend(pdf_analysis['data_types_compromised'])
+
+                        # Extract "What information was involved?" text
+                        breach_details = pdf_analysis.get('breach_details', {})
+                        if breach_details and isinstance(breach_details, dict):
+                            what_info = breach_details.get('what_information_involved', {})
+                            if what_info and isinstance(what_info, dict):
+                                what_information_involved_text = what_info.get('what_information_involved_text')
+                                if what_information_involved_text:
+                                    break  # Use the first successful extraction
 
                 # Get PDF URL for notice_document_url
                 if enhanced_record.get('tier_2_detail', {}).get('pdf_links'):
@@ -886,6 +971,8 @@ def process_california_ag_breaches():
                     content_parts.append(f"Affected Individuals: {affected_individuals:,}")
                 if notice_document_url:
                     content_parts.append(f"Notification Document: {notice_document_url}")
+                if what_information_involved_text:
+                    content_parts.append(f"What Information Was Involved: {what_information_involved_text}")
 
                 full_content = "\n".join(content_parts)
 
@@ -902,7 +989,7 @@ def process_california_ag_breaches():
                     'affected_individuals': affected_individuals,
                     'notice_document_url': notice_document_url,
                     'raw_data_json': {
-                        'scraper_version': '3.0_enhanced_with_pdfs',
+                        'scraper_version': '4.1_what_information_involved',
                         'tier_1_csv_data': enhanced_record['raw_csv_data'],
                         'tier_2_enhanced': {
                             'incident_uid': enhanced_record['incident_uid'],
@@ -914,9 +1001,11 @@ def process_california_ag_breaches():
                         'tier_3_pdf_analysis': enhanced_record.get('tier_3_pdf_analysis', []),
                         # Store data types in raw_data_json for now (until schema is updated)
                         'data_types_compromised': data_types_compromised,
+                        'what_information_involved_text': what_information_involved_text,  # Store for easy access
                         'pdf_analysis_summary': {
                             'affected_individuals_extracted': affected_individuals,
                             'data_types_found': data_types_compromised,
+                            'what_information_involved_extracted': bool(what_information_involved_text),
                             'pdf_documents_analyzed': len(enhanced_record.get('tier_3_pdf_analysis', []))
                         }
                     }
