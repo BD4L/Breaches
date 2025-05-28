@@ -31,11 +31,10 @@ The California Attorney General's Office enhanced scraper implements a **3-tier 
 - **Filtering**: Recent breaches only (today onward)
 - **Structure**: Standardized field mapping
 
-#### **Tier 3: Deep Analysis (Implemented)**
-- **PDF Analysis**: Extracts content from breach notification PDFs
-- **Affected Individuals**: Parses individual counts from documents
-- **Data Classification**: Identifies compromised data types
-- **Contact Extraction**: Finds contact information for follow-up
+#### **Tier 3: Deep Analysis (Future Enhancement)**
+- **Planned**: PDF notification analysis
+- **Planned**: Affected individuals extraction
+- **Planned**: Data type classification
 
 ## 📊 Data Structure
 
