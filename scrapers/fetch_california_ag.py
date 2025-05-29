@@ -986,7 +986,6 @@ def process_california_ag_breaches():
                         breach_date_str = enhanced_record['breach_dates'][0]
                         if breach_date_str and isinstance(breach_date_str, str):
                             # Parse and reformat to ensure it's a valid date
-                            from datetime import datetime
                             parsed_date = datetime.strptime(breach_date_str, '%Y-%m-%d')
                             breach_date_for_db = parsed_date.strftime('%Y-%m-%d')
                     except (ValueError, TypeError) as e:
