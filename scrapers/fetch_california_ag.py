@@ -13,11 +13,11 @@ from dateutil import parser as dateutil_parser # For flexible date parsing
 
 # Assuming SupabaseClient is in utils.supabase_client
 try:
-    from utils.supabase_client import SupabaseClient
+    from utils.supabase_client import SupabaseClient, clean_text_for_database
 except ImportError:
     import sys
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from utils.supabase_client import SupabaseClient
+    from utils.supabase_client import SupabaseClient, clean_text_for_database
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -625,6 +625,8 @@ def analyze_pdf_content(pdf_url: str) -> dict:
                         text_content += page.extract_text() + "\n"
 
                     if text_content.strip():
+                        # Clean the extracted text to prevent Unicode errors in database
+                        text_content = clean_text_for_database(text_content)
                         content = text_content.lower()
                         pdf_analysis['raw_text'] = text_content[:1000]  # Store sample
                         pdf_analysis['extraction_confidence'] = 'high'
@@ -652,6 +654,8 @@ def analyze_pdf_content(pdf_url: str) -> dict:
                                     text_content += page_text + "\n"
 
                         if text_content.strip():
+                            # Clean the extracted text to prevent Unicode errors in database
+                            text_content = clean_text_for_database(text_content)
                             content = text_content.lower()
                             pdf_analysis['raw_text'] = text_content[:1000]  # Store sample
                             pdf_analysis['extraction_confidence'] = 'high'
@@ -666,8 +670,9 @@ def analyze_pdf_content(pdf_url: str) -> dict:
                     except Exception as pdfplumber_error:
                         logger.debug(f"pdfplumber extraction failed: {pdfplumber_error}")
                         # Last resort: try to extract any readable text from response
-                        content = response.text.lower()
-                        pdf_analysis['raw_text'] = content[:1000]  # Store sample
+                        fallback_text = clean_text_for_database(response.text)
+                        content = fallback_text.lower()
+                        pdf_analysis['raw_text'] = fallback_text[:1000]  # Store sample
                         pdf_analysis['extraction_confidence'] = 'low'
                         logger.warning(f"Using low-confidence text extraction for {pdf_url}")
             else:

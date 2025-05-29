@@ -1,8 +1,59 @@
 import os
 from supabase import create_client, Client
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+def clean_text_for_database(text):
+    """
+    Clean text content to make it safe for PostgreSQL storage.
+    Removes null bytes and other problematic characters that cause database errors.
+
+    Args:
+        text: String to clean, or None
+
+    Returns:
+        Cleaned string safe for database storage, or None if input was None
+    """
+    if text is None:
+        return None
+
+    if not isinstance(text, str):
+        # Convert to string if it's not already
+        text = str(text)
+
+    # Remove null bytes (the main cause of the Unicode error)
+    text = text.replace('\u0000', '')
+
+    # Remove other problematic control characters but preserve newlines and tabs
+    # This removes characters in the range 0x00-0x08, 0x0B-0x0C, 0x0E-0x1F
+    text = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F]', '', text)
+
+    # Remove any remaining null-like characters that might cause issues
+    text = text.replace('\x00', '')
+
+    return text
+
+def clean_data_recursively(data):
+    """
+    Recursively clean text data in dictionaries, lists, and strings.
+    This ensures all text content is safe for database storage.
+
+    Args:
+        data: Data structure to clean (dict, list, str, or other)
+
+    Returns:
+        Cleaned data structure
+    """
+    if isinstance(data, dict):
+        return {key: clean_data_recursively(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [clean_data_recursively(item) for item in data]
+    elif isinstance(data, str):
+        return clean_text_for_database(data)
+    else:
+        return data
 
 class SupabaseClient:
     def __init__(self):
@@ -99,18 +150,18 @@ class SupabaseClient:
 
             # Update notice document URL if we have new data
             if enhanced_data.get('notice_document_url'):
-                update_data['notice_document_url'] = enhanced_data['notice_document_url']
+                update_data['notice_document_url'] = clean_text_for_database(enhanced_data['notice_document_url'])
 
             # Update summary and content if we have enhanced versions
             if enhanced_data.get('summary_text'):
-                update_data['summary_text'] = enhanced_data['summary_text']
+                update_data['summary_text'] = clean_text_for_database(enhanced_data['summary_text'])
 
             if enhanced_data.get('full_content'):
-                update_data['full_content'] = enhanced_data['full_content']
+                update_data['full_content'] = clean_text_for_database(enhanced_data['full_content'])
 
-            # Update raw_data_json with new enhancement data
+            # Update raw_data_json with new enhancement data (clean recursively)
             if enhanced_data.get('raw_data_json'):
-                update_data['raw_data_json'] = enhanced_data['raw_data_json']
+                update_data['raw_data_json'] = clean_data_recursively(enhanced_data['raw_data_json'])
 
             # Perform the update
             response = self.client.table("scraped_items").update(update_data).eq("id", item_id).execute()
@@ -192,6 +243,9 @@ class SupabaseClient:
             }
             # Remove keys where value is None to rely on DB defaults or avoid inserting nulls unnecessarily for optional fields
             data_to_insert = {k: v for k, v in data_to_insert.items() if v is not None}
+
+            # Clean all text data to prevent Unicode errors in PostgreSQL
+            data_to_insert = clean_data_recursively(data_to_insert)
 
             response = self.client.table("scraped_items").insert(data_to_insert).execute()
 
