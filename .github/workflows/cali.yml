@@ -38,10 +38,8 @@ jobs:
       # --- Government & State AG Scrapers ---
 
 
-      - name: Run California AG Scraper
-        run: python scrapers/fetch_california_ag.py
-
-     
+      - name: Run Washington AG Scraper
+        run: python scrapers/fetch_washington_ag.py
       # --- Final Step ---
       - name: All scrapers finished
         run: echo "All scraper scripts have been executed."
