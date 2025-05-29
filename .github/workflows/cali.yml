@@ -21,7 +21,7 @@ jobs:
       CA_AG_PROCESSING_MODE: "FULL" # Complete PDF analysis with "What information was involved?" extraction
 
       # Washington AG scraper configuration for GitHub Actions
-      WA_AG_FILTER_FROM_DATE: "2024-01-20" # One week back for reliable testing
+      WA_AG_FILTER_FROM_DATE: "2025-03-10" # One week back for reliable testing
 
     steps:
       - name: Checkout repository
