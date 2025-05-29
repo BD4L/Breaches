@@ -909,6 +909,12 @@ def process_california_ag_breaches():
                 elif original_breach_date_text and enhanced_record['breach_dates']:
                     logger.debug(f"✅ Successfully parsed breach dates: '{original_breach_date_text}' -> {enhanced_record['breach_dates']}")
 
+                # Determine what_was_leaked value with PDF URL fallback
+                what_was_leaked_value = what_information_involved_text
+                if not what_was_leaked_value and notice_document_url:
+                    what_was_leaked_value = f"See breach details in PDF: {notice_document_url}"
+                    logger.info(f"📄 Using PDF URL fallback for what_was_leaked: {enhanced_record['organization_name']}")
+
                 db_item = {
                     'source_id': SOURCE_ID_CALIFORNIA_AG,
                     'item_url': enhanced_record.get('tier_2_detail', {}).get('detail_page_url', CALIFORNIA_AG_BREACH_URL),
@@ -920,6 +926,7 @@ def process_california_ag_breaches():
                     'breach_date': breach_date_for_db,
                     'affected_individuals': affected_individuals,
                     'notice_document_url': notice_document_url,
+                    'what_was_leaked': what_was_leaked_value,  # New dedicated column for extracted section (with PDF URL fallback)
                     'raw_data_json': {
                         'scraper_version': '4.2_enhanced_breach_dates',
                         'tier_1_csv_data': enhanced_record['raw_csv_data'],

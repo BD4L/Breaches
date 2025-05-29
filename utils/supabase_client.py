@@ -152,6 +152,10 @@ class SupabaseClient:
             if enhanced_data.get('notice_document_url'):
                 update_data['notice_document_url'] = clean_text_for_database(enhanced_data['notice_document_url'])
 
+            # Update what_was_leaked if we have new data
+            if enhanced_data.get('what_was_leaked'):
+                update_data['what_was_leaked'] = clean_text_for_database(enhanced_data['what_was_leaked'])
+
             # Update summary and content if we have enhanced versions
             if enhanced_data.get('summary_text'):
                 update_data['summary_text'] = clean_text_for_database(enhanced_data['summary_text'])
@@ -177,7 +181,7 @@ class SupabaseClient:
             logger.error(f"Error updating item enhancement: {e}")
             return False
 
-    def insert_item(self, source_id: int, item_url: str, title: str, publication_date: str, summary_text: str = None, full_content: str = None, raw_data_json: dict = None, tags_keywords: list = None, affected_individuals: int = None, breach_date: str = None, reported_date: str = None, notice_document_url: str = None,
+    def insert_item(self, source_id: int, item_url: str, title: str, publication_date: str, summary_text: str = None, full_content: str = None, raw_data_json: dict = None, tags_keywords: list = None, affected_individuals: int = None, breach_date: str = None, reported_date: str = None, notice_document_url: str = None, what_was_leaked: str = None,
                     # SEC-specific fields
                     cik: str = None, ticker_symbol: str = None, accession_number: str = None, form_type: str = None, filing_date: str = None, report_date: str = None, primary_document_url: str = None, xbrl_instance_url: str = None,
                     items_disclosed: list = None, is_cybersecurity_related: bool = None, is_amendment: bool = None, is_delayed_disclosure: bool = None,
@@ -207,6 +211,7 @@ class SupabaseClient:
                 "breach_date": breach_date,
                 "reported_date": reported_date,
                 "notice_document_url": notice_document_url,
+                "what_was_leaked": what_was_leaked,
 
                 # SEC-specific fields
                 "cik": cik,
