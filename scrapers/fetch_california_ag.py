@@ -280,16 +280,26 @@ def extract_affected_individuals(content: str) -> dict:
         # High confidence patterns (specific numbers with clear context)
         (r'(?:exactly|precisely)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'high', 'exact_count'),
         (r'(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)\s+(?:were|are|have been)\s+(?:affected|impacted|involved|compromised)', 'high', 'direct_statement'),
+        (r'(?:affects?|impacts?|involves?)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'high', 'affects_statement'),
+
+        # California AG specific patterns
+        (r'this incident (?:affects?|impacts?) (\d+(?:,\d+)*)', 'high', 'ca_ag_incident_affects'),
+        (r'breach (?:affects?|impacts?) (\d+(?:,\d+)*)', 'high', 'ca_ag_breach_affects'),
+        (r'notification (?:to|for) (\d+(?:,\d+)*)', 'high', 'ca_ag_notification_count'),
 
         # Medium confidence patterns (approximate numbers)
         (r'(?:approximately|about|around|roughly)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'medium', 'approximate'),
         (r'(?:up to|as many as|no more than)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'medium', 'upper_bound'),
         (r'(?:over|more than|at least|minimum of)\s+(\d+(?:,\d+)*)\s+(?:individuals?|people|persons?|employees?|customers?|patients?|users?|members?)', 'medium', 'lower_bound'),
+        (r'as many as (\d+(?:,\d+)*)', 'medium', 'as_many_as'),
+        (r'potentially (\d+(?:,\d+)*)', 'medium', 'potentially_count'),
 
         # Lower confidence patterns (general mentions)
         (r'(\d+(?:,\d+)*)\s+(?:affected|impacted|involved|compromised)', 'low', 'general_affected'),
         (r'total of\s+(\d+(?:,\d+)*)', 'low', 'total_mention'),
         (r'(\d+(?:,\d+)*)\s+(?:records?|accounts?|files?)', 'low', 'record_count'),
+        (r'(\d+(?:,\d+)*)\s+(?:california residents?)', 'medium', 'california_residents'),
+        (r'(\d+(?:,\d+)*)\s+(?:current and former)', 'medium', 'current_former_count'),
     ]
 
     for pattern, confidence, method in patterns:
@@ -298,12 +308,16 @@ def extract_affected_individuals(content: str) -> dict:
             try:
                 count = int(match.group(1).replace(',', ''))
                 # Skip unrealistic numbers (too small or too large)
-                if 1 <= count <= 100000000:  # Reasonable range for breach notifications
-                    result['count'] = count
-                    result['raw_text'] = match.group(0)
-                    result['confidence'] = confidence
-                    result['extraction_method'] = method
-                    return result  # Return first valid match with highest confidence
+                if 10 <= count <= 100000000:  # Reasonable range for breach notifications (minimum 10)
+                    # Additional validation: skip if the number appears in a date context
+                    full_match = match.group(0)
+                    if not re.search(r'\b(?:19|20)\d{2}\b', full_match):  # Not a year
+                        result['count'] = count
+                        result['raw_text'] = full_match
+                        result['confidence'] = confidence
+                        result['extraction_method'] = method
+                        logger.debug(f"Found affected individuals: {count} using method {method}")
+                        return result  # Return first valid match with highest confidence
             except ValueError:
                 continue
 
@@ -964,6 +978,21 @@ def process_california_ag_breaches():
                 full_content = "\n".join(content_parts)
 
                 # Convert to database format - be conservative with field mapping
+                # Fix date field conversion - ensure proper DATE format for database
+                breach_date_for_db = None
+                if enhanced_record['breach_dates']:
+                    try:
+                        # Convert YYYY-MM-DD string to proper date format for database
+                        breach_date_str = enhanced_record['breach_dates'][0]
+                        if breach_date_str and isinstance(breach_date_str, str):
+                            # Parse and reformat to ensure it's a valid date
+                            from datetime import datetime
+                            parsed_date = datetime.strptime(breach_date_str, '%Y-%m-%d')
+                            breach_date_for_db = parsed_date.strftime('%Y-%m-%d')
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Failed to convert breach date '{enhanced_record['breach_dates'][0]}' for database: {e}")
+                        breach_date_for_db = None
+
                 db_item = {
                     'source_id': SOURCE_ID_CALIFORNIA_AG,
                     'item_url': enhanced_record.get('tier_2_detail', {}).get('detail_page_url', CALIFORNIA_AG_BREACH_URL),
@@ -972,7 +1001,7 @@ def process_california_ag_breaches():
                     'summary_text': summary_text,
                     'full_content': full_content,
                     'reported_date': enhanced_record['reported_date'],
-                    'breach_date': enhanced_record['breach_dates'][0] if enhanced_record['breach_dates'] else None,
+                    'breach_date': breach_date_for_db,
                     'affected_individuals': affected_individuals,
                     'notice_document_url': notice_document_url,
                     'raw_data_json': {
