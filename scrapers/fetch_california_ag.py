@@ -325,200 +325,16 @@ def extract_affected_individuals(content: str) -> dict:
 
 def extract_data_types(content: str) -> list:
     """
-    Enhanced data type extraction with comprehensive categories and context awareness.
-    Now includes template variable detection to prevent false positives.
+    DEPRECATED: This function is being phased out in favor of storing the raw
+    "What information was involved?" section text directly.
+
+    For now, returns empty list to avoid false categorization.
+    The actual breach information is stored in the what_information_involved_text field.
     """
-    import re
-    data_types = []
+    # Return empty list - we now store the raw section text instead of categorizing
+    return []
 
-    # Check if content contains template variables - if so, be very conservative
-    template_indicators = [
-        r'<<.*?>>',  # Template variables like <<Variable Text 1>>
-        r'\$<<.*?>>\$',  # Dollar-wrapped template variables
-        r'variable text',  # Explicit template text references
-        r'<<first name>>',  # Common template fields
-        r'<<last name>>',
-        r'<<address',
-    ]
 
-    has_templates = any(re.search(pattern, content, re.IGNORECASE) for pattern in template_indicators)
-
-    if has_templates:
-        logger.debug("Template variables detected in PDF - using conservative data type extraction")
-        # For template documents, only extract if we find very specific, contextual mentions
-        # Look for the actual "What information was involved?" section first
-        what_info_result = extract_what_information_involved(content)
-        if what_info_result.get('what_information_involved_text'):
-            # Extract from the specific section only
-            section_content = what_info_result['what_information_involved_text'].lower()
-            return extract_data_types_from_section(section_content)
-        else:
-            # No clear section found and document has templates - return empty to avoid false positives
-            logger.debug("No clear 'What information was involved?' section found in template document")
-            return []
-
-    # Enhanced data type patterns with context
-    data_type_patterns = {
-        'Social Security Numbers': [
-            r'social security numbers?',
-            r'\bssn\b',
-            r'social security information',
-            r'taxpayer identification numbers?'
-        ],
-        'Driver License Numbers': [
-            r'driver\'?s? licen[sc]e numbers?',
-            r'state id numbers?',
-            r'identification numbers?',
-            r'driver licen[sc]e information'
-        ],
-        'Payment Card Information': [
-            r'credit card numbers?',
-            r'debit card numbers?',
-            r'payment card information',
-            r'card numbers?',
-            r'financial account numbers?',
-            r'bank account numbers?',
-            r'routing numbers?'
-        ],
-        'Medical Information': [
-            r'medical information',
-            r'health information',
-            r'protected health information',
-            r'\bphi\b',
-            r'medical records?',
-            r'patient data',
-            r'health records?',
-            r'medical data',
-            r'clinical information'
-        ],
-        'Personal Identifiers': [
-            r'personally identifiable information',
-            r'\bpii\b',
-            r'personal information',
-            r'names? and addresses?',
-            r'full names?',
-            r'date of birth',
-            r'birth dates?'
-        ],
-        'Contact Information': [
-            r'email addresses?',
-            r'phone numbers?',
-            r'telephone numbers?',
-            r'mailing addresses?',
-            r'home addresses?',
-            r'contact information'
-        ],
-        'Financial Information': [
-            r'financial information',
-            r'banking information',
-            r'account balances?',
-            r'financial data',
-            r'investment information',
-            r'tax information'
-        ],
-        'Employment Information': [
-            r'employment information',
-            r'employee data',
-            r'payroll information',
-            r'salary information',
-            r'w-2 information',
-            r'employment records?'
-        ],
-        'Insurance Information': [
-            r'insurance information',
-            r'policy numbers?',
-            r'insurance data',
-            r'coverage information'
-        ],
-        'Biometric Data': [
-            r'biometric data',
-            r'fingerprints?',
-            r'biometric information',
-            r'facial recognition data'
-        ]
-    }
-
-    # Check for each data type
-    for data_type, patterns in data_type_patterns.items():
-        for pattern in patterns:
-            if re.search(pattern, content, re.IGNORECASE):
-                if data_type not in data_types:
-                    data_types.append(data_type)
-                break  # Found this type, move to next
-
-    return data_types
-
-def extract_data_types_from_section(section_content: str) -> list:
-    """
-    Extract data types from a specific section (like "What information was involved?").
-    More conservative than the general extraction to avoid false positives.
-    """
-    import re
-    data_types = []
-
-    # More specific patterns that require clear context
-    specific_patterns = {
-        'Social Security Numbers': [
-            r'social security numbers?',
-            r'\bssn\b',
-        ],
-        'Driver License Numbers': [
-            r'driver\'?s? licen[sc]e numbers?',
-            r'state id numbers?',
-        ],
-        'Payment Card Information': [
-            r'credit card numbers?',
-            r'debit card numbers?',
-            r'payment card information',
-            r'bank account numbers?',
-        ],
-        'Medical Information': [
-            r'medical information',
-            r'health information',
-            r'protected health information',
-            r'phi\b',
-        ],
-        'Personal Identifiers': [
-            r'personal identifiers?',
-            r'personal information',
-            r'personally identifiable information',
-            r'\bpii\b',
-        ],
-        'Financial Information': [
-            r'financial information',
-            r'financial data',
-            r'account information',
-        ],
-        'Contact Information': [
-            r'email addresses?',
-            r'phone numbers?',
-            r'contact information',
-        ],
-        'Names': [
-            r'\bnames?\b',
-            r'full names?',
-        ],
-        'Addresses': [
-            r'addresses?',
-            r'home addresses?',
-            r'mailing addresses?',
-        ],
-        'Dates of Birth': [
-            r'dates? of birth',
-            r'\bdob\b',
-            r'birth dates?',
-        ]
-    }
-
-    # Check for each data type in the specific section
-    for data_type, patterns in specific_patterns.items():
-        for pattern in patterns:
-            if re.search(pattern, section_content, re.IGNORECASE):
-                if data_type not in data_types:
-                    data_types.append(data_type)
-                break
-
-    return data_types
 
 def extract_incident_timeline(content: str) -> dict:
     """
@@ -565,8 +381,8 @@ def extract_incident_timeline(content: str) -> dict:
 
 def extract_what_information_involved(content: str) -> dict:
     """
-    Extract the "What information was involved?" section from California AG breach notifications.
-    This is a standardized section that contains critical data type information.
+    Extract the complete "What information was involved?" section from California AG breach notifications.
+    Extracts the full text between "What information was involved?" and the next section.
     """
     import re
 
@@ -576,19 +392,29 @@ def extract_what_information_involved(content: str) -> dict:
         'confidence': 'none'
     }
 
-    # Patterns to find the "What information was involved?" section
+    # Patterns to find the "What information was involved?" section and capture until next section
     section_patterns = [
-        # Standard California AG format
-        r'what information was involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
-        r'what information was involved\?[\s\n]*(.+?)(?=\n\s*what|$)',
+        # Standard format: "What information was involved?" until "What we are doing"
+        r'what information was involved\?[\s\n]*(.+?)(?=what we are doing|what are we doing)',
 
-        # Alternative phrasings
-        r'what type of information was involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
-        r'what personal information was involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
+        # Alternative: until "What [Company] is doing"
+        r'what information was involved\?[\s\n]*(.+?)(?=what [a-zA-Z\s&,.]+ (?:is|are) doing)',
 
-        # More flexible patterns
-        r'information.*?involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
-        r'data.*?involved\?[\s\n]*([^?]+?)(?=\n\s*\n|\n\s*[A-Z][^a-z]*\?|$)',
+        # Alternative: until "What [we/I] did" or similar
+        r'what information was involved\?[\s\n]*(.+?)(?=what (?:we|i|the company) (?:did|have done|are doing))',
+
+        # Alternative: until next major section (starts with "What")
+        r'what information was involved\?[\s\n]*(.+?)(?=\n\s*what [a-zA-Z\s]+\?)',
+
+        # Alternative phrasings of the question
+        r'what type of information was involved\?[\s\n]*(.+?)(?=what (?:we|are|the))',
+        r'what personal information was involved\?[\s\n]*(.+?)(?=what (?:we|are|the))',
+
+        # More flexible: until next section that starts with capital letter question
+        r'what information was involved\?[\s\n]*(.+?)(?=\n\s*[A-Z][^a-z]*\?)',
+
+        # Last resort: until end of paragraph or document
+        r'what information was involved\?[\s\n]*(.+?)(?=\n\s*\n|\n\s*for more information|$)',
     ]
 
     for i, pattern in enumerate(section_patterns):
@@ -596,41 +422,23 @@ def extract_what_information_involved(content: str) -> dict:
         for match in matches:
             extracted_text = match.group(1).strip()
 
-            # Clean up the extracted text
-            extracted_text = re.sub(r'\s+', ' ', extracted_text)  # Normalize whitespace
-            extracted_text = re.sub(r'^\s*[-•]\s*', '', extracted_text)  # Remove leading bullets
+            # Clean up the extracted text but preserve structure
+            extracted_text = re.sub(r'\n\s*\n', '\n\n', extracted_text)  # Normalize paragraph breaks
+            extracted_text = re.sub(r'[ \t]+', ' ', extracted_text)  # Normalize spaces but keep newlines
+            extracted_text = extracted_text.strip()
 
             # Skip if too short (likely not the real section)
-            if len(extracted_text) < 20:
+            if len(extracted_text) < 30:
                 continue
 
-            # Skip if it looks like a question or header
-            if extracted_text.strip().endswith('?'):
+            # Skip if it looks like just a question or header
+            if extracted_text.strip().endswith('?') and len(extracted_text) < 100:
                 continue
 
             result['what_information_involved_text'] = extracted_text
-            result['extraction_method'] = f'pattern_{i+1}'
-            result['confidence'] = 'high' if i < 2 else 'medium'
+            result['extraction_method'] = f'section_pattern_{i+1}'
+            result['confidence'] = 'high' if i < 4 else 'medium'
             return result
-
-    # Fallback: Look for common data type listings that might be the answer
-    fallback_patterns = [
-        r'the following.*?information.*?:[\s\n]*([^.]+\.)',
-        r'personal information.*?including[\s\n]*([^.]+\.)',
-        r'data.*?may.*?include[\s\n]*([^.]+\.)',
-    ]
-
-    for i, pattern in enumerate(fallback_patterns):
-        matches = re.finditer(pattern, content, re.IGNORECASE | re.DOTALL)
-        for match in matches:
-            extracted_text = match.group(1).strip()
-            extracted_text = re.sub(r'\s+', ' ', extracted_text)
-
-            if len(extracted_text) > 20:
-                result['what_information_involved_text'] = extracted_text
-                result['extraction_method'] = f'fallback_{i+1}'
-                result['confidence'] = 'low'
-                return result
 
     return result
 
