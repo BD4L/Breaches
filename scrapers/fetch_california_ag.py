@@ -893,17 +893,18 @@ def process_california_ag_breaches():
                 if original_breach_date_text:
                     logger.debug(f"Processing breach dates for {enhanced_record['organization_name']}: '{original_breach_date_text}' -> parsed: {enhanced_record['breach_dates']}")
 
-                # Use first date for database field (DATE type), store all dates in JSON
+                # Use all dates for database field (now TEXT type), store all dates in JSON
                 if enhanced_record['breach_dates'] and len(enhanced_record['breach_dates']) > 0:
                     try:
                         # The parse_breach_dates function already returns YYYY-MM-DD format
-                        # Use first date for database field (PostgreSQL DATE type requires single date)
-                        breach_date_for_db = enhanced_record['breach_dates'][0]
+                        # Store all dates in database field (now TEXT type supports multiple dates)
                         if len(enhanced_record['breach_dates']) == 1:
+                            breach_date_for_db = enhanced_record['breach_dates'][0]
                             logger.debug(f"Using single parsed breach date for database: {breach_date_for_db}")
                         else:
-                            # Multiple dates - use first for DB field, all dates preserved in JSON
-                            logger.debug(f"Using first of multiple breach dates for database: {breach_date_for_db} (all dates: {enhanced_record['breach_dates']})")
+                            # Multiple dates - join with commas for TEXT field
+                            breach_date_for_db = ", ".join(enhanced_record['breach_dates'])
+                            logger.debug(f"Using multiple parsed breach dates for database: {breach_date_for_db}")
                     except (IndexError, TypeError) as e:
                         logger.warning(f"Failed to use parsed breach date for {enhanced_record['organization_name']}: {e}")
                         breach_date_for_db = None
