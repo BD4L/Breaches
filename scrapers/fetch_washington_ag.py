@@ -1,8 +1,11 @@
 import os
 import logging
 import requests
+import hashlib
+import time
+import random
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from urllib.parse import urljoin
 from dateutil import parser as dateutil_parser # For flexible date parsing
 
@@ -19,123 +22,238 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Constants
-WASHINGTON_AG_BREACH_INITIAL_URL = "http://www.atg.wa.gov/data-breach-notifications"
-# Placeholder for the source_id from the 'data_sources' table in Supabase
+WASHINGTON_AG_BREACH_URL = "https://www.atg.wa.gov/data-breach-notifications"
 SOURCE_ID_WASHINGTON_AG = 5
+
+# Configuration for date filtering
+# Set to None to collect all historical data (for testing)
+# Set to a date string like "2025-01-27" for production filtering
+# Default to one week back for better testing coverage in GitHub Actions
+default_date = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
+FILTER_FROM_DATE = os.environ.get("WA_AG_FILTER_FROM_DATE", default_date)
+
+# Rate limiting configuration
+MIN_DELAY_SECONDS = 1  # Minimum delay between requests
+MAX_DELAY_SECONDS = 3  # Maximum delay between requests
+REQUEST_TIMEOUT = 30   # Request timeout
+MAX_RETRIES = 3        # Maximum number of retries for failed requests
 
 # Headers for requests
 REQUEST_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.atg.wa.gov/'
 }
+
+def generate_incident_uid_wa(org_name: str, reported_date: str) -> str:
+    """
+    Generate a unique incident identifier for Washington AG breaches.
+    """
+    combined = f"wa_ag_{org_name.lower().strip()}_{reported_date}".replace(" ", "_")
+    return hashlib.md5(combined.encode()).hexdigest()[:16]
+
+def rate_limit_delay():
+    """
+    Add a random delay between requests to avoid overwhelming the server.
+    """
+    delay = random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS)
+    logger.debug(f"Rate limiting: waiting {delay:.1f} seconds")
+    time.sleep(delay)
 
 def parse_date_flexible_wa(date_str: str) -> str | None:
     """
-    Tries to parse a date string using dateutil.parser for flexibility.
-    Handles common variations like "N/A", "Unknown".
-    Returns ISO 8601 format string or None if parsing fails or input is invalid.
+    Enhanced date parsing for Washington AG with support for complex formats.
+    Returns ISO format date string or None if parsing fails.
     """
-    if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending', 'various', 'see notice', 'not provided']:
+    if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending', 'various', 'see notice', 'not provided', '']:
         return None
+
+    date_str = date_str.strip()
+
+    # Handle date ranges - take the first date
+    if '–' in date_str:
+        date_str = date_str.split('–')[0].strip()
+    elif ' - ' in date_str:
+        date_str = date_str.split(' - ')[0].strip()
+
+    # Common formats to try
+    formats = ['%m/%d/%Y', '%m/%d/%y', '%B %d, %Y', '%Y-%m-%d', '%d/%m/%Y']
+
+    for fmt in formats:
+        try:
+            dt_object = datetime.strptime(date_str, fmt)
+            return dt_object.isoformat()
+        except ValueError:
+            continue
+
+    # Fallback to dateutil parser for complex formats
     try:
-        # Handle cases like "Spring 2023" - dateutil might parse this to a specific date, e.g. March 1st.
-        # If more specific handling for seasons or vague terms is needed, add it here.
-        if "spring" in date_str.lower(): # Example: "Spring 2023" -> "03/01/2023" (approximate)
-            year = date_str.lower().split("spring")[-1].strip()
-            dt_object = dateutil_parser.parse(f"March 1, {year}")
-        elif "summer" in date_str.lower():
-            year = date_str.lower().split("summer")[-1].strip()
-            dt_object = dateutil_parser.parse(f"June 1, {year}")
-        elif "fall" in date_str.lower() or "autumn" in date_str.lower():
-            year = date_str.lower().split("fall")[-1].strip() if "fall" in date_str.lower() else date_str.lower().split("autumn")[-1].strip()
-            dt_object = dateutil_parser.parse(f"September 1, {year}")
-        elif "winter" in date_str.lower():
-            year = date_str.lower().split("winter")[-1].strip()
-            dt_object = dateutil_parser.parse(f"December 1, {year}")
-        else:
-            dt_object = dateutil_parser.parse(date_str.strip())
+        dt_object = dateutil_parser.parse(date_str.strip())
         return dt_object.isoformat()
-    except (ValueError, TypeError, OverflowError) as e: # OverflowError for very large year numbers
+    except (ValueError, TypeError, OverflowError) as e:
         logger.warning(f"Could not parse date string: '{date_str}'. Error: {e}")
         return None
 
+def parse_date_to_date_only(date_str: str) -> str | None:
+    """
+    Parse a date string and return just the date part (YYYY-MM-DD).
+    If parsing fails, return the original string to preserve information.
+    """
+    if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending', 'various', 'see notice', 'not provided', '']:
+        return None
+
+    iso_date = parse_date_flexible_wa(date_str)
+    if iso_date:
+        return iso_date.split('T')[0]  # Extract just the date part
+
+    # If parsing failed, return the original string to preserve the information
+    return date_str.strip()
+
+def is_recent_breach_wa(date_str: str) -> bool:
+    """
+    Check if a breach date is from the filter date onward.
+    Returns True if the date is on or after the filter date.
+    """
+    if not date_str or not FILTER_FROM_DATE:
+        return True  # Include all if no filtering
+
+    try:
+        breach_date = datetime.fromisoformat(date_str).date()
+        filter_date = datetime.strptime(FILTER_FROM_DATE, '%Y-%m-%d').date()
+        return breach_date >= filter_date
+    except:
+        return True  # Include if date parsing fails
+
+def parse_affected_individuals_wa(affected_text: str) -> int | None:
+    """
+    Parse the affected individuals count from Washington AG text.
+    Handles formats like "1,023", "14,255", "Unknown", etc.
+    Returns integer if parseable, None if not a number.
+    """
+    if not affected_text or affected_text.strip().lower() in ['n/a', 'unknown', 'pending', 'tbd', 'not specified', '']:
+        return None
+
+    # Remove commas and extract numbers
+    import re
+    numbers = re.findall(r'[\d,]+', affected_text.strip())
+    if numbers:
+        try:
+            # Take the first number found, remove commas
+            number_str = numbers[0].replace(',', '')
+            return int(number_str)
+        except ValueError:
+            pass
+
+    # If no number found, return None (original text will be preserved in raw_data_json)
+    return None
+
+def parse_data_types_compromised_wa(data_types_text: str) -> list:
+    """
+    Parse the semicolon-separated data types from Washington AG "Information Compromised" column.
+    Returns list of standardized data type categories.
+    """
+    if not data_types_text or data_types_text.strip().lower() in ['n/a', 'unknown', 'pending', 'not specified', '']:
+        return []
+
+    # Split by semicolon and clean up
+    raw_types = [item.strip() for item in data_types_text.split(';') if item.strip()]
+
+    # Map to standardized categories
+    standardized_types = []
+    for raw_type in raw_types:
+        raw_lower = raw_type.lower()
+
+        # Map common variations to standardized categories
+        if 'social security' in raw_lower or 'ssn' in raw_lower:
+            standardized_types.append('Social Security Numbers')
+        elif 'driver' in raw_lower and 'license' in raw_lower:
+            standardized_types.append('Driver License Numbers')
+        elif 'financial' in raw_lower or 'banking' in raw_lower or 'account' in raw_lower:
+            standardized_types.append('Financial Information')
+        elif 'medical' in raw_lower or 'health' in raw_lower:
+            standardized_types.append('Medical Information')
+        elif 'passport' in raw_lower:
+            standardized_types.append('Passport Numbers')
+        elif 'biometric' in raw_lower:
+            standardized_types.append('Biometric Data')
+        elif 'insurance' in raw_lower:
+            standardized_types.append('Insurance Information')
+        elif 'birth' in raw_lower or 'date of birth' in raw_lower:
+            standardized_types.append('Date of Birth')
+        elif 'name' in raw_lower and len(raw_lower) < 20:  # Avoid long descriptions
+            standardized_types.append('Personal Names')
+        elif 'email' in raw_lower:
+            standardized_types.append('Email Addresses')
+        elif 'password' in raw_lower or 'username' in raw_lower:
+            standardized_types.append('Login Credentials')
+        else:
+            # Keep original if no mapping found
+            standardized_types.append(raw_type)
+
+    # Remove duplicates while preserving order
+    return list(dict.fromkeys(standardized_types))
+
+def extract_pdf_url_wa(org_cell) -> str | None:
+    """
+    Extract PDF URL from organization name cell (which contains hyperlink to PDF).
+    """
+    if not org_cell:
+        return None
+
+    # Look for anchor tag with href
+    link_tag = org_cell.find('a', href=True)
+    if link_tag:
+        href = link_tag.get('href', '')
+        if href.endswith('.pdf'):
+            # Return full URL (should already be absolute for S3 bucket)
+            return href
+
+    return None
+
 def process_washington_ag_breaches():
     """
-    Fetches Washington AG security breach notifications, processes each notification,
-    and inserts relevant data into Supabase.
+    Enhanced Washington AG Security Breach Notification processor with 3-tier data structure.
+    Fetches breach notifications, processes with comprehensive field mapping, and inserts into Supabase.
     """
-    logger.info("Starting Washington AG Security Breach Notification processing...")
+    logger.info("Starting Enhanced Washington AG Security Breach Notification processing...")
 
-    final_url_to_scrape = WASHINGTON_AG_BREACH_INITIAL_URL
+    if FILTER_FROM_DATE:
+        logger.info(f"Date filtering enabled: collecting breaches from {FILTER_FROM_DATE} onward")
+    else:
+        logger.info("Date filtering disabled: collecting all historical breaches")
+
     try:
-        # Perform a HEAD request first to resolve redirects and get the final URL
-        head_response = requests.head(WASHINGTON_AG_BREACH_INITIAL_URL, headers=REQUEST_HEADERS, allow_redirects=True, timeout=15)
-        head_response.raise_for_status()
-        final_url_to_scrape = head_response.url
-        logger.info(f"Initial URL '{WASHINGTON_AG_BREACH_INITIAL_URL}' resolved to '{final_url_to_scrape}'.")
-        if not final_url_to_scrape.startswith("https://"):
-            logger.warning(f"Final URL '{final_url_to_scrape}' is not HTTPS. Proceeding, but HTTPS is preferred.")
-
-        response = requests.get(final_url_to_scrape, headers=REQUEST_HEADERS, timeout=30)
+        response = requests.get(WASHINGTON_AG_BREACH_URL, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
+        logger.info(f"Successfully fetched Washington AG breach data from {WASHINGTON_AG_BREACH_URL}")
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching Washington AG breach data page from {final_url_to_scrape}: {e}")
+        logger.error(f"Error fetching Washington AG breach data page from {WASHINGTON_AG_BREACH_URL}: {e}")
         return
 
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Washington AG site structure:
-    # As of recent checks (2023-2024), data is typically in a <table>.
-    # The table might be directly in the main content area, or within a specific div.
-    # Example selector might be 'div.field-items table tbody tr' or similar.
-    # We need to find the table and then iterate its rows.
-
-    # Try to find a table - this is the most common structure historically.
-    # Look for a table that seems to contain breach data. Often it might have specific headers.
-    # A common pattern is tables within a div with class "content" or "main-content" or similar.
-    data_table = None
-    # First, try a more specific selector if known, e.g. based on a parent div
-    # content_area = soup.find('div', class_='some-specific-class-if-known')
-    # if content_area: data_table = content_area.find('table')
-
-    # Generic search for tables if specific parent unknown
+    # Find the main data table containing breach notifications
+    # Based on Firecrawl analysis, the table has a clean structure with 5 columns
+    data_table = soup.find('table')
     if not data_table:
-        all_tables = soup.find_all('table')
-        if not all_tables:
-            logger.error("No tables found on the page. The page structure might have changed, or it's not using tables for breach data anymore.")
-            # logger.debug(f"Page content sample (first 1000 chars): {response.text[:1000]}")
-            return
-
-        # Heuristic: choose the largest table or one with expected headers.
-        # For now, let's assume the first prominent table or a specific one if identifiable.
-        # If multiple tables, this might need refinement.
-        # Often, the data is in a table within a div with class "field-item" or "field-items"
-        field_items_div = soup.find('div', class_=['field-item', 'field-items']) # Common Drupal class
-        if field_items_div:
-            data_table = field_items_div.find('table')
-
-        if not data_table and all_tables:
-            # Fallback: pick the first table found if no better heuristic. This might be fragile.
-            data_table = all_tables[0]
-            logger.info(f"Found {len(all_tables)} table(s). Using the first one found as a fallback or the one within 'field-items'.")
-        elif not data_table:
-            logger.error("Could not identify a suitable data table within 'field-items' or as a primary table.")
-            return
-
-
-    if not data_table:
-        logger.error("Failed to identify the data table containing breach notifications.")
+        logger.error("No table found on the page. The page structure might have changed.")
         return
 
     tbody = data_table.find('tbody')
     if not tbody:
-        logger.error("Table found, but it does not contain a <tbody> element. Cannot process rows.")
-        return
+        # Try to get rows directly from table if no tbody
+        notifications = data_table.find_all('tr')[1:]  # Skip header row
+        if not notifications:
+            logger.error("No data rows found in the table.")
+            return
+    else:
+        notifications = tbody.find_all('tr')
 
-    notifications = tbody.find_all('tr')
-    logger.info(f"Found {len(notifications)} potential breach notifications in the table.")
+    logger.info(f"Found {len(notifications)} breach notification rows in the table.")
 
     if not notifications:
-        logger.warning("No rows found in the table body. The table might be empty or structured differently (e.g. no tbody).")
+        logger.warning("No breach notification rows found.")
         return
 
     supabase_client = None
@@ -149,154 +267,199 @@ def process_washington_ag_breaches():
     processed_count = 0
     skipped_count = 0
 
-    # Determine column headers to map data correctly.
-    # Assumes first row of table (or thead if present) contains headers.
-    headers = []
-    thead = data_table.find('thead')
-    if thead:
-        header_row = thead.find('tr')
-        if header_row:
-            headers = [th.get_text(strip=True).lower() for th in header_row.find_all(['th', 'td'])]
-
-    if not headers and notifications: # Fallback: use first row of tbody if no thead
-         first_row_cells = notifications[0].find_all(['th', 'td'])
-         # Check if this looks like a header row (e.g. by inspecting content)
-         # This part is heuristic. For now, we'll assume if thead is missing, direct data starts.
-         logger.info("No <thead> found or no headers in <thead>. Will attempt to process rows assuming a fixed column order or rely on dynamic mapping if possible.")
+    # Process each breach notification row
+    # Based on Firecrawl analysis, the table structure is:
+    # Column 0: Date Reported
+    # Column 1: Organization Name (with PDF link)
+    # Column 2: Date of Breach
+    # Column 3: Number of Washingtonians Affected
+    # Column 4: Information Compromised
 
 
     for row_idx, row in enumerate(notifications):
         processed_count += 1
-        cols = row.find_all(['td', 'th']) # Include 'th' if data rows might use them for row headers (unlikely for WA AG)
+        cols = row.find_all(['td', 'th'])
 
-        # Map columns to data fields based on headers if available and consistent
-        # This mapping needs to be robust or adaptable if column order changes.
-        # Example expected headers (actual headers can vary!):
-        # "Date Posted", "Organization", "Date(s) of Breach", "Date AG Notified", "Description of Breach", "WA Residents Affected"
-        # "Link to Notice"
-
-        # Create a dictionary from the row cells and headers
-        row_data = {}
-        if headers:
-            for i, cell in enumerate(cols):
-                if i < len(headers):
-                    row_data[headers[i]] = cell
-        else: # No headers, rely on fixed column order (more fragile)
-            # This part is highly dependent on the current structure of the WA AG site.
-            # Let's assume a common order for now and log a warning.
-            # 0: Organization Name, 1: Date Reported, 2: Date of Breach, ... (This is a GUESS)
-            if len(cols) > 0: row_data['organization'] = cols[0] # Placeholder key
-            if len(cols) > 1: row_data['date reported'] = cols[1] # Placeholder key
-            if len(cols) > 2: row_data['dates of breach'] = cols[2] # Placeholder key
-            if len(cols) > 3: row_data['description'] = cols[3] # Placeholder key
-            if len(cols) > 4: row_data['wa residents affected'] = cols[4] # Placeholder key
-            if len(cols) > 5: row_data['link to notice'] = cols[5] # Placeholder key
-            if not headers:
-                 logger.debug(f"Processing row {row_idx} without headers. Column count: {len(cols)}. Data: {[c.get_text(strip=True)[:50] for c in cols]}")
-
-
-        # --- Extract data using flexible key matching (if headers were parsed) ---
-        org_name_cell = row_data.get('organization name') or row_data.get('organization') or row_data.get('name of entity')
-        date_reported_cell = row_data.get('date ag notified') or row_data.get('date reported') or row_data.get('date posted') or row_data.get('notice date')
-        dates_breach_cell = row_data.get('date(s) of breach') or row_data.get('breach date(s)')
-        description_cell = row_data.get('description of breach') or row_data.get('type of breach') or row_data.get('information compromised')
-        residents_affected_cell = row_data.get('wa residents affected') or row_data.get('washingtonians affected') or row_data.get('residents affected')
-        notice_link_cell = row_data.get('link to notice') or row_data.get('notice') or row_data.get('breach letter')
-
-        # Get text and clean
-        org_name = org_name_cell.get_text(strip=True) if org_name_cell else None
-        date_reported_str = date_reported_cell.get_text(strip=True) if date_reported_cell else None
-        dates_breach_str = dates_breach_cell.get_text(strip=True) if dates_breach_cell else None
-        description = description_cell.get_text(strip=True) if description_cell else "Not specified"
-        residents_affected_str = residents_affected_cell.get_text(strip=True) if residents_affected_cell else "Not specified"
-
-        notice_link_tag = notice_link_cell.find('a', href=True) if notice_link_cell else None
-        item_specific_url = None
-        if notice_link_tag:
-            item_specific_url = urljoin(final_url_to_scrape, notice_link_tag['href'])
-
-        if not org_name or not date_reported_str:
-            # If relying on fixed order and it's wrong, this might skip valid rows.
-            logger.warning(f"Skipping row {row_idx+1} due to missing Organization Name ('{org_name}') or Date Reported ('{date_reported_str}'). Headers: {headers}. Col count: {len(cols)}. Row content: {[c.get_text(strip=True)[:30] for c in cols]}")
+        # Ensure we have the expected 5 columns
+        if len(cols) < 5:
+            logger.warning(f"Skipping row {row_idx+1} due to insufficient columns ({len(cols)}): {row.text[:100]}")
             skipped_count += 1
             continue
 
-        publication_date_iso = parse_date_flexible_wa(date_reported_str)
-        if not publication_date_iso:
-            # Try parsing dates_breach_str if date_reported_str failed and might be a fallback
-            publication_date_iso = parse_date_flexible_wa(dates_breach_str.split('-')[0].strip() if dates_breach_str else None) # Use start of range if applicable
+        try:
+            # Extract data from the 5 columns based on known structure
+            # Column 0: Date Reported
+            # Column 1: Organization Name (with PDF link)
+            # Column 2: Date of Breach
+            # Column 3: Number of Washingtonians Affected
+            # Column 4: Information Compromised
+
+            date_reported_str = cols[0].get_text(strip=True)
+            org_name = cols[1].get_text(strip=True)
+            date_of_breach_str = cols[2].get_text(strip=True)
+            residents_affected_str = cols[3].get_text(strip=True)
+            information_compromised_str = cols[4].get_text(strip=True)
+
+            # Extract PDF URL from organization name cell
+            pdf_url = extract_pdf_url_wa(cols[1])
+
+            if not org_name or not date_reported_str:
+                logger.warning(f"Skipping row {row_idx+1} due to missing Organization Name ('{org_name}') or Date Reported ('{date_reported_str}')")
+                skipped_count += 1
+                continue
+
+            # Parse dates with enhanced handling
+            publication_date_iso = parse_date_flexible_wa(date_reported_str)
             if not publication_date_iso:
-                logger.warning(f"Skipping '{org_name}' due to unparsable primary date: Reported='{date_reported_str}', Breach='{dates_breach_str}'")
-                skipped_count +=1
-                continue
-            else:
-                logger.info(f"Used breach date as publication date for '{org_name}' as reported date was unparsable or missing.")
+                # Try parsing breach date if reported date failed
+                publication_date_iso = parse_date_flexible_wa(date_of_breach_str.split('-')[0].strip() if date_of_breach_str else None)
+                if not publication_date_iso:
+                    logger.warning(f"Skipping '{org_name}' due to unparsable dates: Reported='{date_reported_str}', Breach='{date_of_breach_str}'")
+                    skipped_count += 1
+                    continue
+                else:
+                    logger.info(f"Used breach date as publication date for '{org_name}' as reported date was unparsable.")
 
-
-        raw_data = {
-            "original_date_reported": date_reported_str,
-            "dates_of_breach": dates_breach_str if dates_breach_str else "Not specified",
-            "wa_residents_affected": residents_affected_str,
-            "description_from_table": description,
-            "original_notice_link": item_specific_url if item_specific_url else "Not provided on list page"
-        }
-        raw_data_json = {k: v for k, v in raw_data.items() if v is not None and v.strip().lower() not in ['n/a', 'unknown', '']}
-
-        tags = ["washington_ag", "wa_breach"]
-        if description and description.lower() != "not specified":
-            # Simple tagging based on keywords in description
-            desc_lower = description.lower()
-            if "malware" in desc_lower: tags.append("malware")
-            if "ransomware" in desc_lower: tags.append("ransomware")
-            if "phishing" in desc_lower: tags.append("phishing")
-            if "unauthorized access" in desc_lower: tags.append("unauthorized_access")
-            if "email" in desc_lower: tags.append("email_compromise")
-
-
-        # Generate unique URL for each item
-        if item_specific_url:
-            unique_url = item_specific_url
-        else:
-            # Create a unique URL by appending organization name and date
-            import urllib.parse
-            org_slug = urllib.parse.quote(org_name.replace(' ', '-').lower())
-            date_slug = publication_date_iso.split('T')[0]  # Just the date part
-            unique_url = f"{final_url_to_scrape}#{org_slug}-{date_slug}"
-
-        item_data = {
-            "source_id": SOURCE_ID_WASHINGTON_AG,
-            "item_url": unique_url,
-            "title": org_name,
-            "publication_date": publication_date_iso,
-            "summary_text": description if description else "Details may be in linked notice if available.",
-            "raw_data_json": raw_data_json,
-            "tags_keywords": list(set(tags))
-        }
-
-        # Check for existing record before inserting
-        try:
-            query_result = supabase_client.client.table("scraped_items").select("id").eq("title", org_name).eq("publication_date", publication_date_iso).eq("source_id", SOURCE_ID_WASHINGTON_AG).execute()
-            if query_result.data:
-                logger.info(f"Item '{org_name}' on {publication_date_iso} already exists. Skipping.")
+            # Apply date filtering
+            if not is_recent_breach_wa(publication_date_iso):
+                logger.info(f"Skipping '{org_name}' - breach date {publication_date_iso.split('T')[0]} is before filter date {FILTER_FROM_DATE}")
                 skipped_count += 1
                 continue
-        except Exception as e_check:
-            logger.warning(f"Could not check for existing record: {e_check}. Proceeding with insert.")
 
-        try:
-            insert_response = supabase_client.insert_item(**item_data)
-            if insert_response:
-                logger.info(f"Successfully inserted item for '{org_name}'. URL: {item_data['item_url']}")
-                inserted_count += 1
+            # Parse structured data for dedicated fields
+            affected_individuals = parse_affected_individuals_wa(residents_affected_str)
+            breach_date_only = parse_date_to_date_only(date_of_breach_str)
+            reported_date_only = parse_date_to_date_only(date_reported_str)
+            data_types_compromised = parse_data_types_compromised_wa(information_compromised_str)
+
+            # Generate incident UID for deduplication
+            incident_uid = generate_incident_uid_wa(org_name, reported_date_only or date_reported_str)
+
+            # Enhanced 3-tier raw_data_json structure
+            raw_data = {
+                # Tier 1: Portal Raw Data (direct from HTML table)
+                "washington_ag_raw": {
+                    "org_name": org_name,
+                    "date_reported_raw": date_reported_str,
+                    "date_of_breach_raw": date_of_breach_str,
+                    "wa_residents_affected_raw": residents_affected_str,
+                    "information_compromised_raw": information_compromised_str,
+                    "pdf_url": pdf_url,
+                    "table_row_index": row_idx,
+                    "scrape_timestamp": datetime.now().isoformat()
+                },
+
+                # Tier 2: Derived/Housekeeping (computed fields)
+                "washington_ag_derived": {
+                    "incident_uid": incident_uid,
+                    "portal_first_seen_utc": datetime.now().isoformat(),
+                    "portal_last_seen_utc": datetime.now().isoformat(),
+                    "affected_individuals_parsed": affected_individuals,
+                    "data_types_standardized": data_types_compromised,
+                    "has_pdf_notice": pdf_url is not None,
+                    "breach_date_parsed": breach_date_only,
+                    "reported_date_parsed": reported_date_only
+                },
+
+                # Tier 3: Deep Analysis (PDF content analysis - placeholder)
+                "washington_ag_pdf_analysis": {
+                    "pdf_processed": False,
+                    "pdf_url": pdf_url,
+                    "incident_description": None,
+                    "detailed_data_types": None,
+                    "timeline_details": None,
+                    "credit_monitoring_offered": None,
+                    "pdf_text_blob": None,
+                    "pdf_analysis_error": "PDF analysis not yet implemented"
+                }
+            }
+
+            # Create comprehensive summary
+            summary_parts = []
+            if reported_date_only:
+                summary_parts.append(f"Reported to Washington AG: {reported_date_only}")
+            if breach_date_only:
+                summary_parts.append(f"Breach occurred: {breach_date_only}")
+            if affected_individuals:
+                summary_parts.append(f"Washington residents affected: {affected_individuals:,}")
+            elif residents_affected_str and residents_affected_str.lower() != 'unknown':
+                summary_parts.append(f"Washington residents affected: {residents_affected_str}")
+            if data_types_compromised:
+                summary_parts.append(f"Data types: {', '.join(data_types_compromised[:3])}{'...' if len(data_types_compromised) > 3 else ''}")
+            if pdf_url:
+                summary_parts.append("Official notice available")
+
+            summary = ". ".join(summary_parts) + "." if summary_parts else "Data breach notification."
+
+            # Generate unique URL
+            if pdf_url:
+                unique_url = pdf_url
             else:
-                logger.error(f"Failed to insert item for '{org_name}'. Supabase client returned no error, but no data in response.")
-        except Exception as e_insert:
-            if "duplicate key value violates unique constraint" in str(e_insert):
-                logger.info(f"Item '{org_name}' already exists (duplicate URL). Skipping.")
-                skipped_count += 1
-            else:
-                logger.error(f"Error inserting item for '{org_name}' into Supabase: {e_insert}")
-                skipped_count += 1
+                import urllib.parse
+                org_slug = urllib.parse.quote(org_name.replace(' ', '-').lower())
+                date_slug = publication_date_iso.split('T')[0]
+                unique_url = f"{WASHINGTON_AG_BREACH_URL}#{org_slug}-{date_slug}"
+
+            # Enhanced tags based on data types
+            tags = ["washington_ag", "wa_breach", "data_breach"]
+            for data_type in data_types_compromised:
+                if "Social Security" in data_type:
+                    tags.append("ssn_breach")
+                elif "Medical" in data_type:
+                    tags.append("healthcare_breach")
+                elif "Financial" in data_type:
+                    tags.append("financial_breach")
+
+            item_data = {
+                "source_id": SOURCE_ID_WASHINGTON_AG,
+                "item_url": unique_url,
+                "title": org_name,
+                "publication_date": publication_date_iso,
+                "summary_text": summary.strip(),
+                "raw_data_json": raw_data,
+                "tags_keywords": list(set(tags)),
+
+                # Standardized breach fields (existing schema)
+                "affected_individuals": affected_individuals,
+                "breach_date": breach_date_only,
+                "reported_date": reported_date_only,
+                "notice_document_url": pdf_url,
+
+                # Enhanced fields for comprehensive data capture
+                "data_types_compromised": data_types_compromised,
+                "exhibit_urls": [pdf_url] if pdf_url else None,
+                "keywords_detected": data_types_compromised + ["washington", "breach", "notification"],
+                "keyword_contexts": None  # Will be populated from PDF analysis
+            }
+
+            # Check for existing record before inserting
+            try:
+                query_result = supabase_client.client.table("scraped_items").select("id").eq("title", org_name).eq("publication_date", publication_date_iso).eq("source_id", SOURCE_ID_WASHINGTON_AG).execute()
+                if query_result.data:
+                    logger.info(f"Item '{org_name}' on {publication_date_iso} already exists. Skipping.")
+                    skipped_count += 1
+                    continue
+            except Exception as e_check:
+                logger.warning(f"Could not check for existing record: {e_check}. Proceeding with insert.")
+
+            try:
+                insert_response = supabase_client.insert_item(**item_data)
+                if insert_response:
+                    logger.info(f"Successfully inserted item for '{org_name}'. URL: {item_data['item_url']}")
+                    inserted_count += 1
+                else:
+                    logger.error(f"Failed to insert item for '{org_name}'. Supabase client returned no error, but no data in response.")
+            except Exception as e_insert:
+                if "duplicate key value violates unique constraint" in str(e_insert):
+                    logger.info(f"Item '{org_name}' already exists (duplicate URL). Skipping.")
+                    skipped_count += 1
+                else:
+                    logger.error(f"Error inserting item for '{org_name}' into Supabase: {e_insert}")
+                    skipped_count += 1
+
+        except Exception as e:
+            logger.error(f"Error processing row for '{org_name if 'org_name' in locals() else 'Unknown Entity'}': {row.text[:150]}. Error: {e}", exc_info=True)
+            skipped_count += 1
 
     logger.info(f"Finished processing Washington AG breaches. Total rows processed: {processed_count}. Items inserted: {inserted_count}. Items skipped: {skipped_count}")
 
