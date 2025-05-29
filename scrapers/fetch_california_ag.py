@@ -326,9 +326,36 @@ def extract_affected_individuals(content: str) -> dict:
 def extract_data_types(content: str) -> list:
     """
     Enhanced data type extraction with comprehensive categories and context awareness.
+    Now includes template variable detection to prevent false positives.
     """
     import re
     data_types = []
+
+    # Check if content contains template variables - if so, be very conservative
+    template_indicators = [
+        r'<<.*?>>',  # Template variables like <<Variable Text 1>>
+        r'\$<<.*?>>\$',  # Dollar-wrapped template variables
+        r'variable text',  # Explicit template text references
+        r'<<first name>>',  # Common template fields
+        r'<<last name>>',
+        r'<<address',
+    ]
+
+    has_templates = any(re.search(pattern, content, re.IGNORECASE) for pattern in template_indicators)
+
+    if has_templates:
+        logger.debug("Template variables detected in PDF - using conservative data type extraction")
+        # For template documents, only extract if we find very specific, contextual mentions
+        # Look for the actual "What information was involved?" section first
+        what_info_result = extract_what_information_involved(content)
+        if what_info_result.get('what_information_involved_text'):
+            # Extract from the specific section only
+            section_content = what_info_result['what_information_involved_text'].lower()
+            return extract_data_types_from_section(section_content)
+        else:
+            # No clear section found and document has templates - return empty to avoid false positives
+            logger.debug("No clear 'What information was involved?' section found in template document")
+            return []
 
     # Enhanced data type patterns with context
     data_type_patterns = {
@@ -418,6 +445,78 @@ def extract_data_types(content: str) -> list:
                 if data_type not in data_types:
                     data_types.append(data_type)
                 break  # Found this type, move to next
+
+    return data_types
+
+def extract_data_types_from_section(section_content: str) -> list:
+    """
+    Extract data types from a specific section (like "What information was involved?").
+    More conservative than the general extraction to avoid false positives.
+    """
+    import re
+    data_types = []
+
+    # More specific patterns that require clear context
+    specific_patterns = {
+        'Social Security Numbers': [
+            r'social security numbers?',
+            r'\bssn\b',
+        ],
+        'Driver License Numbers': [
+            r'driver\'?s? licen[sc]e numbers?',
+            r'state id numbers?',
+        ],
+        'Payment Card Information': [
+            r'credit card numbers?',
+            r'debit card numbers?',
+            r'payment card information',
+            r'bank account numbers?',
+        ],
+        'Medical Information': [
+            r'medical information',
+            r'health information',
+            r'protected health information',
+            r'phi\b',
+        ],
+        'Personal Identifiers': [
+            r'personal identifiers?',
+            r'personal information',
+            r'personally identifiable information',
+            r'\bpii\b',
+        ],
+        'Financial Information': [
+            r'financial information',
+            r'financial data',
+            r'account information',
+        ],
+        'Contact Information': [
+            r'email addresses?',
+            r'phone numbers?',
+            r'contact information',
+        ],
+        'Names': [
+            r'\bnames?\b',
+            r'full names?',
+        ],
+        'Addresses': [
+            r'addresses?',
+            r'home addresses?',
+            r'mailing addresses?',
+        ],
+        'Dates of Birth': [
+            r'dates? of birth',
+            r'\bdob\b',
+            r'birth dates?',
+        ]
+    }
+
+    # Check for each data type in the specific section
+    for data_type, patterns in specific_patterns.items():
+        for pattern in patterns:
+            if re.search(pattern, section_content, re.IGNORECASE):
+                if data_type not in data_types:
+                    data_types.append(data_type)
+                break
 
     return data_types
 
@@ -978,19 +1077,29 @@ def process_california_ag_breaches():
                 full_content = "\n".join(content_parts)
 
                 # Convert to database format - be conservative with field mapping
-                # Fix date field conversion - ensure proper DATE format for database
+                # Enhanced breach date handling - capture original data regardless of parsing success
                 breach_date_for_db = None
-                if enhanced_record['breach_dates']:
+                original_breach_date_text = enhanced_record['raw_csv_data'].get('Date(s) of Breach  (if known)', '') or enhanced_record['raw_csv_data'].get('Date(s) of Breach (if known)', '')
+
+                # Always log what we're working with
+                if original_breach_date_text:
+                    logger.debug(f"Processing breach dates for {enhanced_record['organization_name']}: '{original_breach_date_text}' -> parsed: {enhanced_record['breach_dates']}")
+
+                # Use the first successfully parsed date for the database field
+                if enhanced_record['breach_dates'] and len(enhanced_record['breach_dates']) > 0:
                     try:
-                        # Convert YYYY-MM-DD string to proper date format for database
-                        breach_date_str = enhanced_record['breach_dates'][0]
-                        if breach_date_str and isinstance(breach_date_str, str):
-                            # Parse and reformat to ensure it's a valid date
-                            parsed_date = datetime.strptime(breach_date_str, '%Y-%m-%d')
-                            breach_date_for_db = parsed_date.strftime('%Y-%m-%d')
-                    except (ValueError, TypeError) as e:
-                        logger.warning(f"Failed to convert breach date '{enhanced_record['breach_dates'][0]}' for database: {e}")
+                        # The parse_breach_dates function already returns YYYY-MM-DD format
+                        breach_date_for_db = enhanced_record['breach_dates'][0]
+                        logger.debug(f"Using first parsed breach date for database: {breach_date_for_db}")
+                    except (IndexError, TypeError) as e:
+                        logger.warning(f"Failed to use parsed breach date for {enhanced_record['organization_name']}: {e}")
                         breach_date_for_db = None
+
+                # If we have original text but no parsed dates, log this for investigation
+                if original_breach_date_text and not enhanced_record['breach_dates']:
+                    logger.info(f"📅 Breach date text present but not parsed for {enhanced_record['organization_name']}: '{original_breach_date_text}'")
+                elif original_breach_date_text and enhanced_record['breach_dates']:
+                    logger.debug(f"✅ Successfully parsed breach dates: '{original_breach_date_text}' -> {enhanced_record['breach_dates']}")
 
                 db_item = {
                     'source_id': SOURCE_ID_CALIFORNIA_AG,
@@ -1004,11 +1113,13 @@ def process_california_ag_breaches():
                     'affected_individuals': affected_individuals,
                     'notice_document_url': notice_document_url,
                     'raw_data_json': {
-                        'scraper_version': '4.1_what_information_involved',
+                        'scraper_version': '4.2_enhanced_breach_dates',
                         'tier_1_csv_data': enhanced_record['raw_csv_data'],
                         'tier_2_enhanced': {
                             'incident_uid': enhanced_record['incident_uid'],
                             'breach_dates_all': enhanced_record['breach_dates'],
+                            'breach_dates_original_text': original_breach_date_text,  # Always preserve original
+                            'breach_dates_parsing_success': len(enhanced_record['breach_dates']) > 0,
                             'enhancement_attempted': enhanced_record.get('enhancement_attempted', False),
                             'enhancement_timestamp': enhanced_record.get('enhancement_timestamp'),
                             'detail_page_data': enhanced_record.get('tier_2_detail', {})
