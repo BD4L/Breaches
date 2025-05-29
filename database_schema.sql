@@ -78,7 +78,10 @@ CREATE TABLE scraped_items (
 
     -- Business Context
     business_description TEXT, -- Company business description
-    industry_classification TEXT -- Industry/sector classification
+    industry_classification TEXT, -- Industry/sector classification
+
+    -- Additional Breach Analysis Fields (found in live database)
+    what_was_leaked TEXT -- Extracted "What information was involved?" section from breach notifications
 );
 
 -- ============================================================================

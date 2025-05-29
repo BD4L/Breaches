@@ -1,252 +1,525 @@
 import os
+import re
+import io
 import logging
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-from urllib.parse import urljoin, unquote
+from urllib.parse import urljoin
 from dateutil import parser as dateutil_parser
+import time
 
 # Assuming SupabaseClient is in utils.supabase_client
 try:
-    from utils.supabase_client import SupabaseClient
+    from utils.supabase_client import SupabaseClient, clean_text_for_database
 except ImportError:
     import sys
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from utils.supabase_client import SupabaseClient
+    from utils.supabase_client import SupabaseClient, clean_text_for_database
 
-# Setup basic logging
+# Setup comprehensive logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Constants
-INDIANA_AG_BREACH_URL = "https://www.in.gov/attorneygeneral/2874.htm" # This is the listing page
-# The actual data is often loaded from a different URL or via JS.
-# After inspection, it seems the links point to PDFs which are the notices.
-# The page lists breaches by year.
+# Enhanced Constants for Indiana AG
+INDIANA_AG_BREACH_URL = "https://www.in.gov/attorneygeneral/2874.htm"
 SOURCE_ID_INDIANA_AG = 7
+
+# Configuration from environment variables
+FILTER_FROM_DATE = os.environ.get("IN_AG_FILTER_FROM_DATE")  # Format: YYYY-MM-DD
+PROCESSING_MODE = os.environ.get("IN_AG_PROCESSING_MODE", "ENHANCED")  # BASIC, ENHANCED, FULL
 
 # Headers for requests
 REQUEST_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
 
+# Rate limiting
+RATE_LIMIT_DELAY = 2  # seconds between requests
+
+def rate_limit_delay():
+    """Add rate limiting delay between requests."""
+    time.sleep(RATE_LIMIT_DELAY)
+
 def parse_date_flexible_in(date_str: str) -> str | None:
     """
-    Tries to parse a date string using dateutil.parser for flexibility.
+    Enhanced date parsing for Indiana AG breach data.
     Returns ISO 8601 format string or None if parsing fails.
     """
-    if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending', 'various', 'see notice', 'not provided']:
+    if not date_str or date_str.strip().lower() in ['n/a', 'unknown', 'pending', 'various', 'see notice', 'not provided', 'ongoing']:
         return None
+
+    # Clean the date string
+    date_str = date_str.strip()
+
     try:
-        # Example: "January 1, 2023"
-        dt_object = dateutil_parser.parse(date_str.strip())
+        # Handle common Indiana AG date formats
+        dt_object = dateutil_parser.parse(date_str)
         return dt_object.isoformat()
     except (ValueError, TypeError, OverflowError) as e:
         logger.warning(f"Could not parse date string: '{date_str}'. Error: {e}")
         return None
 
-def extract_date_from_text(text: str) -> str | None:
+def extract_affected_individuals_in(text: str) -> int | None:
     """
-    Attempts to extract a date from a text string that might contain it.
-    Example: "XYZ Corp (Notice Date 1/1/2023)"
-    This is a helper and might need to be more robust.
+    Extract number of affected individuals from text.
+    Handles various formats like "1,234", "approximately 500", "up to 1000", etc.
     """
-    import re
-    # Regex to find dates like MM/DD/YYYY or Month DD, YYYY etc.
-    # This is a basic regex, more complex ones might be needed.
-    date_patterns = [
-        r'(\d{1,2}/\d{1,2}/\d{2,4})', # MM/DD/YYYY or MM/DD/YY
-        r'(\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},\s+\d{4}\b)', # Month DD, YYYY
-        r'(\d{1,2}-\d{1,2}-\d{2,4})', # MM-DD-YYYY
-    ]
-    for pattern in date_patterns:
-        match = re.search(pattern, text)
-        if match:
-            return parse_date_flexible_in(match.group(1))
+    if not text:
+        return None
+
+    # Clean text and convert to lowercase
+    text = text.lower().strip()
+
+    # Skip non-numeric indicators
+    if any(skip_word in text for skip_word in ['unknown', 'n/a', 'pending', 'investigating', 'tbd']):
+        return None
+
+    # Extract numbers using regex - handle both comma-separated and simple numbers
+    # First try to find comma-separated numbers (like "1,234" or "10,000")
+    comma_pattern = r'\b(\d{1,3}(?:,\d{3})+)\b'
+    comma_matches = re.findall(comma_pattern, text)
+    if comma_matches:
+        try:
+            # Convert comma-separated numbers
+            numbers = [int(match.replace(',', '')) for match in comma_matches]
+            return max(numbers)
+        except ValueError:
+            pass
+
+    # If no comma-separated numbers, look for simple numbers
+    simple_pattern = r'\b(\d+)\b'
+    simple_matches = re.findall(simple_pattern, text)
+    if simple_matches:
+        try:
+            # Take the largest number found (often the most relevant)
+            numbers = [int(match) for match in simple_matches]
+            return max(numbers)
+        except ValueError:
+            pass
+
     return None
 
+def generate_incident_uid_in(year: str, index: int) -> str:
+    """
+    Generate unique incident identifier for Indiana AG breaches.
+    Format: IN-AG-{year}-{index:03d}
+    """
+    return f"IN-AG-{year}-{index:03d}"
+
+def get_yearly_pdf_urls() -> dict:
+    """
+    Extract yearly PDF URLs from the main Indiana AG breach page.
+    Returns dict with year as key and PDF URL as value.
+    """
+    try:
+        logger.info("Fetching yearly PDF URLs from Indiana AG breach page...")
+        response = requests.get(INDIANA_AG_BREACH_URL, headers=REQUEST_HEADERS, timeout=30)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Find the content area - updated for current page structure
+        content_area = soup.find('section', id='content_container_324572')
+        if not content_area:
+            content_area = soup.find('div', id='contentcontainer')
+            if not content_area:
+                content_area = soup.find('article', class_='main-content')
+                if not content_area:
+                    logger.error("Could not find main content area on Indiana AG page")
+                    return {}
+
+        # Find all PDF links with year patterns
+        pdf_urls = {}
+        pdf_links = content_area.find_all('a', href=lambda href: href and href.lower().endswith('.pdf'))
+
+        for link in pdf_links:
+            href = link.get('href', '')
+            link_text = link.get_text(strip=True)
+
+            # Extract year from link text or filename
+            year_match = re.search(r'\b(20\d{2})\b', link_text + ' ' + href)
+            if year_match:
+                year = year_match.group(1)
+                full_url = urljoin(INDIANA_AG_BREACH_URL, href)
+                pdf_urls[year] = full_url
+                logger.info(f"Found PDF for year {year}: {full_url}")
+
+        logger.info(f"Found {len(pdf_urls)} yearly PDF reports")
+        return pdf_urls
+
+    except Exception as e:
+        logger.error(f"Error fetching yearly PDF URLs: {e}")
+        return {}
+
+def parse_pdf_table_data(pdf_url: str, year: str) -> list:
+    """
+    Parse tabular breach data from Indiana AG yearly PDF reports.
+    Returns list of breach records extracted from the PDF.
+    """
+    try:
+        logger.info(f"Parsing PDF table data for year {year}: {pdf_url}")
+
+        # Add rate limiting
+        rate_limit_delay()
+
+        # Download PDF
+        response = requests.get(pdf_url, headers=REQUEST_HEADERS, timeout=60)
+        response.raise_for_status()
+
+        breach_records = []
+
+        # Try pdfplumber first (better for tables)
+        try:
+            import pdfplumber
+            pdf_file = io.BytesIO(response.content)
+
+            with pdfplumber.open(pdf_file) as pdf:
+                for page_num, page in enumerate(pdf.pages):
+                    # Extract tables from the page
+                    tables = page.extract_tables()
+
+                    for table in tables:
+                        if not table:
+                            continue
+
+                        # Process table rows
+                        for row_idx, row in enumerate(table):
+                            if not row or len(row) < 3:  # Skip incomplete rows
+                                continue
+
+                            # Skip header rows and invalid data
+                            row_text = ' '.join(str(cell) for cell in row if cell).lower()
+                            if any(header in row_text for header in ['organization', 'entity', 'company', 'date', 'breach', 'affected', 'notification', 'report']):
+                                continue
+
+                            # Skip rows where first column is just a number (row numbers)
+                            if len(row) > 1 and str(row[0]).strip().isdigit() and len(str(row[0]).strip()) < 4:
+                                # This looks like a row number, use the corrected column mapping
+                                pass
+                            elif not str(row[0]).strip().isdigit():
+                                # This might be old format, skip for now
+                                continue
+
+                            # Extract breach record data - CORRECT COLUMN MAPPING
+                            # Based on PDF visual inspection, the actual column order is:
+                            # Column 0: ROW NO (Row Number - skip)
+                            # Column 1: Matter:Name (Organization Name)
+                            # Column 2: Notific Sent (Notification Sent Date)
+                            # Column 3: Breach Occ (Breach Occurred Date)
+                            # Column 4: IN Affected (Indiana Residents Affected)
+                            # Column 5: Total Affected (Total People Affected Across All States)
+                            record = {
+                                'organization_name': str(row[1]).strip() if len(row) > 1 and row[1] else '',
+                                'notification_sent_date': str(row[2]).strip() if len(row) > 2 and row[2] else '',
+                                'breach_date': str(row[3]).strip() if len(row) > 3 and row[3] else '',
+                                'indiana_affected': str(row[4]).strip() if len(row) > 4 and row[4] else '',
+                                'total_affected': str(row[5]).strip() if len(row) > 5 and row[5] else '',
+                                'pdf_url': pdf_url,
+                                'year': year,
+                                'page_number': page_num + 1,
+                                'row_index': row_idx
+                            }
+
+                            # Validate record has essential data
+                            if record['organization_name'] and record['organization_name'] not in ['None', 'null', '']:
+                                breach_records.append(record)
+                                logger.debug(f"Valid record found: {record['organization_name']} - IN: {record['indiana_affected']}, Total: {record['total_affected']}")
+                            else:
+                                logger.debug(f"Skipped invalid record: {record}")
+
+        except ImportError:
+            logger.warning("pdfplumber not available, trying PyPDF2...")
+            # Fallback to PyPDF2 (less reliable for tables)
+            try:
+                import PyPDF2
+                pdf_file = io.BytesIO(response.content)
+                pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+                full_text = ""
+                for page in pdf_reader.pages:
+                    full_text += page.extract_text() + "\n"
+
+                # Simple text parsing for table-like data
+                lines = full_text.split('\n')
+                for line_idx, line in enumerate(lines):
+                    line = line.strip()
+                    if not line or len(line) < 10:
+                        continue
+
+                    # Look for lines that might contain breach data
+                    # This is a simplified approach and may need refinement
+                    if any(keyword in line.lower() for keyword in ['corp', 'inc', 'llc', 'company', 'hospital', 'medical']):
+                        record = {
+                            'organization_name': line[:50],  # First part likely org name
+                            'breach_date': '',
+                            'reported_date': '',
+                            'affected_individuals': '',
+                            'information_compromised': line,
+                            'pdf_url': pdf_url,
+                            'year': year,
+                            'page_number': 1,
+                            'row_index': line_idx
+                        }
+                        breach_records.append(record)
+
+            except Exception as e:
+                logger.error(f"PyPDF2 parsing failed: {e}")
+
+        logger.info(f"Extracted {len(breach_records)} breach records from {year} PDF")
+        return breach_records
+
+    except Exception as e:
+        logger.error(f"Error parsing PDF {pdf_url}: {e}")
+        return []
+
+def should_process_record(record: dict) -> bool:
+    """
+    Determine if a breach record should be processed based on date filtering.
+    """
+    if not FILTER_FROM_DATE:
+        return True
+
+    try:
+        filter_date = datetime.strptime(FILTER_FROM_DATE, "%Y-%m-%d")
+
+        # Try to parse breach date or notification sent date
+        for date_field in ['notification_sent_date', 'breach_date']:
+            date_str = record.get(date_field, '')
+            if date_str:
+                parsed_date = parse_date_flexible_in(date_str)
+                if parsed_date:
+                    record_date = datetime.fromisoformat(parsed_date.replace('Z', '+00:00'))
+                    return record_date.date() >= filter_date.date()
+
+        # If no valid date found, include the record
+        return True
+
+    except Exception as e:
+        logger.warning(f"Error in date filtering: {e}")
+        return True
 
 def process_indiana_ag_breaches():
     """
-    Fetches Indiana AG security breach notifications, processes each notification,
-    and inserts relevant data into Supabase.
+    Enhanced Indiana AG Security Breach Notification processing with 3-tier data structure.
+    Processes yearly PDF reports to extract individual breach records.
     """
-    logger.info("Starting Indiana AG Security Breach Notification processing...")
+    logger.info("Starting Enhanced Indiana AG Security Breach Notification processing...")
+    logger.info(f"Processing mode: {PROCESSING_MODE}")
+    logger.info(f"Date filter: {FILTER_FROM_DATE or 'None (all records)'}")
 
-    try:
-        response = requests.get(INDIANA_AG_BREACH_URL, headers=REQUEST_HEADERS, timeout=30)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching Indiana AG breach data page: {e}")
-        return
-
-    soup = BeautifulSoup(response.content, 'html.parser')
-
-    # Indiana AG site structure:
-    # The page at https://www.in.gov/attorneygeneral/2874.htm has links grouped by year.
-    # Each link typically goes directly to a PDF notice.
-    # The text of the link is usually the Organization Name, sometimes with a date.
-    # We need to find these links. They are usually within a content div, like 'div#contentcontainer'.
-    
-    content_area = soup.find('div', id='contentcontainer') # Main content area for this site
-    if not content_area:
-        content_area = soup.find('article', class_='main-content') # Fallback for other IN.gov pages
-        if not content_area:
-            logger.error("Could not find the main content area ('div#contentcontainer' or 'article.main-content'). Page structure may have changed.")
-            # logger.debug(f"Page content sample (first 1000 chars): {response.text[:1000]}")
-            return
-
-    # Find all PDF links within this area. These are the breach notices.
-    # Links are usually <a> tags with href ending in .pdf.
-    # They might be inside <p> or <li> tags.
-    
-    # Look for sections by year, often in <h2> or <h3> tags like "2023 Data Breach Notifications"
-    # For now, let's grab all PDF links in the content area.
-    # We might need to refine if there are other non-breach PDFs.
-
-    pdf_links = content_area.find_all('a', href=lambda href: href and href.lower().endswith('.pdf'))
-    
-    logger.info(f"Found {len(pdf_links)} potential PDF breach notifications on the page.")
-
-    if not pdf_links:
-        logger.warning("No PDF links found in the content area. Check page structure and link format.")
-        return
-
-    supabase_client = None
+    # Initialize Supabase client
     try:
         supabase_client = SupabaseClient()
     except ValueError as e:
-        logger.error(f"Failed to initialize Supabase client: {e}. Ensure SUPABASE_URL and SUPABASE_SERVICE_KEY are set.")
+        logger.error(f"Failed to initialize Supabase client: {e}")
         return
 
-    inserted_count = 0
-    processed_count = 0
-    skipped_count = 0
+    # Step 1: Get yearly PDF URLs
+    yearly_pdfs = get_yearly_pdf_urls()
+    if not yearly_pdfs:
+        logger.error("No yearly PDF reports found")
+        return
 
-    for link_tag in pdf_links:
-        processed_count += 1
-        try:
-            item_specific_url = urljoin(INDIANA_AG_BREACH_URL, link_tag['href'])
-            # The link text is usually the organization name, possibly with a date.
-            link_text = link_tag.get_text(strip=True)
-            
-            org_name = link_text
-            publication_date_iso = None
+    # Focus only on 2025 data as requested
+    if '2025' in yearly_pdfs:
+        years_to_process = ['2025']
+    else:
+        logger.error("2025 PDF not found in yearly reports")
+        return
 
-            # Try to extract date from link text, e.g., "Org Name (1/1/23)" or "Org Name (Notice Date: Jan 1, 2023)"
-            # This part is heuristic.
-            # Common patterns: "Org Name (1/1/23)", "Org Name - 1/1/23", "Org Name Notice 1/1/23"
-            # A more robust way might be to look at the PDF's last modified date if available, or metadata,
-            # but that requires fetching each PDF. For now, rely on link text or surrounding text.
+    logger.info(f"Processing {len(years_to_process)} years: {years_to_process}")
 
-            # Attempt to parse date from link text itself
-            publication_date_iso = extract_date_from_text(link_text)
-            
-            # If date found in link text, try to clean org_name
-            if publication_date_iso:
-                # Remove common date patterns or "Notice Date" parts from org_name
-                # This is tricky and might need several regexes
-                org_name = re.sub(r'\s*\(\s*\d{1,2}/\d{1,2}/\d{2,4}\s*\)\s*$', '', org_name, flags=re.IGNORECASE).strip()
-                org_name = re.sub(r'\s*-\s*\d{1,2}/\d{1,2}/\d{2,4}\s*$', '', org_name, flags=re.IGNORECASE).strip()
-                org_name = re.sub(r'\s*\(Notice Date:?\s*.*?\)\s*$', '', org_name, flags=re.IGNORECASE).strip()
-                org_name = re.sub(r'\s*Notice Date:?\s*.*$', '', org_name, flags=re.IGNORECASE).strip()
+    total_processed = 0
+    total_inserted = 0
+    total_skipped = 0
 
+    # Step 2: Process each yearly PDF
+    for year in sorted(years_to_process, reverse=True):  # Process newest first
+        pdf_url = yearly_pdfs[year]
+        logger.info(f"Processing {year} PDF: {pdf_url}")
 
-            # If no date from link text, check parent elements or siblings for year context
-            # Example: Links are under a <h2>2023 Data Breach Notifications</h2>
-            if not publication_date_iso:
-                year_text = None
-                # Check parent <p> or <li>, then headers <h2>, <h3> etc.
-                current_element = link_tag.parent
-                for _ in range(4): # Check up to 4 levels up for a year header
-                    if current_element:
-                        # Check previous sibling headers for year
-                        prev_sibling_header = current_element.find_previous_sibling(['h2', 'h3', 'h4'])
-                        if prev_sibling_header and "Data Breach Notification" in prev_sibling_header.get_text():
-                            year_match = re.search(r'\b(20\d{2})\b', prev_sibling_header.get_text())
-                            if year_match:
-                                year_text = year_match.group(1)
-                                # Use Jan 1 of that year as a fallback if no other date
-                                publication_date_iso = parse_date_flexible_in(f"January 1, {year_text}") 
-                                logger.info(f"Used year '{year_text}' from header for '{org_name}' as fallback date.")
-                                break
-                        current_element = current_element.parent
-                    else:
-                        break
-            
-            if not org_name:
-                # Try to derive org name from PDF filename if link text was unhelpful
-                # e.g. "MyCorp_Data_Breach_Notification.pdf" -> "MyCorp"
-                pdf_filename = os.path.basename(unquote(item_specific_url))
-                org_name = pdf_filename.replace('_', ' ').replace('-', ' ')
-                # Remove common suffixes
-                common_suffixes = ["Data Breach Notification", "Breach Notice", "Notification", ".pdf"]
-                for suffix in common_suffixes:
-                    org_name = org_name.replace(suffix, "")
-                org_name = org_name.strip().title() # Capitalize
-                if not org_name: # If still empty, skip
-                    logger.warning(f"Skipping link {item_specific_url} as organization name could not be derived.")
-                    skipped_count += 1
+        # Extract breach records from PDF
+        breach_records = parse_pdf_table_data(pdf_url, year)
+        if not breach_records:
+            logger.warning(f"No breach records found in {year} PDF")
+            continue
+
+        # Step 3: Process each breach record
+        for record_idx, record in enumerate(breach_records):
+            total_processed += 1
+
+            try:
+                # Apply date filtering
+                if not should_process_record(record):
+                    logger.debug(f"Skipping record due to date filter: {record.get('organization_name', 'Unknown')}")
+                    total_skipped += 1
                     continue
 
+                # Generate unique identifiers
+                incident_uid = generate_incident_uid_in(year, record_idx + 1)
+                unique_url = f"{INDIANA_AG_BREACH_URL}#{year}-breach-{record_idx + 1:03d}"
 
-            if not publication_date_iso:
-                # As a last resort, if no date can be found/parsed, skip or use current date?
-                # For now, we'll skip if no date can be reasonably inferred.
-                logger.warning(f"Skipping '{org_name}' (URL: {item_specific_url}) due to missing or unparsable publication date.")
-                skipped_count +=1
-                continue
-            
-            # Since details like type of breach or residents affected are in the PDF,
-            # we'll have a generic summary for now.
-            summary = f"Security breach notification for {org_name}. Details are in the linked PDF."
+                # Parse dates
+                breach_date_iso = parse_date_flexible_in(record.get('breach_date', ''))
+                notification_sent_date_iso = parse_date_flexible_in(record.get('notification_sent_date', ''))
 
-            raw_data = {
-                "original_link_text": link_text,
-                "pdf_url": item_specific_url,
-                # No other fields are typically available on the list page itself.
-            }
-            raw_data_json = {k: v for k, v in raw_data.items() if v is not None and v.strip() != ""}
+                # Extract affected individuals (both Indiana and total)
+                indiana_affected = extract_affected_individuals_in(record.get('indiana_affected', ''))
+                total_affected = extract_affected_individuals_in(record.get('total_affected', ''))
 
-            tags = ["indiana_ag", "in_breach", "pdf_notification"]
-            # If PDF content were fetched, more tags could be derived.
+                # Note: Indiana AG PDF does not contain data types information
+                data_types_compromised = []
 
-            item_data = {
-                "source_id": SOURCE_ID_INDIANA_AG,
-                "item_url": item_specific_url, # The PDF link is the most specific URL
-                "title": org_name,
-                "publication_date": publication_date_iso,
-                "summary_text": summary,
-                "raw_data_json": raw_data_json,
-                "tags_keywords": list(set(tags))
-            }
-            
-            # TODO: Implement check for existing record before inserting (e.g., by item_url)
+                # Build 3-tier data structure
+                raw_data = {
+                    # Tier 1: Portal Data (Raw extraction from PDF)
+                    "tier_1_portal_data": {
+                        "pdf_url": pdf_url,
+                        "pdf_year": year,
+                        "extraction_timestamp": datetime.now().isoformat(),
+                        "page_number": record.get('page_number'),
+                        "row_index": record.get('row_index'),
+                        "raw_organization_name": record.get('organization_name', ''),
+                        "raw_breach_date": record.get('breach_date', ''),
+                        "raw_notification_sent_date": record.get('notification_sent_date', ''),
+                        "raw_indiana_affected": record.get('indiana_affected', ''),
+                        "raw_total_affected": record.get('total_affected', ''),
+                        "processing_mode": PROCESSING_MODE,
+                        "affected_individuals_scope": "Both Indiana residents and total affected available"
+                    },
 
-            insert_response = supabase_client.insert_item(**item_data)
-            if insert_response:
-                logger.info(f"Successfully inserted item for '{org_name}'. URL: {item_specific_url}")
-                inserted_count += 1
-            else:
-                logger.error(f"Failed to insert item for '{org_name}'.")
+                    # Tier 2: Derived/Enrichment (Computed fields)
+                    "tier_2_derived_data": {
+                        "incident_uid": incident_uid,
+                        "portal_first_seen_utc": datetime.now().isoformat(),
+                        "portal_last_seen_utc": datetime.now().isoformat(),
+                        "breach_record_index": record_idx + 1,
+                        "data_types_normalized": data_types_compromised,
+                        "indiana_affected_parsed": indiana_affected,
+                        "total_affected_parsed": total_affected,
+                        "breach_date_parsed": breach_date_iso,
+                        "notification_sent_date_parsed": notification_sent_date_iso,
+                        "extraction_confidence": "high" if all([
+                            record.get('organization_name'),
+                            record.get('breach_date') or record.get('notification_sent_date')
+                        ]) else "medium"
+                    },
 
-        except Exception as e:
-            # Use link_tag.get('href', 'Unknown URL') in case item_specific_url not yet defined
-            logger.error(f"Error processing link: {link_tag.get('href', 'Unknown URL')}. Error: {e}", exc_info=True)
-            skipped_count +=1
+                    # Tier 3: Deep Analysis (Enhanced processing)
+                    "tier_3_deep_analysis": {
+                        "data_types_detailed": data_types_compromised,
+                        "incident_timeline": {
+                            "breach_date": breach_date_iso,
+                            "notification_sent_date": notification_sent_date_iso
+                        },
+                        "regulatory_context": {
+                            "state": "Indiana",
+                            "reporting_authority": "Indiana Attorney General",
+                            "disclosure_law": "Indiana Data Breach Notification Law"
+                        },
+                        "analysis_timestamp": datetime.now().isoformat()
+                    }
+                }
 
-    logger.info(f"Finished processing Indiana AG breaches. Total links processed: {processed_count}. Items inserted: {inserted_count}. Items skipped: {skipped_count}")
+                # Clean organization name
+                org_name = clean_text_for_database(record.get('organization_name', '').strip())
+                if not org_name:
+                    logger.warning(f"Skipping record with empty organization name")
+                    total_skipped += 1
+                    continue
+
+                # Build summary
+                summary_parts = [f"Data breach notification for {org_name}"]
+                if total_affected:
+                    summary_parts.append(f"affecting {total_affected:,} total individuals")
+                if indiana_affected:
+                    summary_parts.append(f"including {indiana_affected:,} Indiana residents")
+                summary_parts.append("reported to Indiana Attorney General")
+                summary = ". ".join(summary_parts) + "."
+
+                # Enhanced tags
+                tags = ["indiana_ag", "in_breach", "data_breach", f"year_{year}"]
+                for data_type in data_types_compromised:
+                    if "Social Security" in data_type:
+                        tags.append("ssn_breach")
+                    elif "Medical" in data_type:
+                        tags.append("healthcare_breach")
+                    elif "Financial" in data_type:
+                        tags.append("financial_breach")
+
+                # Prepare item data for database
+                item_data = {
+                    "source_id": SOURCE_ID_INDIANA_AG,
+                    "item_url": unique_url,
+                    "title": org_name,
+                    "publication_date": notification_sent_date_iso or breach_date_iso,
+                    "summary_text": summary,
+                    "raw_data_json": raw_data,
+                    "tags_keywords": list(set(tags)),
+
+                    # Standardized breach fields (now with total affected individuals)
+                    "affected_individuals": total_affected,  # Total affected across all states
+                    "breach_date": breach_date_iso.split('T')[0] if breach_date_iso else None,
+                    "reported_date": notification_sent_date_iso.split('T')[0] if notification_sent_date_iso else None,
+                    "notice_document_url": pdf_url,
+
+                    # Enhanced fields
+                    "data_types_compromised": data_types_compromised,
+                    "keywords_detected": ["indiana", "breach", "notification", "attorney_general"],
+                    "file_size_bytes": None,  # Could be added if needed
+
+                    # Note: what_was_leaked not available in Indiana AG PDF format
+                    # Note: indiana_residents_affected stored in raw_data_json tier_2_derived_data
+                }
+
+                # Check for existing record
+                enhancement_status = supabase_client.get_item_enhancement_status(unique_url)
+                if enhancement_status.get('exists'):
+                    logger.info(f"Record already exists for {org_name} ({year}), skipping")
+                    total_skipped += 1
+                    continue
+
+                # Insert into database
+                insert_response = supabase_client.insert_item(**item_data)
+                if insert_response:
+                    logger.info(f"Successfully inserted: {org_name} ({year}) - {total_affected or 'Unknown'} total affected, {indiana_affected or 'Unknown'} IN residents")
+                    total_inserted += 1
+                else:
+                    logger.error(f"Failed to insert: {org_name} ({year})")
+                    total_skipped += 1
+
+            except Exception as e:
+                logger.error(f"Error processing breach record {record_idx + 1} from {year}: {e}", exc_info=True)
+                total_skipped += 1
+
+    logger.info(f"Enhanced Indiana AG processing complete:")
+    logger.info(f"  Total records processed: {total_processed}")
+    logger.info(f"  Successfully inserted: {total_inserted}")
+    logger.info(f"  Skipped: {total_skipped}")
+    logger.info(f"  Processing mode: {PROCESSING_MODE}")
+    logger.info(f"  Years processed: {years_to_process}")
 
 if __name__ == "__main__":
-    logger.info("Indiana AG Security Breach Scraper Started")
-    
+    logger.info("Enhanced Indiana AG Security Breach Scraper Started")
+    logger.info(f"Processing mode: {PROCESSING_MODE}")
+    logger.info(f"Date filter: {FILTER_FROM_DATE or 'None (all records)'}")
+
+    # Validate environment variables
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
+        exit(1)
     else:
-        logger.info("Supabase environment variables seem to be set.")
-        process_indiana_ag_breaches()
-        
-    logger.info("Indiana AG Security Breach Scraper Finished")
+        logger.info("Supabase environment variables configured")
+
+        try:
+            process_indiana_ag_breaches()
+            logger.info("Enhanced Indiana AG Security Breach Scraper completed successfully")
+        except Exception as e:
+            logger.error(f"Critical error in Indiana AG scraper: {e}", exc_info=True)
+            exit(1)
+
+    logger.info("Enhanced Indiana AG Security Breach Scraper Finished")

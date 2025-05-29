@@ -23,6 +23,14 @@ jobs:
       # Washington AG scraper configuration for GitHub Actions
       WA_AG_FILTER_FROM_DATE: "2025-01-20" # One week back for reliable testing
 
+      # Hawaii AG scraper configuration for GitHub Actions
+      HI_AG_FILTER_FROM_DATE: "2025-01-21" # One week back for reliable testing
+      HI_AG_PROCESSING_MODE: "FULL" # Complete PDF analysis with "What information was involved?" extraction
+
+      # Indiana AG scraper configuration for GitHub Actions
+      IN_AG_FILTER_FROM_DATE: "2025-01-20" # One week back for reliable testing
+      IN_AG_PROCESSING_MODE: "ENHANCED" # Process only 2025 PDF with comprehensive field mapping
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
