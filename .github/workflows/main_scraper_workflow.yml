@@ -31,6 +31,10 @@ jobs:
       IN_AG_FILTER_FROM_DATE: "2025-01-20" # One week back for reliable testing
       IN_AG_PROCESSING_MODE: "ENHANCED" # Process only 2025 PDF with comprehensive field mapping
 
+      # Iowa AG scraper configuration for GitHub Actions
+      IA_AG_FILTER_FROM_DATE: "2025-01-20" # One week back for reliable testing
+      IA_AG_PROCESSING_MODE: "ENHANCED" # Process 2025 page with comprehensive field mapping and PDF analysis
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

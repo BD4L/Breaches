@@ -35,7 +35,7 @@ This document tracks the implementation status and quality of scraping logic for
 | **Washington** | Washington AG | 🟢 EXCELLENT | Enhanced 3-tier data structure, comprehensive field mapping, PDF analysis framework | Recently enhanced with structured data capture |
 | **Hawaii** | Hawaii AG | 🟢 EXCELLENT | Enhanced 3-tier data structure, comprehensive field mapping, PDF analysis framework | Recently enhanced with structured data capture |
 | **Indiana** | Indiana AG | 🟢 EXCELLENT | Enhanced 3-tier data structure, 2025 PDF table parsing, comprehensive field mapping | Recently enhanced with 2025-focused processing |
-| **Iowa** | Iowa AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
+| **Iowa** | Iowa AG | 🟢 EXCELLENT | Enhanced 2025-focused scraper with 3-tier data structure, comprehensive field mapping, PDF analysis | Recently enhanced with 2025-specific processing |
 | **Maine** | Maine AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
 | **Maryland** | Maryland AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
 | **Massachusetts** | Massachusetts AG | 🟠 BASIC | Better headers, but may still get 403 errors | Partially fixed |
@@ -132,6 +132,25 @@ This document tracks the implementation status and quality of scraping logic for
 
 ## 🔄 Recent Updates
 
+### 2025-05-29
+- ✅ **Enhanced Iowa AG scraper to EXCELLENT status**
+- ✅ Completely rewrote scraper to focus specifically on 2025 breach notifications
+- ✅ Implemented 3-tier data structure following established pattern
+- ✅ Added comprehensive table parsing for simple two-column format (Date Reported | Organization Name)
+- ✅ Enhanced PDF link extraction with support for multiple documents per breach
+- ✅ Implemented supplemental document detection and processing
+- ✅ Added comprehensive PDF analysis using PyPDF2 and pdfplumber fallback
+- ✅ Enhanced field mapping with all standardized breach fields
+- ✅ Implemented affected individuals parsing from PDF content
+- ✅ Added "what information was involved" extraction from breach notifications
+- ✅ Implemented incident UID generation using organization name and date
+- ✅ Added date filtering for recent breaches (configurable)
+- ✅ Enhanced error handling and comprehensive logging
+- ✅ Added processing modes (BASIC, ENHANCED, FULL)
+- ✅ Focused on 2025 data only for optimal performance and current breach tracking
+- ✅ Added GitHub Actions configuration for automated processing
+- ✅ Moved Iowa AG from BASIC to EXCELLENT implementation status
+
 ### 2025-01-28
 - ✅ **Enhanced Indiana AG scraper to EXCELLENT status**
 - ✅ Completely rewrote scraper to process 2025 PDF report for current breach monitoring
@@ -209,7 +228,7 @@ This document tracks the implementation status and quality of scraping logic for
 ## 🎯 Success Metrics
 
 - **Total Sources**: 36 configured (Privacy Rights Clearinghouse removed)
-- **Fully Implemented (EXCELLENT)**: 7 (SEC, Delaware AG, HHS OCR, California AG, Washington AG, Hawaii AG, Indiana AG)
+- **Fully Implemented (EXCELLENT)**: 8 (SEC, Delaware AG, HHS OCR, California AG, Washington AG, Hawaii AG, Indiana AG, Iowa AG)
 - **Good Implementation**: 2 sources
 - **Basic Implementation**: 12 sources
 - **Needs Work**: 14 sources
