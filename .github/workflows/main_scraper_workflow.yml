@@ -121,6 +121,10 @@ jobs:
       MA_AG_FILTER_DAYS_BACK: "7"
       MA_AG_PROCESSING_MODE: "ENHANCED"
       MA_AG_FORCE_PROCESS: "true"
+      # Montana AG configuration
+      MT_AG_FILTER_FROM_DATE: "2025-01-01"
+      MT_AG_PROCESSING_MODE: "ENHANCED"
+      MT_AG_MAX_PAGES: "3"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
