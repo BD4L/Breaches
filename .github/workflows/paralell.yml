@@ -1,0 +1,292 @@
+name: Run All Scrapers (Parallel)
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # Runs daily at 3 AM UTC
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  # ============================================================================
+  # PARALLEL SCRAPER GROUPS - Run simultaneously for faster execution
+  # ============================================================================
+
+  government-scrapers:
+    name: "Government & Federal Scrapers"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      HIBP_API_KEY: ${{ secrets.HIBP_API_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run SEC EDGAR 8-K Scraper
+        run: python scrapers/fetch_sec_edgar_8k.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run HHS OCR Scraper
+        run: python scrapers/fetch_hhs_ocr.py
+
+  state-ag-group-1:
+    name: "State AG Group 1 (DE, CA, WA, HI)"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+      # California AG configuration
+      CA_AG_FILTER_FROM_DATE: "2025-05-21"
+      CA_AG_PROCESSING_MODE: "FULL"
+      # Washington AG configuration
+      WA_AG_FILTER_FROM_DATE: "2025-01-20"
+      # Hawaii AG configuration
+      HI_AG_FILTER_FROM_DATE: "2025-01-21"
+      HI_AG_PROCESSING_MODE: "FULL"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Delaware AG Scraper
+        run: python scrapers/fetch_delaware_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run California AG Scraper
+        run: python scrapers/fetch_california_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Washington AG Scraper
+        run: python scrapers/fetch_washington_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Hawaii AG Scraper
+        run: python scrapers/fetch_hi_ag.py
+
+  state-ag-group-2:
+    name: "State AG Group 2 (IN, IA, ME)"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+      # Indiana AG configuration
+      IN_AG_FILTER_FROM_DATE: "2025-01-20"
+      IN_AG_PROCESSING_MODE: "ENHANCED"
+      # Iowa AG configuration
+      IA_AG_FILTER_FROM_DATE: "2025-01-20"
+      IA_AG_PROCESSING_MODE: "ENHANCED"
+      # Maine AG configuration
+      ME_AG_FILTER_FROM_DATE: "2025-01-01"
+      ME_AG_PROCESSING_MODE: "ENHANCED"
+      ME_AG_MAX_PAGES: "2"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Indiana AG Scraper
+        run: python scrapers/fetch_in_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Iowa AG Scraper
+        run: python scrapers/fetch_ia_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Maine AG Scraper
+        run: python scrapers/fetch_me_ag.py
+
+  state-ag-group-3:
+    name: "State AG Group 3 (MA, MT, NH, NJ)"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+      # Massachusetts AG configuration
+      MA_AG_FILTER_DAYS_BACK: "7"
+      MA_AG_PROCESSING_MODE: "ENHANCED"
+      MA_AG_FORCE_PROCESS: "true"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Massachusetts AG Scraper
+        run: python scrapers/fetch_ma_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Montana AG Scraper
+        run: python scrapers/fetch_mt_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run New Hampshire AG Scraper
+        run: python scrapers/fetch_nh_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run New Jersey Cybersecurity Scraper
+        run: python scrapers/fetch_nj_ag.py
+
+  state-ag-group-4:
+    name: "State AG Group 4 (ND, OK, VT, WI, TX)"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+      APIFY_TEXAS_BREACH_ACTOR_ID: ${{ secrets.APIFY_TEXAS_BREACH_ACTOR_ID }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run North Dakota AG Scraper
+        run: python scrapers/fetch_nd_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Oklahoma Cybersecurity Scraper
+        run: python scrapers/fetch_ok_cyber.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Vermont AG Scraper
+        run: python scrapers/fetch_vt_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Wisconsin DATCP Scraper
+        run: python scrapers/fetch_wi_datcp.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Texas AG Scraper
+        run: python scrapers/fetch_texas_ag.py
+
+  news-and-api-scrapers:
+    name: "News & API Scrapers"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      HIBP_API_KEY: ${{ secrets.HIBP_API_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run BreachSense Scraper
+        run: python scrapers/fetch_breachsense.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Cybersecurity News RSS Scraper
+        run: python scrapers/fetch_cybersecurity_news.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run Company IR Scraper
+        run: python scrapers/fetch_company_ir.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run HIBP API Scraper
+        run: python scrapers/fetch_hibp_api.py
+
+  # ============================================================================
+  # PROBLEMATIC SCRAPERS - Sites with known issues (run separately for monitoring)
+  # ============================================================================
+
+  problematic-scrapers:
+    name: "Problematic Scrapers (MD)"
+    runs-on: ubuntu-latest
+    continue-on-error: true # Don't fail the workflow if these scrapers fail
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Maryland AG Scraper (Known Issues)
+        run: |
+          echo "⚠️ Running Maryland AG scraper - known to have website issues"
+          python scrapers/fetch_md_ag.py || echo "❌ Maryland AG scraper failed as expected"
+
+  # ============================================================================
+  # SUMMARY JOB - Waits for all parallel jobs to complete
+  # ============================================================================
+
+  summary:
+    name: "Scraping Summary"
+    runs-on: ubuntu-latest
+    needs: [government-scrapers, state-ag-group-1, state-ag-group-2, state-ag-group-3, state-ag-group-4, news-and-api-scrapers, problematic-scrapers]
+    if: always() # Run even if some jobs fail
+    steps:
+      - name: Check job results
+        run: |
+          echo "=== PARALLEL SCRAPING SUMMARY ==="
+          echo "Government & Federal: ${{ needs.government-scrapers.result }}"
+          echo "State AG Group 1 (DE,CA,WA,HI): ${{ needs.state-ag-group-1.result }}"
+          echo "State AG Group 2 (IN,IA,ME): ${{ needs.state-ag-group-2.result }}"
+          echo "State AG Group 3 (MA,MT,NH,NJ): ${{ needs.state-ag-group-3.result }}"
+          echo "State AG Group 4 (ND,OK,VT,WI,TX): ${{ needs.state-ag-group-4.result }}"
+          echo "News & API Scrapers: ${{ needs.news-and-api-scrapers.result }}"
+          echo "Problematic Scrapers (MD): ${{ needs.problematic-scrapers.result }}"
+          echo "================================="
+
+          # Count successful jobs (excluding problematic scrapers from main count)
+          success_count=0
+          total_count=6
+
+          [[ "${{ needs.government-scrapers.result }}" == "success" ]] && ((success_count++))
+          [[ "${{ needs.state-ag-group-1.result }}" == "success" ]] && ((success_count++))
+          [[ "${{ needs.state-ag-group-2.result }}" == "success" ]] && ((success_count++))
+          [[ "${{ needs.state-ag-group-3.result }}" == "success" ]] && ((success_count++))
+          [[ "${{ needs.state-ag-group-4.result }}" == "success" ]] && ((success_count++))
+          [[ "${{ needs.news-and-api-scrapers.result }}" == "success" ]] && ((success_count++))
+
+          echo "✅ Successful core groups: $success_count/$total_count"
+
+          # Report on problematic scrapers separately
+          if [[ "${{ needs.problematic-scrapers.result }}" == "success" ]]; then
+            echo "🔧 Problematic scrapers: Unexpectedly succeeded!"
+          else
+            echo "⚠️ Problematic scrapers: Failed as expected (Maryland AG has known website issues)"
+          fi
+
+          if [ $success_count -eq $total_count ]; then
+            echo "🎉 All core scraper groups completed successfully!"
+          elif [ $success_count -gt 0 ]; then
+            echo "⚠️ Some core scraper groups failed, but $success_count groups succeeded"
+          else
+            echo "❌ All core scraper groups failed"
+            exit 1
+          fi
