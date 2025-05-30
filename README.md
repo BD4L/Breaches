@@ -112,7 +112,7 @@ pip install -r requirements.txt
       *   37: Texas AG (via Apify)
 
     **`scraped_items` Table:**
-    This table stores the actual breach/vulnerability records.
+    This table stores the actual breach/vulnerability records with comprehensive fields for different data types.
     ```sql
     CREATE TABLE scraped_items (
         id BIGSERIAL PRIMARY KEY,
@@ -125,14 +125,58 @@ pip install -r requirements.txt
         full_content TEXT, -- Optional, for full article text if scraped
         raw_data_json JSONB, -- Store original or additional data from source
         tags_keywords TEXT[], -- Array of tags/keywords
-        created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+        created_at TIMESTAMPTZ DEFAULT NOW(),
 
-    -- Optional: Create an index for faster searching by publication_date or scraped_at
-    CREATE INDEX idx_scraped_items_publication_date ON scraped_items(publication_date DESC NULLS LAST);
-    CREATE INDEX idx_scraped_items_scraped_at ON scraped_items(scraped_at DESC);
-    CREATE INDEX idx_scraped_items_source_id ON scraped_items(source_id);
+        -- STANDARDIZED BREACH FIELDS (for cross-portal analysis)
+        affected_individuals INTEGER, -- Number of people affected
+        breach_date TEXT, -- When incident occurred (flexible text field)
+        reported_date DATE, -- When reported to authority
+        notice_document_url TEXT, -- Link to official notice document
+        what_was_leaked TEXT, -- What information was compromised
+
+        -- SEC-SPECIFIC FIELDS (for SEC EDGAR 8-K filings)
+        cik TEXT, -- Central Index Key (company identifier)
+        ticker_symbol TEXT, -- Stock ticker
+        accession_number TEXT, -- Unique EDGAR filing ID
+        form_type TEXT, -- 8-K, 8-K/A, 10-K, 10-Q, etc.
+        filing_date DATE, -- When filed with SEC
+        report_date DATE, -- Period of report
+        primary_document_url TEXT, -- Direct link to main filing document
+        xbrl_instance_url TEXT, -- Link to XBRL instance document
+        items_disclosed TEXT[], -- 8-K items (1.05, 8.01, etc.)
+        is_cybersecurity_related BOOLEAN DEFAULT FALSE,
+        is_amendment BOOLEAN DEFAULT FALSE,
+        is_delayed_disclosure BOOLEAN DEFAULT FALSE,
+
+        -- CYBERSECURITY INCIDENT DETAILS
+        incident_nature_text TEXT,
+        incident_scope_text TEXT,
+        incident_timing_text TEXT,
+        incident_impact_text TEXT,
+        incident_unknown_details_text TEXT,
+        incident_discovery_date DATE,
+        incident_disclosure_date DATE,
+        incident_containment_date DATE,
+
+        -- IMPACT ASSESSMENT
+        estimated_cost_min DECIMAL,
+        estimated_cost_max DECIMAL,
+        estimated_cost_currency TEXT DEFAULT 'USD',
+        data_types_compromised TEXT[], -- Types of data affected (PII, PHI, etc.)
+
+        -- DOCUMENT ANALYSIS
+        exhibit_urls TEXT[], -- Links to exhibits
+        keywords_detected TEXT[], -- Specific cybersecurity keywords found
+        keyword_contexts JSONB, -- Context around detected keywords
+        file_size_bytes INTEGER, -- Size of filing document
+
+        -- BUSINESS CONTEXT
+        business_description TEXT,
+        industry_classification TEXT
+    );
     ```
+
+    **Note:** The actual database includes 44+ fields optimized for comprehensive breach data collection across multiple source types (State AGs, SEC filings, news feeds, etc.). See `database_schema.sql` for the complete schema.
 
 ### 4. API Keys and Environment Variables (Local Development)
 
@@ -177,10 +221,24 @@ Ensure your environment variables are set (e.g., loaded from `.env` if you use a
 
 ## GitHub Actions Automation
 
-The workflow defined in `.github/workflows/main_scraper_workflow.yml` automates the data collection process.
-*   It runs daily at 3 AM UTC.
-*   It can also be triggered manually from the Actions tab in your GitHub repository.
-*   The workflow executes all scraper scripts sequentially, using the configured GitHub Secrets for API keys and Supabase credentials.
+The workflow defined in `.github/workflows/main_scraper_workflow.yml` automates the data collection process using **parallel execution** for optimal performance.
+
+**Execution Strategy:**
+*   **6 parallel groups** run simultaneously for ~3x speed improvement
+*   **Government & Federal** (SEC, HHS OCR)
+*   **State AG Groups 1-4** (organized by geographic/processing similarity)
+*   **News & API** (BreachSense, Cybersecurity News, Company IR, HIBP)
+*   **Problematic Scrapers** (Maryland AG - isolated due to website issues)
+
+**Schedule & Triggers:**
+*   Runs daily at 3 AM UTC
+*   Can be triggered manually from the Actions tab in your GitHub repository
+*   Uses configured GitHub Secrets for API keys and Supabase credentials
+
+**Performance:**
+*   **Execution time**: ~8-12 minutes (vs 30-40 minutes sequential)
+*   **Failure isolation**: If one group fails, others continue
+*   **Comprehensive reporting**: Summary job shows results of all groups
 
 ## Viewing the Dashboard
 
@@ -214,18 +272,46 @@ Stores metadata about each data source.
 *   `created_at` (TIMESTAMPTZ, default NOW()): Timestamp of when the source record was created.
 
 ### `scraped_items` Table
-Stores the individual breach/vulnerability/news items collected.
+Stores the individual breach/vulnerability/news items collected with comprehensive fields for different data types.
+
+**Core Fields:**
 *   `id` (BIGSERIAL, PK): Auto-incrementing primary key for each scraped item.
 *   `source_id` (BIGINT, FK to `data_sources.id`): Identifies which data source the item came from.
 *   `item_url` (TEXT, UNIQUE): The unique URL pointing to the specific breach report, news article, or vulnerability detail page. This is a key field for avoiding duplicates.
 *   `title` (TEXT, NOT NULL): Title of the item (e.g., company name for a breach, article title, vulnerability name).
-*   `publication_date` (TIMESTAMPTZ): The date the item was officially published or reported. This can be the filing date, article publication date, breach notification date, etc.
+*   `publication_date` (TIMESTAMPTZ): The date the item was officially published or reported.
 *   `scraped_at` (TIMESTAMPTZ, default NOW()): Timestamp of when the item was scraped by the system.
 *   `summary_text` (TEXT): A brief summary or description of the item.
-*   `full_content` (TEXT, nullable): Optional field to store the full text content, if scraped (e.g., full news article).
-*   `raw_data_json` (JSONB, nullable): Stores original or additional data from the source as a JSON object. Useful for preserving all details or for fields not fitting the main schema.
-*   `tags_keywords` (TEXT[], nullable): An array of relevant tags or keywords associated with the item (e.g., "ransomware", "healthcare", "cve_2023").
+*   `full_content` (TEXT): Optional field to store the full text content, if scraped.
+*   `raw_data_json` (JSONB): Stores original or additional data from the source as a JSON object.
+*   `tags_keywords` (TEXT[]): An array of relevant tags or keywords associated with the item.
 *   `created_at` (TIMESTAMPTZ, default NOW()): Timestamp of when the record was inserted into the database.
+
+**Standardized Breach Fields:**
+*   `affected_individuals` (INTEGER): Number of people affected by the breach.
+*   `breach_date` (TEXT): When the incident occurred (flexible text field for various date formats).
+*   `reported_date` (DATE): When the breach was reported to authorities.
+*   `notice_document_url` (TEXT): Link to official breach notification document.
+*   `what_was_leaked` (TEXT): Description of what information was compromised.
+
+**SEC-Specific Fields:**
+*   `cik` (TEXT): Central Index Key (company identifier).
+*   `ticker_symbol` (TEXT): Stock ticker symbol.
+*   `accession_number` (TEXT): Unique EDGAR filing ID.
+*   `form_type` (TEXT): Filing type (8-K, 8-K/A, 10-K, 10-Q, etc.).
+*   `filing_date` (DATE): When filed with SEC.
+*   `is_cybersecurity_related` (BOOLEAN): Flag for cybersecurity-related filings.
+*   `items_disclosed` (TEXT[]): 8-K items disclosed (1.05, 8.01, etc.).
+
+**Advanced Analysis Fields:**
+*   `data_types_compromised` (TEXT[]): Types of data affected (PII, PHI, financial, etc.).
+*   `keywords_detected` (TEXT[]): Specific cybersecurity keywords found.
+*   `keyword_contexts` (JSONB): Context around detected keywords.
+*   `incident_discovery_date` (DATE): When the incident was discovered.
+*   `estimated_cost_min/max` (DECIMAL): Financial impact estimates.
+*   `industry_classification` (TEXT): Industry/sector classification.
+
+**Total Fields:** 44+ fields optimized for comprehensive breach data analysis across multiple source types.
 
 ---
 
