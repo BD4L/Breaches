@@ -1,11 +1,16 @@
 import os
+import sys
 import logging
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
-from urllib.parse import urljoin
+from datetime import datetime, timedelta
+
 from dateutil import parser as dateutil_parser
 import re
+import hashlib
+import PyPDF2
+import pdfplumber
+from io import BytesIO
 
 # Assuming SupabaseClient is in utils.supabase_client
 try:
@@ -20,24 +25,253 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Constants
-MASSACHUSETTS_AG_BREACH_URL = "https://www.mass.gov/lists/data-breach-notification-reports"
+MASSACHUSETTS_AG_BASE_URL = "https://www.mass.gov"
+MASSACHUSETTS_AG_SUMMARY_URL = "https://www.mass.gov/lists/data-breach-notification-reports"
+MASSACHUSETTS_AG_2025_PDF_URL = "https://www.mass.gov/doc/data-breach-report-2025/download"
 SOURCE_ID_MASSACHUSETTS_AG = 11
 
-# Headers for requests - Enhanced to avoid 403 errors
-REQUEST_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'DNT': '1',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Cache-Control': 'max-age=0'
+# Environment variables for configuration
+MA_AG_PROCESSING_MODE = os.environ.get("MA_AG_PROCESSING_MODE", "ENHANCED")  # BASIC, ENHANCED, or FULL
+MA_AG_STATE_FILE = os.environ.get("MA_AG_STATE_FILE", "ma_ag_state.json")  # File to track changes
+MA_AG_FILTER_DAYS_BACK = int(os.environ.get("MA_AG_FILTER_DAYS_BACK", "7"))  # Only process breaches from last N days
+MA_AG_FORCE_PROCESS = os.environ.get("MA_AG_FORCE_PROCESS", "false").lower() == "true"  # Skip change detection
+
+# Browser-like headers to avoid WAF blocking
+COMMON_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                   "AppleWebKit/537.36 (KHTML, like Gecko) "
+                   "Chrome/125.0 Safari/537.36"),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/*,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Upgrade-Insecure-Requests": "1",
+    "Connection": "keep-alive",
+    "DNT": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0"
 }
+
+# Global session for cookie persistence
+_session = None
+
+def get_session():
+    """
+    Get or create a persistent session with proper headers.
+    """
+    global _session
+    if _session is None:
+        _session = requests.Session()
+        _session.headers.update(COMMON_HEADERS)
+        logger.info("Created new session with browser-like headers")
+    return _session
+
+def get_direct_download_response(mass_gov_url):
+    """
+    Try to download directly from mass.gov URL.
+    Some URLs serve content directly (200) instead of redirecting to S3.
+    """
+    import urllib.parse as urlparse
+
+    try:
+        logger.info(f"Attempting direct download from: {mass_gov_url}")
+
+        # Make request without following redirects first to check
+        response = requests.get(mass_gov_url, allow_redirects=False, timeout=15)
+
+        if response.is_redirect:
+            s3_location = response.headers.get("location")
+            if s3_location:
+                # Handle relative URLs
+                if s3_location.startswith("/"):
+                    s3_url = urlparse.urljoin("https://www.mass.gov", s3_location)
+                else:
+                    s3_url = s3_location
+
+                logger.info(f"Found S3 redirect URL: {s3_url}")
+                # Download from S3 directly
+                return download_from_s3_direct(s3_url)
+            else:
+                logger.warning("Redirect response but no location header found")
+                return None
+        elif response.status_code == 200:
+            # Content served directly - download it
+            logger.info(f"Content served directly (status: {response.status_code})")
+            # Get the full content
+            full_response = requests.get(mass_gov_url, timeout=60)
+            full_response.raise_for_status()
+            logger.info(f"Successfully downloaded directly: {len(full_response.content)} bytes")
+            return full_response
+        else:
+            logger.warning(f"Unexpected status: {response.status_code}")
+            return None
+
+    except Exception as e:
+        logger.error(f"Failed to download from mass.gov URL: {e}")
+        return None
+
+def download_from_s3_direct(s3_url, max_retries=3):
+    """
+    Download file directly from S3 URL, bypassing mass.gov WAF.
+    """
+    import time
+
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Downloading from S3 directly (attempt {attempt + 1}/{max_retries}): {s3_url}")
+
+            if attempt > 0:
+                time.sleep(2 * attempt)  # Progressive delay
+
+            # Direct request to S3 - no special headers needed
+            response = requests.get(s3_url, timeout=60, stream=True)
+            response.raise_for_status()
+
+            logger.info(f"Successfully downloaded from S3 (status: {response.status_code}, size: {len(response.content)} bytes)")
+            return response
+
+        except Exception as e:
+            logger.error(f"S3 download attempt {attempt + 1} failed: {e}")
+            if attempt == max_retries - 1:
+                raise
+
+    return None
+
+def make_request_with_s3_fallback(url, max_retries=3, delay=2, extra_headers=None):
+    """
+    Make HTTP request with S3 fallback for mass.gov URLs.
+    First tries the S3 redirect approach, then falls back to direct request.
+    """
+    import time
+    import random
+
+    # For mass.gov download URLs, try direct download first
+    if "mass.gov" in url and ("/doc/" in url or "/download" in url):
+        logger.info("Detected mass.gov download URL - trying direct download approach")
+
+        try:
+            direct_response = get_direct_download_response(url)
+            if direct_response:
+                return direct_response
+            else:
+                logger.warning("Direct download approach failed, falling back to session request")
+        except Exception as e:
+            logger.warning(f"Direct download approach failed: {e}, falling back to session request")
+
+    # Fallback to direct request (original approach)
+    session = get_session()
+
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Attempting direct fetch {url} (attempt {attempt + 1}/{max_retries})")
+
+            # Random delay to avoid looking like a bot
+            if attempt > 0:
+                wait_time = delay * attempt + random.uniform(1, 3)
+                logger.info(f"Waiting {wait_time:.1f} seconds before retry...")
+                time.sleep(wait_time)
+            else:
+                time.sleep(random.uniform(1, 2))
+
+            # Prepare headers for this request
+            request_headers = {}
+            if extra_headers:
+                request_headers.update(extra_headers)
+
+            response = session.get(url, headers=request_headers, timeout=30)
+            response.raise_for_status()
+
+            logger.info(f"Successfully fetched {url} (status: {response.status_code})")
+            return response
+
+        except requests.exceptions.HTTPError as e:
+            if hasattr(e, 'response') and e.response.status_code == 403:
+                logger.warning(f"403 Forbidden error on attempt {attempt + 1}. WAF blocking request.")
+                if attempt < max_retries - 1:
+                    logger.info("Will retry with longer delay...")
+                else:
+                    logger.error(f"All {max_retries} attempts failed with 403 Forbidden.")
+                    raise
+            else:
+                logger.error(f"HTTP error on attempt {attempt + 1}: {e}")
+                if attempt == max_retries - 1:
+                    raise
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error on attempt {attempt + 1}: {e}")
+            if attempt == max_retries - 1:
+                raise
+
+    return None
+
+def initialize_session_with_landing_page():
+    """
+    Initialize session by visiting the base domain first, then the landing page.
+    This mimics real browser behavior to bypass mass.gov's WAF.
+    """
+    import time
+    import random
+
+    logger.info("Initializing session with multi-step approach...")
+    session = get_session()
+
+    try:
+        # Step 1: Visit base domain first to establish initial session
+        logger.info("Step 1: Visiting base domain...")
+        base_response = session.get("https://www.mass.gov", timeout=15)
+        base_response.raise_for_status()
+        logger.info(f"Base domain visit successful (status: {base_response.status_code})")
+        logger.info(f"Initial cookies: {list(session.cookies.keys())}")
+
+        # Wait like a real user
+        time.sleep(random.uniform(3, 6))
+
+        # Step 2: Visit a general page to look more human
+        logger.info("Step 2: Visiting general page...")
+        general_response = session.get("https://www.mass.gov/orgs/office-of-the-attorney-general", timeout=15)
+        general_response.raise_for_status()
+        logger.info(f"General page visit successful (status: {general_response.status_code})")
+
+        # Wait again
+        time.sleep(random.uniform(2, 5))
+
+        # Step 3: Now visit the target landing page
+        logger.info("Step 3: Visiting breach notification landing page...")
+        target_response = session.get(MASSACHUSETTS_AG_SUMMARY_URL, timeout=15)
+        target_response.raise_for_status()
+
+        logger.info(f"Successfully visited landing page (status: {target_response.status_code})")
+        logger.info(f"Final session cookies: {list(session.cookies.keys())}")
+
+        # Final wait before making additional requests
+        time.sleep(random.uniform(2, 4))
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to initialize session: {e}")
+
+        # Try a simpler approach as fallback
+        logger.info("Trying simpler fallback approach...")
+        try:
+            # Just try the target page directly with more realistic headers
+            fallback_headers = {
+                "Referer": "https://www.mass.gov/",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Dest": "document"
+            }
+
+            fallback_response = session.get(MASSACHUSETTS_AG_SUMMARY_URL,
+                                          headers=fallback_headers, timeout=15)
+            fallback_response.raise_for_status()
+
+            logger.info(f"Fallback approach successful (status: {fallback_response.status_code})")
+            return True
+
+        except Exception as e2:
+            logger.error(f"Fallback approach also failed: {e2}")
+            return False
 
 def parse_date_flexible_ma(date_str: str) -> str | None:
     """
@@ -54,87 +288,369 @@ def parse_date_flexible_ma(date_str: str) -> str | None:
         logger.warning(f"Could not parse date string: '{date_str}'. Error: {e}")
         return None
 
-def process_massachusetts_ag_breaches():
+def is_breach_recent(date_reported_str: str, days_back: int = 7) -> bool:
     """
-    Fetches Massachusetts AG security breach notifications, processes each notification,
-    and inserts relevant data into Supabase.
+    Check if a breach was reported within the last N days.
+    Returns True if recent, False if older or unparseable.
     """
-    logger.info("Starting Massachusetts AG Security Breach Notification processing...")
+    if not date_reported_str:
+        return False
 
     try:
-        # Try with a delay to avoid rate limiting
-        import time
-        time.sleep(2)
+        # Parse the reported date
+        reported_date = dateutil_parser.parse(date_reported_str.strip())
 
-        response = requests.get(MASSACHUSETTS_AG_BREACH_URL, headers=REQUEST_HEADERS, timeout=30)
-        response.raise_for_status()
-        logger.info(f"Successfully fetched Massachusetts AG page. Status: {response.status_code}")
+        # Calculate cutoff date (N days ago)
+        cutoff_date = datetime.now() - timedelta(days=days_back)
 
-    except requests.exceptions.HTTPError as e:
-        if response.status_code == 403:
-            logger.error(f"403 Forbidden error - Massachusetts AG site may be blocking automated requests: {e}")
-            logger.info("This may require manual intervention or a different approach (e.g., using a proxy or browser automation)")
+        # Check if breach is recent
+        is_recent = reported_date.date() >= cutoff_date.date()
+
+        if is_recent:
+            logger.info(f"Recent breach found: reported {reported_date.strftime('%Y-%m-%d')} (within last {days_back} days)")
         else:
-            logger.error(f"HTTP error fetching Massachusetts AG breach data page: {e}")
-        return
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching Massachusetts AG breach data page: {e}")
-        return
+            logger.debug(f"Older breach skipped: reported {reported_date.strftime('%Y-%m-%d')} (older than {days_back} days)")
 
-    soup = BeautifulSoup(response.content, 'html.parser')
+        return is_recent
 
-    # Massachusetts AG site structure (mass.gov):
-    # Data is typically within a list or series of articles.
-    # The main page lists links to yearly reports or directly lists breaches.
-    # As of early 2024, the page "Data breach notification reports" has links to yearly pages.
-    # e.g., "Data breach notifications reported in 2023"
-    # Each yearly page then lists breaches, often as <li> items in a <ul> or <ol>
-    # or as rows in a <table> if the structure changed.
-    # Let's find links to these yearly pages first.
+    except (ValueError, TypeError, OverflowError) as e:
+        logger.warning(f"Could not parse date for recency check: '{date_reported_str}'. Error: {e}")
+        return False
 
-    yearly_page_links = []
-    # Look for links containing "Data breach notifications reported in"
-    # Common container classes: 'ma__document-link-list', 'ma__link-list-with-icon', or main content area.
-    # Try a general approach first.
-    main_content_area = soup.find('main', id='main-content') or soup # Fallback to whole soup
+def load_state_file():
+    """
+    Load the state file that tracks PDF changes.
+    Returns dict with previous state or empty dict if file doesn't exist.
+    """
+    import json
 
-    # Pattern for yearly report links: "Data breach notifications reported in YYYY"
-    # Or "Data breaches reported in YYYY"
-    link_pattern = re.compile(r'data\s+breach(?:es)?\s+(?:notification(?:s)?)?\s*reported\s+in\s+(\d{4})', re.IGNORECASE)
+    try:
+        if os.path.exists(MA_AG_STATE_FILE):
+            with open(MA_AG_STATE_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        logger.warning(f"Could not load state file {MA_AG_STATE_FILE}: {e}")
 
-    for link_tag in main_content_area.find_all('a', href=True):
-        if link_pattern.search(link_tag.get_text(strip=True)):
-            full_url = urljoin(MASSACHUSETTS_AG_BREACH_URL, link_tag['href'])
-            if full_url not in yearly_page_links:
-                yearly_page_links.append(full_url)
+    return {}
 
-    if not yearly_page_links:
-        logger.warning(f"No links to yearly breach notification pages found on {MASSACHUSETTS_AG_BREACH_URL}. Attempting to process main page directly if it contains breach list items.")
-        # If no yearly links, perhaps the main page itself has the data.
-        # Check for list items that look like breach notifications on the current page.
-        # For now, this scraper will assume yearly pages are the primary source.
-        # If this needs to change, the logic to process items directly on `soup` would go here.
-        # For simplicity, if no yearly links, we stop. This can be expanded if needed.
-        # A quick check: if the main page itself has list items that look like breaches.
-        # e.g., if soup.select("ul.ma__executive-summary-links li") exists and items look like breaches.
-        # For now, we require yearly pages as the structure seems to follow this.
-        # If the main page itself has the structure of a yearly page, it should be added.
-        # This check is implicitly handled if the main page's title matches the pattern and it has links
-        # or if we add logic to process the main page if it contains breach items directly.
-        # For now, let's assume the yearly links are the way.
-        # If the main page itself is a list (e.g. only one year shown directly), this needs adjustment.
-        # One way: if no yearly_page_links, and main page has <ul class="ma__executive-summary-links">
-        # then add MASSACHUSETTS_AG_BREACH_URL to yearly_page_links to process it.
-        if soup.select_one("ul.ma__executive-summary-links"): # A common list style on mass.gov
-             logger.info("Main page contains a list that might be breaches. Adding main page URL for processing.")
-             yearly_page_links.append(MASSACHUSETTS_AG_BREACH_URL) # Process current page
-        else:
-            logger.error(f"No yearly links found and main page does not appear to be a direct list of breaches. Cannot proceed.")
-            return
+def save_state_file(state_data):
+    """
+    Save the current state to file.
+    """
+    import json
 
+    try:
+        with open(MA_AG_STATE_FILE, 'w') as f:
+            json.dump(state_data, f, indent=2)
+        logger.info(f"Saved state to {MA_AG_STATE_FILE}")
+    except Exception as e:
+        logger.error(f"Could not save state file {MA_AG_STATE_FILE}: {e}")
 
-    logger.info(f"Found {len(yearly_page_links)} yearly page(s) to process: {yearly_page_links}")
+def get_summary_page_info():
+    """
+    Get current breach count and PDF info from the summary page.
+    Returns dict with current state or None if failed.
+    """
+    try:
+        logger.info("Fetching Massachusetts AG summary page...")
+        response = make_request_with_s3_fallback(MASSACHUSETTS_AG_SUMMARY_URL)
+        if not response:
+            return None
 
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Extract 2025 breach count from the table
+        breach_count_2025 = None
+        affected_count_2025 = None
+
+        # Find the table with breach statistics
+        for row in soup.find_all('tr'):
+            cells = row.find_all('td')
+            if len(cells) >= 3:
+                year_cell = cells[0].get_text(strip=True)
+                if year_cell == "2025":
+                    breach_count_2025 = cells[1].get_text(strip=True).replace(',', '')
+                    affected_count_2025 = cells[2].get_text(strip=True).replace(',', '')
+                    break
+
+        # Extract PDF size from the download link
+        pdf_size_kb = None
+        for link in soup.find_all('a', href=True):
+            if 'data-breach-report-2025' in link.get('href', ''):
+                link_text = link.get_text(strip=True)
+                # Extract size like "840.1 KB"
+                size_match = re.search(r'(\d+(?:\.\d+)?)\s*KB', link_text)
+                if size_match:
+                    pdf_size_kb = float(size_match.group(1))
+                break
+
+        current_state = {
+            "breach_count_2025": int(breach_count_2025) if breach_count_2025 and breach_count_2025.isdigit() else None,
+            "affected_count_2025": int(affected_count_2025) if affected_count_2025 and affected_count_2025.isdigit() else None,
+            "pdf_size_kb": pdf_size_kb,
+            "last_checked": datetime.now().isoformat(),
+            "pdf_url": MASSACHUSETTS_AG_2025_PDF_URL
+        }
+
+        logger.info(f"Current state: {breach_count_2025} breaches, {affected_count_2025} affected, PDF size: {pdf_size_kb} KB")
+        return current_state
+
+    except Exception as e:
+        logger.error(f"Failed to get summary page info: {e}")
+        return None
+
+def has_data_changed(current_state, previous_state):
+    """
+    Check if the data has changed since last run.
+    Returns True if changes detected, False otherwise.
+    """
+    if not previous_state:
+        logger.info("No previous state found - will process PDF")
+        return True
+
+    changes = []
+
+    # Check breach count
+    if current_state.get("breach_count_2025") != previous_state.get("breach_count_2025"):
+        changes.append(f"Breach count: {previous_state.get('breach_count_2025')} → {current_state.get('breach_count_2025')}")
+
+    # Check affected count
+    if current_state.get("affected_count_2025") != previous_state.get("affected_count_2025"):
+        changes.append(f"Affected count: {previous_state.get('affected_count_2025')} → {current_state.get('affected_count_2025')}")
+
+    # Check PDF size
+    if current_state.get("pdf_size_kb") != previous_state.get("pdf_size_kb"):
+        changes.append(f"PDF size: {previous_state.get('pdf_size_kb')} KB → {current_state.get('pdf_size_kb')} KB")
+
+    if changes:
+        logger.info(f"Changes detected: {'; '.join(changes)}")
+        return True
+    else:
+        logger.info("No changes detected - skipping PDF processing")
+        return False
+
+def create_incident_uid(org_name: str, pdf_url: str) -> str:
+    """
+    Create a unique identifier for the breach incident.
+    """
+    combined_string = f"{org_name}_{pdf_url}"
+    return hashlib.md5(combined_string.encode()).hexdigest()
+
+def parse_annual_pdf_content(pdf_url: str) -> list:
+    """
+    Parse the annual Massachusetts AG PDF report.
+    Returns list of breach records with structured data.
+
+    Expected PDF structure:
+    Breach Number | Date Reported To OCA | Reporting Organization Name |
+    Reporting Organization Type | MA Residents Affected | SSN Breached |
+    Medical Records Breached | Financial Account Breached |
+    Drivers Licenses Breached | Credit/Debit Numbers Breached
+    """
+    breach_records = []
+
+    try:
+        logger.info(f"Downloading and parsing annual PDF: {pdf_url}")
+        # Use referer header for PDF download
+        extra_headers = {"Referer": MASSACHUSETTS_AG_SUMMARY_URL}
+        response = make_request_with_s3_fallback(pdf_url, max_retries=2, delay=3, extra_headers=extra_headers)
+        if not response:
+            logger.error("Failed to download annual PDF after retries")
+            return breach_records
+
+        pdf_size_bytes = len(response.content)
+        logger.info(f"Downloaded PDF: {pdf_size_bytes} bytes")
+
+        # Try pdfplumber first (better for table extraction)
+        try:
+            with pdfplumber.open(BytesIO(response.content)) as pdf:
+                logger.info(f"PDF has {len(pdf.pages)} pages")
+
+                for page_num, page in enumerate(pdf.pages):
+                    logger.info(f"Processing page {page_num + 1}")
+
+                    # Extract tables from the page
+                    tables = page.extract_tables()
+
+                    for table_num, table in enumerate(tables):
+                        if not table:
+                            continue
+
+                        logger.info(f"Found table {table_num + 1} with {len(table)} rows")
+
+                        # Find header row (contains "Breach Number", "Date Reported", etc.)
+                        header_row_idx = None
+                        for i, row in enumerate(table):
+                            if row and any(cell and "Breach" in str(cell) and "Number" in str(cell) for cell in row):
+                                header_row_idx = i
+                                break
+
+                        if header_row_idx is None:
+                            continue
+
+                        headers = table[header_row_idx]
+                        logger.info(f"Found headers: {headers}")
+
+                        # Process data rows
+                        for row_idx in range(header_row_idx + 1, len(table)):
+                            row = table[row_idx]
+                            if not row or not any(row):  # Skip empty rows
+                                continue
+
+                            # Skip rows that don't start with "2025-" (breach number)
+                            if not row[0] or not str(row[0]).strip().startswith("2025-"):
+                                continue
+
+                            try:
+                                # Map row data to structured format
+                                breach_record = {
+                                    "breach_number": str(row[0]).strip() if row[0] else "",
+                                    "date_reported": str(row[1]).strip() if len(row) > 1 and row[1] else "",
+                                    "organization_name": str(row[2]).strip() if len(row) > 2 and row[2] else "",
+                                    "organization_type": str(row[3]).strip() if len(row) > 3 and row[3] else "",
+                                    "ma_residents_affected": str(row[4]).strip() if len(row) > 4 and row[4] else "",
+                                    "ssn_breached": str(row[5]).strip() if len(row) > 5 and row[5] else "",
+                                    "medical_records_breached": str(row[6]).strip() if len(row) > 6 and row[6] else "",
+                                    "financial_account_breached": str(row[7]).strip() if len(row) > 7 and row[7] else "",
+                                    "drivers_licenses_breached": str(row[8]).strip() if len(row) > 8 and row[8] else "",
+                                    "credit_debit_breached": str(row[9]).strip() if len(row) > 9 and row[9] else "",
+                                    "pdf_page": page_num + 1,
+                                    "pdf_table": table_num + 1,
+                                    "pdf_size_bytes": pdf_size_bytes
+                                }
+
+                                breach_records.append(breach_record)
+                                logger.info(f"Parsed breach: {breach_record['breach_number']} - {breach_record['organization_name']}")
+
+                            except Exception as e:
+                                logger.warning(f"Error parsing row {row_idx}: {e}")
+                                continue
+
+                logger.info(f"Successfully parsed {len(breach_records)} breach records from PDF")
+
+        except Exception as e:
+            logger.error(f"pdfplumber failed for annual PDF: {e}")
+            # Could add PyPDF2 fallback here if needed
+
+    except Exception as e:
+        logger.error(f"Failed to process annual PDF {pdf_url}: {e}")
+
+    return breach_records
+
+def extract_pdf_content(pdf_url: str) -> dict:
+    """
+    Extract content from PDF breach notification.
+    Returns dict with extracted information.
+    """
+    pdf_data = {
+        "pdf_processed": False,
+        "pdf_size_bytes": None,
+        "affected_individuals_text": None,
+        "breach_date_text": None,
+        "what_was_leaked": None,
+        "pdf_text_preview": None,
+        "extraction_error": None
+    }
+
+    try:
+        logger.info(f"Downloading PDF: {pdf_url}")
+        extra_headers = {"Referer": MASSACHUSETTS_AG_SUMMARY_URL}
+        response = make_request_with_s3_fallback(pdf_url, max_retries=2, delay=1, extra_headers=extra_headers)
+        if not response:
+            pdf_data["extraction_error"] = "Failed to download PDF after retries"
+            return pdf_data
+
+        pdf_data["pdf_size_bytes"] = len(response.content)
+
+        # Try pdfplumber first (better for text extraction)
+        try:
+            with pdfplumber.open(BytesIO(response.content)) as pdf:
+                full_text = ""
+                for page in pdf.pages[:5]:  # Limit to first 5 pages
+                    page_text = page.extract_text()
+                    if page_text:
+                        full_text += page_text + "\n"
+
+                if full_text.strip():
+                    pdf_data["pdf_text_preview"] = full_text[:1000]  # First 1000 chars
+
+                    # Extract affected individuals count
+                    affected_patterns = [
+                        r'(\d{1,3}(?:,\d{3})*)\s+(?:Massachusetts\s+)?(?:residents?|individuals?|people|persons?)',
+                        r'(?:approximately|about|roughly)\s+(\d{1,3}(?:,\d{3})*)\s+(?:Massachusetts\s+)?(?:residents?|individuals?)',
+                        r'(\d{1,3}(?:,\d{3})*)\s+(?:MA|Mass\.?)\s+(?:residents?|individuals?)',
+                        r'total\s+of\s+(\d{1,3}(?:,\d{3})*)\s+(?:individuals?|people|persons?)'
+                    ]
+
+                    for pattern in affected_patterns:
+                        match = re.search(pattern, full_text, re.IGNORECASE)
+                        if match:
+                            pdf_data["affected_individuals_text"] = match.group(0)
+                            break
+
+                    # Extract breach date
+                    breach_date_patterns = [
+                        r'(?:incident|breach|attack|unauthorized access).*?(?:occurred|discovered|detected).*?(\w+\s+\d{1,2},?\s+\d{4})',
+                        r'(?:on|around)\s+(\w+\s+\d{1,2},?\s+\d{4}).*?(?:incident|breach|attack)',
+                        r'(\w+\s+\d{1,2},?\s+\d{4}).*?(?:incident|breach|attack|unauthorized)'
+                    ]
+
+                    for pattern in breach_date_patterns:
+                        match = re.search(pattern, full_text, re.IGNORECASE)
+                        if match:
+                            pdf_data["breach_date_text"] = match.group(1)
+                            break
+
+                    # Extract what was leaked (look for information types)
+                    info_patterns = [
+                        r'(?:information|data).*?(?:included?|contained?|involved?).*?([^.]*(?:social security|SSN|credit card|financial|medical|personal|address|phone|email|driver|passport)[^.]*)',
+                        r'(?:types?|categories?).*?(?:of\s+)?(?:information|data).*?([^.]*(?:social security|SSN|credit card|financial|medical|personal|address|phone|email|driver|passport)[^.]*)'
+                    ]
+
+                    for pattern in info_patterns:
+                        match = re.search(pattern, full_text, re.IGNORECASE)
+                        if match:
+                            pdf_data["what_was_leaked"] = match.group(1).strip()
+                            break
+
+                    pdf_data["pdf_processed"] = True
+
+        except Exception as e:
+            logger.warning(f"pdfplumber failed for {pdf_url}: {e}")
+            # Fallback to PyPDF2
+            try:
+                with BytesIO(response.content) as pdf_file:
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
+                    text = ""
+                    for page_num in range(min(3, len(pdf_reader.pages))):
+                        text += pdf_reader.pages[page_num].extract_text()
+
+                    if text.strip():
+                        pdf_data["pdf_text_preview"] = text[:500]
+                        pdf_data["pdf_processed"] = True
+
+            except Exception as e2:
+                pdf_data["extraction_error"] = f"Both pdfplumber and PyPDF2 failed: {e}, {e2}"
+                logger.error(f"PDF extraction failed for {pdf_url}: {e2}")
+
+    except Exception as e:
+        pdf_data["extraction_error"] = str(e)
+        logger.error(f"Failed to download PDF {pdf_url}: {e}")
+
+    return pdf_data
+
+def process_massachusetts_ag_breaches():
+    """
+    Enhanced Massachusetts AG Security Breach Notification processing.
+    Uses annual PDF report with change detection for efficient processing.
+    """
+    logger.info("Starting Enhanced Massachusetts AG Security Breach Notification processing...")
+    logger.info(f"Processing mode: {MA_AG_PROCESSING_MODE}")
+    logger.info(f"Date filter: Only processing breaches from last {MA_AG_FILTER_DAYS_BACK} days")
+
+    # Note: Using S3 redirect approach to bypass WAF, so no session initialization needed
+
+    # Initialize Supabase client
     supabase_client = None
     try:
         supabase_client = SupabaseClient()
@@ -142,145 +658,258 @@ def process_massachusetts_ag_breaches():
         logger.error(f"Failed to initialize Supabase client: {e}. Ensure SUPABASE_URL and SUPABASE_SERVICE_KEY are set.")
         return
 
+    # Load previous state
+    previous_state = load_state_file()
+
+    # Check if we should force processing (skip change detection)
+    if MA_AG_FORCE_PROCESS:
+        logger.info("Force processing enabled - skipping change detection and summary page check")
+        current_state = {
+            "breach_count_2025": "unknown",
+            "affected_count_2025": "unknown",
+            "pdf_size_kb": "unknown",
+            "last_checked": datetime.now().isoformat(),
+            "pdf_url": MASSACHUSETTS_AG_2025_PDF_URL,
+            "force_processed": True
+        }
+    else:
+        # Get current state from summary page
+        current_state = get_summary_page_info()
+        if not current_state:
+            logger.error("Failed to get current state from summary page")
+            logger.info("Tip: Set MA_AG_FORCE_PROCESS=true to skip summary page check")
+            return
+
+        # Check if data has changed
+        if not has_data_changed(current_state, previous_state):
+            logger.info("No changes detected - exiting without processing PDF")
+            return
+
+    # Process the annual PDF
+    logger.info("Changes detected - processing annual PDF...")
+    breach_records = parse_annual_pdf_content(MASSACHUSETTS_AG_2025_PDF_URL)
+
+    if not breach_records:
+        logger.error("No breach records found in PDF")
+        return
+
     total_processed = 0
     total_inserted = 0
     total_skipped = 0
+    total_filtered_old = 0
 
-    for page_url in yearly_page_links:
-        logger.info(f"Processing yearly page: {page_url}")
+    for breach_record in breach_records:
+        total_processed += 1
+
         try:
-            page_response = requests.get(page_url, headers=REQUEST_HEADERS, timeout=30)
-            page_response.raise_for_status()
-            page_soup = BeautifulSoup(page_response.content, 'html.parser')
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error fetching yearly page {page_url}: {e}")
-            total_skipped +=1 # Count page as skipped
-            continue
-
-        # On yearly pages (e.g., "Data breach notifications reported in 2023"):
-        # Breaches are often listed in <ul> with class "ma__executive-summary-links" (or similar)
-        # Each <li> in this list is a breach.
-        # Inside <li>:
-        #   <a> tag with href to PDF notice, text is Org Name.
-        #   <div class="ma__executive-summary__content"> contains "Date posted: Month Day, Year"
-
-        breach_list_ul = page_soup.select_one("ul.ma__executive-summary-links") # Common pattern on mass.gov
-        if not breach_list_ul:
-            # Fallback: try other common list structures or article lists
-            breach_list_ul = page_soup.select_one("ul.ma__link-list--related") or \
-                             page_soup.select_one("div.ma__document-Results ul") # Another list style
-            if not breach_list_ul:
-                logger.warning(f"Could not find the main list of breaches (ul.ma__executive-summary-links or fallbacks) on {page_url}. Skipping this page.")
-                total_skipped +=1 # Count page as skipped
+            # Check if breach is recent enough (date filtering)
+            date_reported_text = breach_record.get("date_reported", "")
+            if not is_breach_recent(date_reported_text, MA_AG_FILTER_DAYS_BACK):
+                total_filtered_old += 1
                 continue
 
-        notifications = breach_list_ul.find_all('li', recursive=False) # Get direct <li> children
-        if not notifications:
-            # If <li> not direct children, try finding them deeper, e.g. if wrapped in other divs by mistake
-            notifications = breach_list_ul.find_all('li')
+            # Create incident UID
+            org_name = breach_record.get("organization_name", "")
+            breach_number = breach_record.get("breach_number", "")
+            incident_uid = create_incident_uid(org_name, breach_number)
 
-        logger.info(f"Found {len(notifications)} potential breach notifications on page {page_url}.")
+            # Basic breach data
+            current_time = datetime.now().isoformat()
 
-        page_processed_count = 0
-        page_inserted_count = 0
-        page_skipped_count = 0
+            # Parse affected individuals
+            affected_individuals = None
+            ma_residents_text = breach_record.get("ma_residents_affected", "")
+            if ma_residents_text and ma_residents_text.isdigit():
+                affected_individuals = int(ma_residents_text)
 
-        for item_idx, li_item in enumerate(notifications):
-            page_processed_count += 1
-            try:
-                link_tag = li_item.find('a', href=True)
-                content_div = li_item.find('div', class_="ma__executive-summary__content")
+            # Parse reported date
+            reported_date = None
+            if date_reported_text:
+                reported_date = parse_date_flexible_ma(date_reported_text)
 
-                if not link_tag or not content_div:
-                    logger.warning(f"Skipping item #{item_idx+1} on {page_url} due to missing link tag or content div. Link: {link_tag is not None}, Content: {content_div is not None}")
-                    page_skipped_count += 1
-                    continue
+            # Build what was leaked from breach flags
+            leaked_types = []
+            if breach_record.get("ssn_breached", "").lower() == "yes":
+                leaked_types.append("Social Security Numbers")
+            if breach_record.get("medical_records_breached", "").lower() == "yes":
+                leaked_types.append("Medical Records")
+            if breach_record.get("financial_account_breached", "").lower() == "yes":
+                leaked_types.append("Financial Account Information")
+            if breach_record.get("drivers_licenses_breached", "").lower() == "yes":
+                leaked_types.append("Driver's License Information")
+            if breach_record.get("credit_debit_breached", "").lower() == "yes":
+                leaked_types.append("Credit/Debit Card Numbers")
 
-                org_name = link_tag.get_text(strip=True)
-                item_specific_url = urljoin(page_url, link_tag['href']) # Usually PDF link
+            what_was_leaked = "; ".join(leaked_types) if leaked_types else "See annual report"
 
-                date_posted_str = None
-                # Date is often in "Date posted: Month Day, Year" format within content_div
-                date_text_element = content_div.find(string=re.compile(r'Date\s+posted:'))
-                if date_text_element:
-                    date_posted_str = date_text_element.replace('Date posted:', '').strip()
-                else: # Try to find any date-like string in the content_div if specific pattern fails
-                    possible_date_text = content_div.get_text(strip=True)
-                    # A simple regex for Month Day, Year might work if "Date posted:" is missing
-                    date_match = re.search(r'([A-Za-z]+\s+\d{1,2},\s+\d{4})', possible_date_text)
-                    if date_match:
-                        date_posted_str = date_match.group(1)
+            # Three-tier data structure
+            ma_ag_raw = {
+                "annual_pdf_url": MASSACHUSETTS_AG_2025_PDF_URL,
+                "pdf_page": breach_record.get("pdf_page"),
+                "pdf_table": breach_record.get("pdf_table"),
+                "pdf_size_bytes": breach_record.get("pdf_size_bytes"),
+                "discovery_date": current_time,
+                "source_summary_page": MASSACHUSETTS_AG_SUMMARY_URL
+            }
 
-                if not org_name or not date_posted_str:
-                    logger.warning(f"Skipping item for '{org_name}' on {page_url} due to missing Org Name or Date Posted ('{date_posted_str}').")
-                    page_skipped_count += 1
-                    continue
+            ma_ag_derived = {
+                "incident_uid": incident_uid,
+                "portal_first_seen_utc": current_time,
+                "annual_pdf_processed": True
+            }
 
-                publication_date_iso = parse_date_flexible_ma(date_posted_str)
-                if not publication_date_iso:
-                    logger.warning(f"Skipping '{org_name}' from {page_url} due to unparsable date posted: '{date_posted_str}'")
-                    page_skipped_count +=1
-                    continue
+            ma_ag_annual_data = breach_record.copy()  # All the structured PDF data
 
-                # Other details like date of breach, # affected are usually in the PDF, not on list page.
-                summary = f"Data breach notification for {org_name} reported to MA AG."
-                # Try to get year from page title or URL for tagging
-                page_title_year_match = re.search(r'(\d{4})', page_soup.title.string if page_soup.title else "")
-                page_url_year_match = re.search(r'(\d{4})', page_url)
-                year_for_tag = "unknown_year"
-                if page_title_year_match: year_for_tag = page_title_year_match.group(1)
-                elif page_url_year_match: year_for_tag = page_url_year_match.group(1)
+            # Combine all raw data
+            raw_data_json = {
+                "massachusetts_ag_raw": ma_ag_raw,
+                "massachusetts_ag_derived": ma_ag_derived,
+                "massachusetts_ag_annual_data": ma_ag_annual_data
+            }
 
+            # Prepare item data for database
+            item_data = {
+                "source_id": SOURCE_ID_MASSACHUSETTS_AG,
+                "item_url": MASSACHUSETTS_AG_2025_PDF_URL,  # Link to annual report
+                "title": org_name,
+                "publication_date": reported_date or current_time,
+                "summary_text": f"Data breach notification for {org_name} reported to Massachusetts AG ({breach_number})",
+                "affected_individuals": affected_individuals,
+                "breach_date": None,  # Not available in annual report
+                "reported_date": reported_date,
+                "notice_document_url": MASSACHUSETTS_AG_2025_PDF_URL,
+                "what_was_leaked": what_was_leaked,
+                "raw_data_json": raw_data_json,
+                "tags_keywords": ["massachusetts_ag", "ma_ag", "2025", "annual_report", breach_record.get("organization_type", "").lower().replace(" ", "_")]
+            }
 
-                raw_data = {
-                    "original_date_posted": date_posted_str,
-                    "pdf_notice_url": item_specific_url,
-                    "source_yearly_page": page_url
-                }
-                raw_data_json = {k: v for k, v in raw_data.items() if v is not None}
+            # Insert into database
+            insert_response = supabase_client.insert_item(**item_data)
+            if insert_response:
+                logger.info(f"✅ Successfully inserted breach: {breach_number} - {org_name}")
+                total_inserted += 1
+            else:
+                logger.error(f"❌ Failed to insert breach: {breach_number} - {org_name}")
+                total_skipped += 1
 
-                tags = ["massachusetts_ag", "ma_ag", f"year_{year_for_tag}"]
+        except Exception as e:
+            logger.error(f"Error processing breach record {breach_record.get('breach_number', 'unknown')}: {e}", exc_info=True)
+            total_skipped += 1
 
-                item_data = {
-                    "source_id": SOURCE_ID_MASSACHUSETTS_AG,
-                    "item_url": item_specific_url, # PDF is the specific item
-                    "title": org_name,
-                    "publication_date": publication_date_iso,
-                    "summary_text": summary,
-                    "raw_data_json": raw_data_json,
-                    "tags_keywords": list(set(tags))
-                }
+    # Save current state
+    save_state_file(current_state)
 
-                # TODO: Implement check for existing record (e.g., by item_url)
+    logger.info(f"🎉 Finished Massachusetts AG processing. Total: {total_processed} processed, {total_inserted} inserted, {total_skipped} skipped, {total_filtered_old} filtered (older than {MA_AG_FILTER_DAYS_BACK} days)")
 
-                insert_response = supabase_client.insert_item(**item_data)
-                if insert_response:
-                    logger.info(f"Successfully inserted item for '{org_name}' from {page_url}. PDF: {item_specific_url}")
-                    page_inserted_count += 1
-                else:
-                    logger.error(f"Failed to insert item for '{org_name}' from {page_url}.")
+def test_massachusetts_ag_scraper():
+    """
+    Test function to verify the Massachusetts AG scraper works correctly.
+    Tests summary page parsing and annual PDF processing without database insertion.
+    """
+    logger.info("🧪 Testing Massachusetts AG scraper...")
 
-            except Exception as e:
-                logger.error(f"Error processing list item #{item_idx+1} on page {page_url}: {li_item.get_text(strip=True)[:150]}. Error: {e}", exc_info=True)
-                page_skipped_count +=1
+    # Note: Using S3 redirect approach to bypass WAF
 
-        total_processed += page_processed_count
-        total_inserted += page_inserted_count
-        total_skipped += page_skipped_count
+    # Test S3 redirect approach directly
+    logger.info("🔍 Testing S3 redirect approach for PDF download...")
 
-    logger.info(f"Finished all Massachusetts AG yearly pages. Total items processed: {total_processed}. Total items inserted: {total_inserted}. Total items skipped: {total_skipped}")
+    # Test direct download for the 2025 PDF
+    direct_response = get_direct_download_response(MASSACHUSETTS_AG_2025_PDF_URL)
+    if direct_response:
+        logger.info(f"✅ Successfully downloaded PDF directly:")
+        logger.info(f"  - URL: {MASSACHUSETTS_AG_2025_PDF_URL}")
+        logger.info(f"  - Size: {len(direct_response.content)} bytes")
+        logger.info(f"  - Content-Type: {direct_response.headers.get('content-type', 'unknown')}")
+    else:
+        logger.error("❌ Failed to download PDF directly")
+        return False
 
+    # Test state file operations
+    logger.info("\n💾 Testing state file operations...")
+    test_state = {"test": "data", "timestamp": datetime.now().isoformat()}
+    save_state_file(test_state)
+    loaded_state = load_state_file()
+    if loaded_state.get("test") == "data":
+        logger.info("✅ State file operations working")
+    else:
+        logger.error("❌ State file operations failed")
+        return False
+
+    # Test change detection with mock data
+    logger.info("\n🔄 Testing change detection...")
+    mock_state = {
+        "breach_count_2025": 922,
+        "affected_count_2025": 1151829,
+        "pdf_size_kb": 840.1,
+        "last_checked": datetime.now().isoformat(),
+        "pdf_url": MASSACHUSETTS_AG_2025_PDF_URL
+    }
+
+    has_changes = has_data_changed(mock_state, {})  # Empty previous state
+    logger.info(f"Change detection (empty previous): {has_changes}")
+
+    has_changes = has_data_changed(mock_state, mock_state)  # Same state
+    logger.info(f"Change detection (same state): {has_changes}")
+
+    # Test date filtering
+    logger.info(f"\n📅 Testing date filtering (last {MA_AG_FILTER_DAYS_BACK} days)...")
+
+    # Test with recent date (should pass)
+    recent_date = (datetime.now() - timedelta(days=2)).strftime("%d-%b-%y")
+    is_recent = is_breach_recent(recent_date, MA_AG_FILTER_DAYS_BACK)
+    logger.info(f"Recent date test ({recent_date}): {is_recent}")
+
+    # Test with old date (should fail)
+    old_date = (datetime.now() - timedelta(days=30)).strftime("%d-%b-%y")
+    is_old = is_breach_recent(old_date, MA_AG_FILTER_DAYS_BACK)
+    logger.info(f"Old date test ({old_date}): {is_old}")
+
+    # Test annual PDF parsing (first few records only)
+    if MA_AG_PROCESSING_MODE in ["ENHANCED", "FULL"]:
+        logger.info(f"\n📄 Testing annual PDF parsing...")
+        try:
+            # Test with a small sample to avoid timeout
+            logger.info("Attempting to parse annual PDF (this may take a moment)...")
+            breach_records = parse_annual_pdf_content(MASSACHUSETTS_AG_2025_PDF_URL)
+
+            if breach_records:
+                logger.info(f"✅ Successfully parsed {len(breach_records)} breach records from annual PDF")
+
+                # Show first 5 examples
+                for i, record in enumerate(breach_records[:5]):
+                    logger.info(f"  {i+1}. {record.get('breach_number')}: {record.get('organization_name')}")
+                    logger.info(f"     Type: {record.get('organization_type')}")
+                    logger.info(f"     MA Residents: {record.get('ma_residents_affected')}")
+                    logger.info(f"     SSN: {record.get('ssn_breached')}, Medical: {record.get('medical_records_breached')}")
+
+                if len(breach_records) > 5:
+                    logger.info(f"  ... and {len(breach_records) - 5} more")
+            else:
+                logger.warning("⚠️ No breach records found in annual PDF")
+
+        except Exception as e:
+            logger.error(f"❌ Annual PDF parsing failed: {e}")
+            return False
+    else:
+        logger.info("📄 Skipping PDF parsing test (not in ENHANCED/FULL mode)")
+
+    logger.info("✅ Massachusetts AG scraper test completed successfully!")
+    return True
 
 if __name__ == "__main__":
     logger.info("Massachusetts AG Security Breach Scraper Started")
 
-    SUPABASE_URL = os.environ.get("SUPABASE_URL")
-    SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
-
-    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
+    # Check if this is a test run
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        test_massachusetts_ag_scraper()
     else:
-        logger.info("Supabase environment variables seem to be set.")
-        process_massachusetts_ag_breaches()
+        SUPABASE_URL = os.environ.get("SUPABASE_URL")
+        SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
+
+        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+            logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
+        else:
+            logger.info("Supabase environment variables seem to be set.")
+            process_massachusetts_ag_breaches()
 
     logger.info("Massachusetts AG Security Breach Scraper Finished")
