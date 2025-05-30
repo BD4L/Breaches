@@ -36,7 +36,7 @@ This document tracks the implementation status and quality of scraping logic for
 | **Hawaii** | Hawaii AG | 🟢 EXCELLENT | Enhanced 3-tier data structure, comprehensive field mapping, PDF analysis framework | Recently enhanced with structured data capture |
 | **Indiana** | Indiana AG | 🟢 EXCELLENT | Enhanced 3-tier data structure, 2025 PDF table parsing, comprehensive field mapping | Recently enhanced with 2025-focused processing |
 | **Iowa** | Iowa AG | 🟢 EXCELLENT | Enhanced 2025-focused scraper with 3-tier data structure, comprehensive field mapping, PDF analysis | Recently enhanced with 2025-specific processing |
-| **Maine** | Maine AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
+| **Maine** | Maine AG | 🟢 EXCELLENT | Enhanced list-based scraper with individual page processing and 3-tier data structure | Recently enhanced with comprehensive field mapping |
 | **Maryland** | Maryland AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
 | **Massachusetts** | Massachusetts AG | 🟠 BASIC | Better headers, but may still get 403 errors | Partially fixed |
 | **Montana** | Montana AG | 🟠 BASIC | Foreign key fixed | Needs verification |
@@ -133,6 +133,24 @@ This document tracks the implementation status and quality of scraping logic for
 ## 🔄 Recent Updates
 
 ### 2025-05-29
+- ✅ **Enhanced Maine AG scraper to EXCELLENT status**
+- ✅ Implemented list-based discovery using correct Maine AG breach notification list
+- ✅ Added individual breach page processing with comprehensive data extraction
+- ✅ Implemented 3-tier data structure following established pattern
+- ✅ Enhanced table parsing for two-column format (Date Reported | Organization Name)
+- ✅ Added individual page analysis with structured data extraction (Entity Info, Breach Info, etc.)
+- ✅ Implemented comprehensive PDF analysis using PyPDF2 and pdfplumber fallback
+- ✅ Enhanced field mapping with all standardized breach fields
+- ✅ Implemented affected individuals parsing from individual pages and PDFs
+- ✅ Added "what information was involved" extraction from breach details
+- ✅ Implemented incident UID generation using organization name and date
+- ✅ Added date filtering for recent breaches (configurable)
+- ✅ Enhanced error handling and comprehensive logging
+- ✅ Added processing modes (BASIC, ENHANCED, FULL) with individual page processing
+- ✅ Added pagination support with configurable max pages for GitHub Actions
+- ✅ Added GitHub Actions configuration for automated processing
+- ✅ Moved Maine AG from BASIC to EXCELLENT implementation status
+
 - ✅ **Enhanced Iowa AG scraper to EXCELLENT status**
 - ✅ Completely rewrote scraper to focus specifically on 2025 breach notifications
 - ✅ Implemented 3-tier data structure following established pattern
@@ -228,7 +246,7 @@ This document tracks the implementation status and quality of scraping logic for
 ## 🎯 Success Metrics
 
 - **Total Sources**: 36 configured (Privacy Rights Clearinghouse removed)
-- **Fully Implemented (EXCELLENT)**: 8 (SEC, Delaware AG, HHS OCR, California AG, Washington AG, Hawaii AG, Indiana AG, Iowa AG)
+- **Fully Implemented (EXCELLENT)**: 9 (SEC, Delaware AG, HHS OCR, California AG, Washington AG, Hawaii AG, Indiana AG, Iowa AG, Maine AG)
 - **Good Implementation**: 2 sources
 - **Basic Implementation**: 12 sources
 - **Needs Work**: 14 sources

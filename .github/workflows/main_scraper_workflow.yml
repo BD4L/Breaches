@@ -35,6 +35,11 @@ jobs:
       IA_AG_FILTER_FROM_DATE: "2025-01-20" # One week back for reliable testing
       IA_AG_PROCESSING_MODE: "ENHANCED" # Process 2025 page with comprehensive field mapping and PDF analysis
 
+      # Maine AG scraper configuration for GitHub Actions
+      ME_AG_FILTER_FROM_DATE: "2025-01-01" # 2025 breaches only
+      ME_AG_PROCESSING_MODE: "ENHANCED" # Process list pages with individual page analysis
+      ME_AG_MAX_PAGES: "2" # Limit to first 2 pages for GitHub Actions (20 records)
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
