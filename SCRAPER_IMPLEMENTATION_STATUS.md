@@ -41,8 +41,8 @@ This document tracks the implementation status and quality of scraping logic for
 | **Massachusetts** | Massachusetts AG | 🟠 BASIC | Better headers, but may still get 403 errors | Partially fixed |
 | **Montana** | Montana AG | 🟠 BASIC | Foreign key fixed | Needs verification |
 | **New Hampshire** | New Hampshire AG | ❌ NOT WORKING | Enhanced scraper implemented but blocked by WAF protection, Firebase fallback also blocked | Needs alternative access method |
-| **New Jersey** | New Jersey Cybersecurity | 🟠 BASIC | Foreign key fixed | Needs verification |
-| **North Dakota** | North Dakota AG | 🟠 BASIC | Foreign key fixed | Needs verification |
+| **New Jersey** | New Jersey Cybersecurity | ❌ NOT WORKING | Website protected by Incapsula WAF, requires JavaScript execution | Blocked by enterprise-grade protection |
+| **North Dakota** | North Dakota AG | � EXCELLENT | Enhanced 3-tier data structure, comprehensive field mapping, PDF analysis framework | Recently enhanced with date range handling and PDF processing |
 | **Oklahoma** | Oklahoma Cybersecurity | 🟠 BASIC | Foreign key fixed | Needs verification |
 | **Vermont** | Vermont AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
 | **Wisconsin** | Wisconsin DATCP | 🟡 GOOD | Foreign key issues fixed | Should work now |
@@ -282,8 +282,8 @@ This document tracks the implementation status and quality of scraping logic for
 - **Total Sources**: 36 configured (Privacy Rights Clearinghouse removed)
 - **Fully Implemented (EXCELLENT)**: 9 (SEC, Delaware AG, HHS OCR, California AG, Washington AG, Hawaii AG, Indiana AG, Iowa AG, Maine AG)
 - **Good Implementation**: 2 sources
-- **Basic Implementation**: 10 sources
-- **Not Working**: 2 sources (New Hampshire AG, Maryland AG)
+- **Basic Implementation**: 9 sources
+- **Not Working**: 3 sources (New Hampshire AG, Maryland AG, New Jersey Cybersecurity)
 - **Needs Work**: 12 sources
 - **Not Implemented**: 1 source (Texas AG - new direct portal)
 

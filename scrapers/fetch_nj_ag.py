@@ -65,15 +65,15 @@ def process_new_jersey_cyber_breaches():
     # Need to find the container for these alerts and then iterate through individual items.
     # As of inspection (early 2024), alerts are within <div class="row"> containing <div class="col-md-4"> items,
     # each with a <div class="card">.
-    
+
     # Find the main container for the breach alert cards.
     # The cards seem to be within a <div class="container"> -> <div class="row gx-5">
     # Each card is then <div class="col-md-6 col-lg-4 mb-5"> -> <div class="card h-100 shadow border-0">
-    
+
     alert_cards_container = soup.find('div', class_='row', attrs={'gx-5': True}) # More specific row if possible
     if not alert_cards_container:
         # Fallback to any row that seems to contain cards
-        alert_cards_container = soup.find('div', class_='row') 
+        alert_cards_container = soup.find('div', class_='row')
         if not alert_cards_container :
             logger.error("Could not find the main container for breach alert cards (div.row.gx-5 or div.row). Page structure might have changed.")
             # logger.debug(f"Page content sample (first 1000 chars): {response.text[:1000]}")
@@ -82,14 +82,14 @@ def process_new_jersey_cyber_breaches():
     # Find individual alert items (cards)
     # Each card is usually in a <div class="col-md-..."> or similar grid column class.
     # Inside that, a <div class="card">.
-    
+
     # Selects columns that directly contain a card.
     alert_items = alert_cards_container.select("div[class*='col-']:has(div.card)")
 
     if not alert_items:
         logger.warning("No breach alert items (cards in columns) found within the container. Check selectors or page structure.")
         return
-        
+
     logger.info(f"Found {len(alert_items)} potential breach alert items on the page.")
 
     supabase_client = None
@@ -102,7 +102,7 @@ def process_new_jersey_cyber_breaches():
     inserted_count = 0
     processed_count = 0
     skipped_count = 0
-    
+
     for item_idx, item_col_div in enumerate(alert_items):
         processed_count += 1
         card = item_col_div.find('div', class_='card')
@@ -110,13 +110,13 @@ def process_new_jersey_cyber_breaches():
             logger.warning(f"Skipping item #{item_idx+1} as no card div found within column.")
             skipped_count += 1
             continue
-            
+
         try:
             title_tag = card.find(['h2', 'h3', 'h5'], class_='card-title') # Title often in card-title
             if not title_tag: title_tag = card.find('a', class_='text-decoration-none') # Sometimes title is the main link
-            
+
             org_name = title_tag.get_text(strip=True) if title_tag else "Unknown Entity"
-            
+
             # Link to the detailed alert page is usually on the title or a "Read More" button.
             # Prefer a link that seems to go to a sub-page for this alert.
             item_specific_url = None
@@ -144,7 +144,7 @@ def process_new_jersey_cyber_breaches():
                 small_text_muted = card.find('small', class_='text-muted')
                 if small_text_muted:
                     date_str = small_text_muted.get_text(strip=True)
-            
+
             # Sometimes date is part of a general <p class="card-text">
             if not date_str:
                 card_text_p = card.find('p', class_='card-text')
@@ -159,13 +159,13 @@ def process_new_jersey_cyber_breaches():
                 logger.warning(f"Skipping item #{item_idx+1} due to missing Organization Name. URL: {item_specific_url if item_specific_url else 'N/A'}")
                 skipped_count += 1
                 continue
-            
+
             publication_date_iso = parse_date_flexible_nj(date_str)
             if not publication_date_iso:
                 logger.warning(f"Skipping '{org_name}' due to unparsable or missing date: '{date_str}'. URL: {item_specific_url}")
                 skipped_count +=1
                 continue
-            
+
             # Summary text can be from <p class="card-text"> (if not used for date)
             summary = ""
             summary_p = card.find('p', class_='card-text')
@@ -207,7 +207,7 @@ def process_new_jersey_cyber_breaches():
                 "raw_data_json": raw_data_json,
                 "tags_keywords": list(set(tags))
             }
-            
+
             # TODO: Implement check for existing record before inserting (e.g., by item_url or title+date)
 
             insert_response = supabase_client.insert_item(**item_data)
@@ -225,7 +225,7 @@ def process_new_jersey_cyber_breaches():
 
 if __name__ == "__main__":
     logger.info("New Jersey Cybersecurity Data Breach Alert Scraper Started")
-    
+
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
@@ -234,5 +234,5 @@ if __name__ == "__main__":
     else:
         logger.info("Supabase environment variables seem to be set.")
         process_new_jersey_cyber_breaches()
-        
+
     logger.info("New Jersey Cybersecurity Data Breach Alert Scraper Finished")

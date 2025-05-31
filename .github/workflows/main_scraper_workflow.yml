@@ -111,7 +111,7 @@ jobs:
         run: python scrapers/fetch_me_ag.py
 
   state-ag-group-3:
-    name: "State AG Group 3 (MA, MT, NJ)"
+    name: "State AG Group 3 (MA, MT)"
     runs-on: ubuntu-latest
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -140,10 +140,6 @@ jobs:
         run: sleep 10
       - name: Run Montana AG Scraper
         run: python scrapers/fetch_mt_ag.py
-      - name: Wait between scrapers
-        run: sleep 10
-      - name: Run New Jersey Cybersecurity Scraper
-        run: python scrapers/fetch_nj_ag.py
 
   state-ag-group-4:
     name: "State AG Group 4 (ND, OK, VT, WI, TX)"
@@ -219,7 +215,7 @@ jobs:
   # ============================================================================
 
   problematic-scrapers:
-    name: "Problematic Scrapers (MD, NH)"
+    name: "Problematic Scrapers (MD, NH, NJ)"
     runs-on: ubuntu-latest
     continue-on-error: true # Don't fail the workflow if these scrapers fail
     env:
@@ -248,6 +244,12 @@ jobs:
         run: |
           echo "⚠️ Running New Hampshire AG scraper - blocked by WAF protection"
           python scrapers/fetch_nh_ag.py || echo "❌ New Hampshire AG scraper failed as expected (WAF blocked)"
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run New Jersey Cybersecurity Scraper (Incapsula WAF Protected)
+        run: |
+          echo "⚠️ Running New Jersey Cybersecurity scraper - blocked by Incapsula WAF protection"
+          python scrapers/fetch_nj_ag.py || echo "❌ New Jersey Cybersecurity scraper failed as expected (Incapsula WAF blocked)"
 
   # ============================================================================
   # SUMMARY JOB - Waits for all parallel jobs to complete
@@ -265,10 +267,10 @@ jobs:
           echo "Government & Federal: ${{ needs.government-scrapers.result }}"
           echo "State AG Group 1 (DE,CA,WA,HI): ${{ needs.state-ag-group-1.result }}"
           echo "State AG Group 2 (IN,IA,ME): ${{ needs.state-ag-group-2.result }}"
-          echo "State AG Group 3 (MA,MT,NJ): ${{ needs.state-ag-group-3.result }}"
+          echo "State AG Group 3 (MA,MT): ${{ needs.state-ag-group-3.result }}"
           echo "State AG Group 4 (ND,OK,VT,WI,TX): ${{ needs.state-ag-group-4.result }}"
           echo "News & API Scrapers: ${{ needs.news-and-api-scrapers.result }}"
-          echo "Problematic Scrapers (MD,NH): ${{ needs.problematic-scrapers.result }}"
+          echo "Problematic Scrapers (MD,NH,NJ): ${{ needs.problematic-scrapers.result }}"
           echo "================================="
 
           # Count successful jobs (excluding problematic scrapers from main count)
@@ -288,7 +290,7 @@ jobs:
           if [[ "${{ needs.problematic-scrapers.result }}" == "success" ]]; then
             echo "🔧 Problematic scrapers: Unexpectedly succeeded!"
           else
-            echo "⚠️ Problematic scrapers: Failed as expected (Maryland AG has website issues, New Hampshire AG blocked by WAF)"
+            echo "⚠️ Problematic scrapers: Failed as expected (Maryland AG has website issues, New Hampshire AG and New Jersey Cybersecurity blocked by WAF)"
           fi
 
           if [ $success_count -eq $total_count ]; then
