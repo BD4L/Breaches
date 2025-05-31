@@ -37,10 +37,10 @@ This document tracks the implementation status and quality of scraping logic for
 | **Indiana** | Indiana AG | 🟢 EXCELLENT | Enhanced 3-tier data structure, 2025 PDF table parsing, comprehensive field mapping | Recently enhanced with 2025-focused processing |
 | **Iowa** | Iowa AG | 🟢 EXCELLENT | Enhanced 2025-focused scraper with 3-tier data structure, comprehensive field mapping, PDF analysis | Recently enhanced with 2025-specific processing |
 | **Maine** | Maine AG | 🟢 EXCELLENT | Enhanced list-based scraper with individual page processing and 3-tier data structure | Recently enhanced with comprehensive field mapping |
-| **Maryland** | Maryland AG | 🟠 BASIC | Foreign key fixed, may have page structure issues | Needs verification |
+| **Maryland** | Maryland AG | ❌ NOT WORKING | Website cannot be scraped, needs alternative implementation | Blocked/inaccessible |
 | **Massachusetts** | Massachusetts AG | 🟠 BASIC | Better headers, but may still get 403 errors | Partially fixed |
 | **Montana** | Montana AG | 🟠 BASIC | Foreign key fixed | Needs verification |
-| **New Hampshire** | New Hampshire AG | 🟠 BASIC | Foreign key fixed | Needs verification |
+| **New Hampshire** | New Hampshire AG | ❌ NOT WORKING | Enhanced scraper implemented but blocked by WAF protection, Firebase fallback also blocked | Needs alternative access method |
 | **New Jersey** | New Jersey Cybersecurity | 🟠 BASIC | Foreign key fixed | Needs verification |
 | **North Dakota** | North Dakota AG | 🟠 BASIC | Foreign key fixed | Needs verification |
 | **Oklahoma** | Oklahoma Cybersecurity | 🟠 BASIC | Foreign key fixed | Needs verification |
@@ -80,7 +80,7 @@ This document tracks the implementation status and quality of scraping logic for
 
 ### 🚀 Next to Enhance (High Priority)
 1. **Texas AG** - NEW: Direct portal scraper needed for Salesforce-based system
-2. **Massachusetts AG** - Fix 403 errors
+2. **Massachusetts AG** - Fix 403 errors (similar WAF protection issue - may need Firebase approach)
 3. **Wisconsin DATCP** - Verify recent fixes
 
 ### 🔧 Needs Investigation (Medium Priority)
@@ -131,6 +131,40 @@ This document tracks the implementation status and quality of scraping logic for
 ---
 
 ## 🔄 Recent Updates
+
+### 2025-01-29
+- ⚠️ **New Hampshire AG scraper enhancement blocked by WAF protection**
+- ✅ Completely rewrote scraper using comprehensive PDF analysis patterns from 8+ recent breach notifications
+- ✅ Implemented 3-tier data structure following established pattern
+- ✅ Added robust HTML parsing for modern NH AG portal structure with pagination support
+- ✅ Enhanced PDF analysis with comprehensive regex patterns for NH residents count extraction
+- ✅ Implemented multi-format breach date extraction (ranges, single dates, discovery dates)
+- ✅ Added comprehensive "what was leaked" information extraction from PDF sections
+- ✅ Enhanced field mapping with all standardized breach fields
+- ✅ Implemented 2025+ date filtering as requested (only current breaches)
+- ✅ Added processing modes (BASIC, ENHANCED, FULL) with PDF analysis framework
+- ✅ Enhanced error handling with fallback mechanisms for PDF parsing failures
+- ✅ Added incident UID generation using organization name and date
+- ✅ Implemented dual PDF extraction (pdfplumber + PyPDF2 fallback)
+- ✅ Added comprehensive logging and processing statistics
+- ✅ Updated correct NH AG portal URL (citizens/consumer-protection-antitrust-bureau/security-breach-notifications)
+- ✅ Added GitHub Actions optimization with configurable page limits
+- ✅ Implemented advanced WAF bypass techniques with session management and referrer headers
+- ✅ Added full browser headers with Chrome-like TLS fingerprint simulation
+- ✅ Implemented persistent session with cookie reuse and connection pooling
+- ✅ Added smart delays with randomization (1.5-4s base, exponential backoff)
+- ✅ Implemented session warmup sequence visiting related pages
+- ✅ Added advanced retry logic with 403/429 specific handling
+- ✅ Implemented header variation to avoid fingerprinting detection
+- ✅ **Attempted Firebase fallback for WAF bypass**
+- ✅ Added direct PDF discovery using known patterns and search methods
+- ✅ Implemented hybrid approach: Firebase for discovery + direct access for PDFs
+- ✅ Added comprehensive breach info extraction from PDF slugs
+- ✅ Enhanced date filtering and processing pipeline
+- ❌ **Firebase fallback also blocked by WAF protection**
+- ❌ **Marked New Hampshire AG as NOT WORKING due to comprehensive WAF blocking**
+- ❌ **Marked Maryland AG as NOT WORKING due to website inaccessibility**
+- 🎯 **Status**: Enhanced scraper ready but blocked by enterprise-grade WAF protection
 
 ### 2025-05-29
 - ✅ **Enhanced Maine AG scraper to EXCELLENT status**
@@ -248,8 +282,9 @@ This document tracks the implementation status and quality of scraping logic for
 - **Total Sources**: 36 configured (Privacy Rights Clearinghouse removed)
 - **Fully Implemented (EXCELLENT)**: 9 (SEC, Delaware AG, HHS OCR, California AG, Washington AG, Hawaii AG, Indiana AG, Iowa AG, Maine AG)
 - **Good Implementation**: 2 sources
-- **Basic Implementation**: 12 sources
-- **Needs Work**: 14 sources
+- **Basic Implementation**: 10 sources
+- **Not Working**: 2 sources (New Hampshire AG, Maryland AG)
+- **Needs Work**: 12 sources
 - **Not Implemented**: 1 source (Texas AG - new direct portal)
 
 **Target**: Achieve "Good" or better implementation for all high-volume sources (major state AGs, federal sources) by Q2 2025.
