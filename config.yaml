@@ -29,6 +29,33 @@ cybersecurity_news_feeds:
   - name: "Reddit r/databreaches"
     url: "https://www.reddit.com/r/databreaches.rss"
     source_id: 29
+  - name: "Security Magazine Cybersecurity"
+    url: "https://www.securitymagazine.com/rss/topic/2236-cybersecurity-news"
+    source_id: 40
+  - name: "CISA News"
+    url: "https://www.cisa.gov/news.xml"
+    source_id: 41
+  - name: "CISA Cybersecurity Alerts"
+    url: "https://www.cisa.gov/cybersecurity-advisories/all.xml"
+    source_id: 42
+  - name: "DataBreachToday.com"
+    url: "http://feeds.feedburner.com/databreachtoday/com"
+    source_id: 43
+  - name: "HealthcareInfoSecurity.com"
+    url: "http://feeds.feedburner.com/healthcareinfosecurity/com"
+    source_id: 44
+  - name: "BankInfoSecurity.com"
+    url: "http://feeds.feedburner.com/bankinfosecurity/com"
+    source_id: 45
+  - name: "InfoRiskToday.com"
+    url: "http://feeds.feedburner.com/inforisktoday/com"
+    source_id: 46
+  - name: "Have I Been Pwned - Latest Breaches"
+    url: "http://feeds.feedburner.com/HaveIBeenPwnedLatestBreaches"
+    source_id: 47
+  - name: "SANS Internet Storm Center"
+    url: "https://isc.sans.edu/rssfeed.xml"
+    source_id: 48
 
 company_ir_sites:
   - name: "Microsoft IR"

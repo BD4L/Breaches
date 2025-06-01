@@ -8,7 +8,8 @@ from urllib.parse import urljoin
 from dateutil import parser as dateutil_parser
 import time # For converting time_struct to datetime
 
-import yaml # For loading config
+import yaml
+from .breach_intelligence import process_breach_intelligence # For loading config
 
 # Assuming SupabaseClient is in utils.supabase_client
 try:
@@ -27,8 +28,19 @@ CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
 
 # Headers for feedparser/requests. Some feeds might require a User-Agent.
 REQUEST_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate',
+    'Connection': 'keep-alive'
 }
+
+# Configuration
+FILTER_DAYS_BACK = int(os.environ.get("NEWS_FILTER_DAYS_BACK", "7"))  # Only process news from last N days
+MAX_ITEMS_PER_FEED = int(os.environ.get("NEWS_MAX_ITEMS_PER_FEED", "50"))  # Limit items per feed
+PROCESSING_MODE = os.environ.get("NEWS_PROCESSING_MODE", "ENHANCED")  # BASIC, ENHANCED
+BREACH_INTELLIGENCE_ENABLED = os.environ.get("BREACH_INTELLIGENCE_ENABLED", "true").lower() == "true"
+BREACH_CONFIDENCE_THRESHOLD = float(os.environ.get("BREACH_CONFIDENCE_THRESHOLD", "0.3"))  # Minimum confidence for breach detection
 
 def clean_html(html_content: str, max_length: int = 500) -> str:
     """Strips HTML from a string and truncates it."""
@@ -66,13 +78,72 @@ def parse_feed_date(entry) -> str | None:
             return None
     return None
 
+def fetch_feed_with_fallback(feed_url: str, feed_name: str) -> feedparser.FeedParserDict:
+    """
+    Fetch RSS feed with SSL fallback handling.
+    Returns parsed feed or empty feed on failure.
+    """
+    try:
+        # First try: Direct feedparser with user agent
+        parsed_feed = feedparser.parse(feed_url, agent=REQUEST_HEADERS['User-Agent'])
+
+        # Check if we got entries or if there was an SSL error
+        if parsed_feed.entries or not parsed_feed.bozo:
+            return parsed_feed
+
+        # If bozo bit is set and it's an SSL error, try with requests
+        if parsed_feed.bozo and 'SSL' in str(parsed_feed.bozo_exception):
+            logger.info(f"SSL error for {feed_name}, trying with requests fallback...")
+
+            # Try with requests and custom headers
+            response = requests.get(feed_url, headers=REQUEST_HEADERS, timeout=30, verify=False)
+            response.raise_for_status()
+
+            # Parse the content with feedparser
+            parsed_feed = feedparser.parse(response.content)
+            return parsed_feed
+
+    except requests.exceptions.SSLError:
+        logger.warning(f"SSL error for {feed_name}, trying without SSL verification...")
+        try:
+            response = requests.get(feed_url, headers=REQUEST_HEADERS, timeout=30, verify=False)
+            response.raise_for_status()
+            parsed_feed = feedparser.parse(response.content)
+            return parsed_feed
+        except Exception as e:
+            logger.error(f"Failed to fetch {feed_name} even without SSL verification: {e}")
+    except Exception as e:
+        logger.error(f"Error fetching feed {feed_name}: {e}")
+
+    # Return empty feed on failure
+    empty_feed = feedparser.FeedParserDict()
+    empty_feed.entries = []
+    empty_feed.bozo = False
+    return empty_feed
+
+def should_process_news_item(publication_date_iso: str) -> bool:
+    """
+    Check if news item should be processed based on date filtering.
+    """
+    if not publication_date_iso or FILTER_DAYS_BACK <= 0:
+        return True
+
+    try:
+        from datetime import timedelta
+        cutoff_date = datetime.now() - timedelta(days=FILTER_DAYS_BACK)
+        item_date = dateutil_parser.parse(publication_date_iso)
+        return item_date.replace(tzinfo=None) >= cutoff_date
+    except (ValueError, TypeError):
+        # If date parsing fails, include the item
+        return True
 
 def process_cybersecurity_news_feeds():
     """
     Fetches and processes cybersecurity news from various RSS/Atom feeds,
-    and inserts relevant data into Supabase.
+    and inserts relevant data into Supabase with enhanced error handling and duplicate detection.
     """
     logger.info("Starting Cybersecurity News Feed processing...")
+    logger.info(f"Configuration: Filter last {FILTER_DAYS_BACK} days, Max {MAX_ITEMS_PER_FEED} items per feed, Mode: {PROCESSING_MODE}")
 
     try:
         with open(CONFIG_FILE_PATH, 'r') as f:
@@ -90,7 +161,6 @@ def process_cybersecurity_news_feeds():
     except Exception as e_conf:
         logger.error(f"An unexpected error occurred while loading configuration: {e_conf}")
         return
-
 
     supabase_client = None
     try:
@@ -114,15 +184,8 @@ def process_cybersecurity_news_feeds():
         
         logger.info(f"Processing feed: {feed_name} from {feed_url}")
 
-        try:
-            # Use feedparser's ability to handle User-Agent via its etag/modified mechanism's underlying urllib usage
-            # or requests if we were fetching manually first. For now, direct parse.
-            # Some feeds might be sensitive to User-Agent. feedparser itself sets one.
-            # If issues, could fetch with requests(headers=REQUEST_HEADERS) then feedparser.parse(response.content)
-            parsed_feed = feedparser.parse(feed_url, agent=REQUEST_HEADERS['User-Agent'])
-        except Exception as e: # Broad exception for any feedparser or underlying network errors
-            logger.error(f"Error fetching or parsing feed {feed_name} ({feed_url}): {e}", exc_info=True)
-            continue # Skip to next feed
+        # Use enhanced feed fetching with SSL fallback
+        parsed_feed = fetch_feed_with_fallback(feed_url, feed_name)
 
         if parsed_feed.bozo: # Indicates potential issues with the feed (e.g. not well-formed XML)
             logger.warning(f"Feed {feed_name} ({feed_url}) may be ill-formed. Bozo bit set. Exception: {parsed_feed.bozo_exception}")
@@ -140,7 +203,10 @@ def process_cybersecurity_news_feeds():
         feed_processed_count = 0
         feed_skipped_count = 0
 
-        for entry in parsed_feed.entries:
+        # Limit entries per feed for performance
+        entries_to_process = parsed_feed.entries[:MAX_ITEMS_PER_FEED] if MAX_ITEMS_PER_FEED > 0 else parsed_feed.entries
+
+        for entry in entries_to_process:
             feed_processed_count += 1
             try:
                 title = entry.get("title", "No Title Provided")
@@ -154,13 +220,62 @@ def process_cybersecurity_news_feeds():
                 publication_date_iso = parse_feed_date(entry)
                 if not publication_date_iso: # Try to use current time if no date found, or skip
                     logger.warning(f"No parsable publication date found for entry '{title}' in {feed_name}. Using current time as fallback.")
-                    publication_date_iso = datetime.utcnow().isoformat() 
+                    publication_date_iso = datetime.now().isoformat()
                     # Alternatively, skip:
                     # feed_skipped_count += 1
                     # continue
 
+                # Check if item already exists in database (duplicate detection)
+                if supabase_client.check_item_exists(item_url):
+                    logger.debug(f"Item '{title}' already exists in database. Skipping.")
+                    feed_skipped_count += 1
+                    continue
+
+                # Apply date filtering
+                if not should_process_news_item(publication_date_iso):
+                    logger.debug(f"Skipping '{title}' - outside date filter range (older than {FILTER_DAYS_BACK} days)")
+                    feed_skipped_count += 1
+                    continue
+
                 summary_html = entry.get("summary") or entry.get("description") # 'description' is common in RSS 2.0
                 summary_text = clean_html(summary_html, max_length=1000) # Longer max_length for news summaries
+
+                # Get full content if available
+                full_content = ""
+                if entry.get("content"):
+                    full_content = clean_html(entry.get("content", [{}])[0].get("value", ""), max_length=5000)
+
+                # Process breach intelligence if enabled
+                breach_data = {}
+                if BREACH_INTELLIGENCE_ENABLED and PROCESSING_MODE == "ENHANCED":
+                    try:
+                        breach_intelligence = process_breach_intelligence(
+                            title=title,
+                            content=full_content or "",
+                            summary=summary_text or "",
+                            item_url=item_url
+                        )
+
+                        # Only include breach data if confidence meets threshold
+                        if breach_intelligence.get('is_breach_related') and breach_intelligence.get('confidence_score', 0) >= BREACH_CONFIDENCE_THRESHOLD:
+                            breach_data = {
+                                'is_cybersecurity_related': True,
+                                'affected_individuals': breach_intelligence.get('affected_individuals'),
+                                'breach_date': breach_intelligence.get('breach_date'),
+                                'what_was_leaked': breach_intelligence.get('what_was_leaked'),
+                                'data_types_compromised': breach_intelligence.get('data_types_compromised'),
+                                'incident_nature_text': breach_intelligence.get('incident_nature_text'),
+                                'keywords_detected': breach_intelligence.get('detected_keywords'),
+                                'keyword_contexts': breach_intelligence.get('raw_intelligence', {}).get('keywords_context', {})
+                            }
+                            logger.info(f"🚨 BREACH DETECTED: {breach_intelligence.get('organization_name', 'Unknown')} - Confidence: {breach_intelligence.get('confidence_score', 0):.2f}")
+                        else:
+                            # Still mark as cybersecurity related even if not a breach
+                            breach_data['is_cybersecurity_related'] = breach_intelligence.get('is_breach_related', False)
+
+                    except Exception as e:
+                        logger.error(f"Error processing breach intelligence for '{title}': {e}")
+                        breach_data = {'is_cybersecurity_related': False}
 
                 # Prepare raw_data_json
                 raw_data = {
@@ -188,17 +303,16 @@ def process_cybersecurity_news_feeds():
                     "title": title,
                     "publication_date": publication_date_iso,
                     "summary_text": summary_text,
+                    "full_content": full_content if full_content else None,
                     "raw_data_json": raw_data_json if raw_data_json else None, # Ensure it's None if empty
                     "tags_keywords": tags
                 }
-                
-                # TODO: Implement check for existing record before inserting (e.g., by item_url)
-                # exists = supabase_client.client.table("scraped_items").select("id").eq("item_url", item_url).execute()
-                # if exists.data:
-                #    logger.info(f"Item '{title}' from {feed_name} already exists. Skipping.")
-                #    feed_skipped_count += 1
-                #    continue
 
+                # Merge breach intelligence data if available
+                if breach_data:
+                    item_data.update(breach_data)
+                
+                # Duplicate detection is now handled above before processing
                 insert_response = supabase_client.insert_item(**item_data)
                 if insert_response:
                     # logger.debug(f"Successfully inserted item '{title}' from {feed_name}. URL: {item_url}")
