@@ -396,6 +396,10 @@ export async function getSourceTypeCounts() {
   if (error) throw error
 
   console.log('📊 Raw source type data from database:', data.slice(0, 10))
+  console.log('📊 Total records by source type:', data.reduce((acc, item) => {
+    acc[item.source_type] = (acc[item.source_type] || 0) + 1
+    return acc
+  }, {} as Record<string, number>))
 
   // Map raw source types to new categorization with appropriate terminology
   const typeMapping: Record<string, {category: string, itemType: string}> = {
@@ -413,6 +417,8 @@ export async function getSourceTypeCounts() {
     const rawType = item.source_type
     const mapping = typeMapping[rawType]
 
+    console.log(`Processing: ${rawType} -> ${mapping ? mapping.category : 'UNMAPPED'}`)
+
     // Skip API and unknown types
     if (mapping && rawType !== 'API') {
       acc[mapping.category] = (acc[mapping.category] || 0) + 1
@@ -421,7 +427,7 @@ export async function getSourceTypeCounts() {
     return acc
   }, {} as Record<string, number>)
 
-  console.log('📈 Mapped source type counts:', counts)
+  console.log('📈 Final mapped source type counts:', counts)
 
   return counts
 }
