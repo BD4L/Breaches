@@ -19,6 +19,7 @@ interface BreachTableProps {
   filters: {
     search: string
     sourceTypes: string[]
+    selectedSources: number[]
     minAffected: number
     scrapedDateRange: string
     breachDateRange: string
@@ -182,6 +183,7 @@ export function BreachTable({ filters }: BreachTableProps) {
           page: currentPage,
           limit: pageSize,
           sourceTypes: filters.sourceTypes,
+          selectedSources: filters.selectedSources,
           minAffected: filters.minAffected,
           search: filters.search,
           sortBy,

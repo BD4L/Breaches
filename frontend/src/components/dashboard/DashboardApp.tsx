@@ -9,6 +9,7 @@ import { Button } from '../ui/Button'
 interface Filters {
   search: string
   sourceTypes: string[]
+  selectedSources: number[]
   minAffected: number
   scrapedDateRange: string
   breachDateRange: string
@@ -19,6 +20,7 @@ export function DashboardApp() {
   const [filters, setFilters] = useState<Filters>({
     search: '',
     sourceTypes: [],
+    selectedSources: [],
     minAffected: 0,
     scrapedDateRange: '',
     breachDateRange: '',

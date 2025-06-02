@@ -69,6 +69,7 @@ export async function getBreaches(params: {
   page?: number
   limit?: number
   sourceTypes?: string[]
+  selectedSources?: number[]
   minAffected?: number
   search?: string
   sortBy?: string
@@ -81,6 +82,7 @@ export async function getBreaches(params: {
     page = 0,
     limit = 50,
     sourceTypes = [],
+    selectedSources = [],
     minAffected = 0,
     search = '',
     sortBy = 'publication_date',
@@ -96,7 +98,30 @@ export async function getBreaches(params: {
 
   // Apply filters
   if (sourceTypes.length > 0) {
-    query = query.in('source_type', sourceTypes)
+    // Map source types to the new categorization for filtering
+    const typeMapping: Record<string, string[]> = {
+      'State AG Sites': ['State AG', 'State Cybersecurity', 'State Agency'],
+      'Government Portals': ['Government Portal'],
+      'RSS News Feeds': ['News Feed'],
+      'Specialized Breach Sites': ['Breach Database'],
+      'Company IR Sites': ['Company IR']
+    }
+
+    const mappedTypes: string[] = []
+    sourceTypes.forEach(type => {
+      if (typeMapping[type]) {
+        mappedTypes.push(...typeMapping[type])
+      }
+    })
+
+    if (mappedTypes.length > 0) {
+      query = query.in('source_type', mappedTypes)
+    }
+  }
+
+  // Apply specific source filtering (takes precedence over source types)
+  if (selectedSources.length > 0) {
+    query = query.in('source_id', selectedSources)
   }
 
   if (minAffected > 0) {
@@ -244,9 +269,82 @@ export async function getSourceTypes() {
 
   if (error) throw error
 
-  // Get unique source types
-  const uniqueTypes = [...new Set(data.map(item => item.type))]
+  // Map to new categorization and remove API
+  const typeMapping: Record<string, string> = {
+    'State AG': 'State AG Sites',
+    'Government Portal': 'Government Portals',
+    'News Feed': 'RSS News Feeds',
+    'Breach Database': 'Specialized Breach Sites',
+    'Company IR': 'Company IR Sites',
+    'State Cybersecurity': 'State AG Sites', // Group with State AG
+    'State Agency': 'State AG Sites' // Group with State AG
+  }
+
+  const mappedTypes = data
+    .map(item => typeMapping[item.type] || item.type)
+    .filter(type => type !== 'API') // Remove API category
+
+  const uniqueTypes = [...new Set(mappedTypes)]
   return uniqueTypes.filter(Boolean)
+}
+
+// Get sources by category for hierarchical filtering
+export async function getSourcesByCategory() {
+  const { data, error } = await supabase
+    .from('data_sources')
+    .select('id, name, type')
+    .not('type', 'is', null)
+
+  if (error) throw error
+
+  // Group sources by new categorization
+  const categories: Record<string, Array<{id: number, name: string, originalType: string}>> = {
+    'Government Portals': [],
+    'State AG Sites': [],
+    'RSS News Feeds': [],
+    'Specialized Breach Sites': [],
+    'Company IR Sites': []
+  }
+
+  data.forEach(source => {
+    let category = ''
+    switch (source.type) {
+      case 'State AG':
+      case 'State Cybersecurity':
+      case 'State Agency':
+        category = 'State AG Sites'
+        break
+      case 'Government Portal':
+        category = 'Government Portals'
+        break
+      case 'News Feed':
+        category = 'RSS News Feeds'
+        break
+      case 'Breach Database':
+        category = 'Specialized Breach Sites'
+        break
+      case 'Company IR':
+        category = 'Company IR Sites'
+        break
+      default:
+        return // Skip API and unknown types
+    }
+
+    if (categories[category]) {
+      categories[category].push({
+        id: source.id,
+        name: source.name,
+        originalType: source.type
+      })
+    }
+  })
+
+  // Sort sources within each category
+  Object.keys(categories).forEach(category => {
+    categories[category].sort((a, b) => a.name.localeCompare(b.name))
+  })
+
+  return categories
 }
 
 export async function getSourceTypeCounts() {

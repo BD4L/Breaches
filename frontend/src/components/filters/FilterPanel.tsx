@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react'
 import { Input } from '../ui/Input'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
-import { getSourceTypes, getSourceTypeCounts } from '../../lib/supabase'
+import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory } from '../../lib/supabase'
 import { getSourceTypeColor } from '../../lib/utils'
+import { SourceSelector } from './SourceSelector'
 
 interface FilterPanelProps {
   onFiltersChange: (filters: {
     search: string
     sourceTypes: string[]
+    selectedSources: number[]
     minAffected: number
   }) => void
 }
@@ -16,20 +18,33 @@ interface FilterPanelProps {
 export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
   const [search, setSearch] = useState('')
   const [selectedSourceTypes, setSelectedSourceTypes] = useState<string[]>([])
+  const [selectedSources, setSelectedSources] = useState<number[]>([])
   const [minAffected, setMinAffected] = useState(0)
   const [sourceTypes, setSourceTypes] = useState<string[]>([])
   const [sourceTypeCounts, setSourceTypeCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
+  const [showSourceSelector, setShowSourceSelector] = useState<string | null>(null)
+  const [sourcesByCategory, setSourcesByCategory] = useState<Record<string, Array<{id: number, name: string}>>>({})
+  const [sourceCounts, setSourceCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     async function loadFilterOptions() {
       try {
-        const [types, counts] = await Promise.all([
+        const [types, counts, sourcesByCategory] = await Promise.all([
           getSourceTypes(),
-          getSourceTypeCounts()
+          getSourceTypeCounts(),
+          getSourcesByCategory()
         ])
         setSourceTypes(types)
         setSourceTypeCounts(counts)
+        setSourcesByCategory(sourcesByCategory)
+
+        // Calculate source counts per category
+        const categorySourceCounts: Record<string, number> = {}
+        Object.keys(sourcesByCategory).forEach(category => {
+          categorySourceCounts[category] = sourcesByCategory[category].length
+        })
+        setSourceCounts(categorySourceCounts)
       } catch (error) {
         console.error('Error loading filter options:', error)
       } finally {
@@ -44,9 +59,10 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
     onFiltersChange({
       search,
       sourceTypes: selectedSourceTypes,
+      selectedSources,
       minAffected
     })
-  }, [search, selectedSourceTypes, minAffected, onFiltersChange])
+  }, [search, selectedSourceTypes, selectedSources, minAffected, onFiltersChange])
 
   const toggleSourceType = (type: string) => {
     setSelectedSourceTypes(prev =>
@@ -56,10 +72,35 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
     )
   }
 
+  const handleSourcesSelected = (category: string, sourceIds: number[]) => {
+    // Update selected sources for this category
+    const categorySourceIds = sourcesByCategory[category]?.map(s => s.id) || []
+    const otherSources = selectedSources.filter(id => !categorySourceIds.includes(id))
+    setSelectedSources([...otherSources, ...sourceIds])
+    setShowSourceSelector(null)
+  }
+
+  const getSelectedSourcesForCategory = (category: string): number[] => {
+    const categorySourceIds = sourcesByCategory[category]?.map(s => s.id) || []
+    return selectedSources.filter(id => categorySourceIds.includes(id))
+  }
+
   const clearFilters = () => {
     setSearch('')
     setSelectedSourceTypes([])
+    setSelectedSources([])
     setMinAffected(0)
+  }
+
+  const getCategoryIcon = (category: string): string => {
+    switch (category) {
+      case 'State AG Sites': return '🏛️'
+      case 'Government Portals': return '🏢'
+      case 'RSS News Feeds': return '📰'
+      case 'Specialized Breach Sites': return '🔍'
+      case 'Company IR Sites': return '💼'
+      default: return '📊'
+    }
   }
 
   const affectedThresholds = [
@@ -103,28 +144,53 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
           />
         </div>
 
-        {/* Source Types */}
+        {/* Source Categories */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            Source Types
+            Source Categories
           </label>
-          <div className="flex flex-wrap gap-2">
-            {sourceTypes.map(type => (
-              <button
-                key={type}
-                onClick={() => toggleSourceType(type)}
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  selectedSourceTypes.includes(type)
-                    ? 'bg-blue-600 text-white'
-                    : getSourceTypeColor(type)
-                } hover:opacity-80`}
-              >
-                {type}
-                <span className="ml-1 text-xs opacity-75">
-                  ({sourceTypeCounts[type] || 0})
-                </span>
-              </button>
-            ))}
+          <div className="space-y-3">
+            {sourceTypes.map(type => {
+              const selectedCount = getSelectedSourcesForCategory(type).length
+              const totalCount = sourceCounts[type] || 0
+              const isTypeSelected = selectedSourceTypes.includes(type)
+
+              return (
+                <div key={type} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => toggleSourceType(type)}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isTypeSelected
+                          ? 'bg-blue-600 text-white'
+                          : getSourceTypeColor(type)
+                      } hover:opacity-80`}
+                    >
+                      <span className="mr-2">{getCategoryIcon(type)}</span>
+                      {type}
+                      <span className="ml-2 text-xs opacity-75">
+                        ({sourceTypeCounts[type] || 0} breaches)
+                      </span>
+                    </button>
+
+                    {selectedCount > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        {selectedCount}/{totalCount} sources
+                      </Badge>
+                    )}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSourceSelector(type)}
+                    className="text-xs"
+                  >
+                    Select Sources ({totalCount})
+                  </Button>
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -151,7 +217,7 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
         </div>
 
         {/* Active Filters & Clear */}
-        {(search || selectedSourceTypes.length > 0 || minAffected > 0) && (
+        {(search || selectedSourceTypes.length > 0 || selectedSources.length > 0 || minAffected > 0) && (
           <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap gap-2">
               {search && (
@@ -164,6 +230,11 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
                   {type}
                 </Badge>
               ))}
+              {selectedSources.length > 0 && (
+                <Badge variant="outline">
+                  {selectedSources.length} specific sources
+                </Badge>
+              )}
               {minAffected > 0 && (
                 <Badge variant="outline">
                   Min: {minAffected.toLocaleString()}+
@@ -176,6 +247,16 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
           </div>
         )}
       </div>
+
+      {/* Source Selector Modal */}
+      {showSourceSelector && (
+        <SourceSelector
+          category={showSourceSelector}
+          onClose={() => setShowSourceSelector(null)}
+          onSourcesSelected={(sourceIds) => handleSourcesSelected(showSourceSelector, sourceIds)}
+          selectedSources={getSelectedSourcesForCategory(showSourceSelector)}
+        />
+      )}
     </div>
   )
 }
