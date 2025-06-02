@@ -389,17 +389,32 @@ export async function getSourcesByCategory() {
 }
 
 export async function getSourceTypeCounts() {
+  console.log('🔍 getSourceTypeCounts called')
+
   const { data, error } = await supabase
     .from('v_breach_dashboard')
     .select('source_type')
 
-  if (error) throw error
+  if (error) {
+    console.error('❌ Supabase error in getSourceTypeCounts:', error)
+    throw error
+  }
+
+  console.log('📊 Total records fetched:', data?.length || 0)
+  console.log('📊 First 5 records:', data?.slice(0, 5))
+
+  if (!data || data.length === 0) {
+    console.warn('⚠️ No data returned from v_breach_dashboard')
+    return {}
+  }
 
   // Simple count of entries by source type
   const rawCounts = data.reduce((acc, item) => {
     acc[item.source_type] = (acc[item.source_type] || 0) + 1
     return acc
   }, {} as Record<string, number>)
+
+  console.log('📊 Raw source type counts:', rawCounts)
 
   // Map to display categories
   const categoryMapping: Record<string, string> = {
@@ -417,13 +432,13 @@ export async function getSourceTypeCounts() {
 
   Object.entries(rawCounts).forEach(([sourceType, count]) => {
     const category = categoryMapping[sourceType]
+    console.log(`Mapping: ${sourceType} (${count}) -> ${category}`)
     if (category) {
       categoryCounts[category] = (categoryCounts[category] || 0) + count
     }
   })
 
-  console.log('📊 Raw counts:', rawCounts)
-  console.log('📈 Category counts:', categoryCounts)
+  console.log('📈 Final category counts:', categoryCounts)
 
   return categoryCounts
 }
