@@ -4,6 +4,7 @@ import { DateFilter } from '../filters/DateFilter'
 import { BreachTable } from './BreachTable'
 import { ScraperControl } from './ScraperControl'
 import { SourceSummary } from './SourceSummary'
+import { NonWorkingSites } from './NonWorkingSites'
 import { Button } from '../ui/Button'
 
 interface Filters {
@@ -28,6 +29,7 @@ export function DashboardApp() {
   })
   const [showScraperControl, setShowScraperControl] = useState(false)
   const [showSourceSummary, setShowSourceSummary] = useState(false)
+  const [showNonWorkingSites, setShowNonWorkingSites] = useState(false)
 
   const handleFiltersChange = useCallback((newFilters: Partial<Filters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }))
@@ -59,6 +61,13 @@ export function DashboardApp() {
           >
             📊 Source Summary
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowNonWorkingSites(true)}
+            className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+          >
+            ⚠️ Non-Working Sites
+          </Button>
           <Button variant="outline" size="sm">
             📤 Export Data
           </Button>
@@ -87,6 +96,10 @@ export function DashboardApp() {
 
       {showSourceSummary && (
         <SourceSummary onClose={() => setShowSourceSummary(false)} />
+      )}
+
+      {showNonWorkingSites && (
+        <NonWorkingSites onClose={() => setShowNonWorkingSites(false)} />
       )}
     </div>
   )
