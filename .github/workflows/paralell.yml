@@ -4,6 +4,52 @@ on:
   schedule:
     - cron: '0 3 * * *' # Runs daily at 3 AM UTC
   workflow_dispatch: # Allows manual triggering
+    inputs:
+      run_government:
+        description: 'Run Government & Federal Scrapers'
+        required: false
+        default: true
+        type: boolean
+      run_state_ag_1:
+        description: 'Run State AG Group 1 (DE, CA, WA, HI)'
+        required: false
+        default: true
+        type: boolean
+      run_state_ag_2:
+        description: 'Run State AG Group 2 (IN, IA, ME)'
+        required: false
+        default: true
+        type: boolean
+      run_state_ag_3:
+        description: 'Run State AG Group 3 (MA, MT, NH, NJ)'
+        required: false
+        default: true
+        type: boolean
+      run_state_ag_4:
+        description: 'Run State AG Group 4 (ND, OK, VT, WI, TX)'
+        required: false
+        default: true
+        type: boolean
+      run_news_api:
+        description: 'Run News & API Scrapers'
+        required: false
+        default: true
+        type: boolean
+      run_problematic:
+        description: 'Run Problematic Scrapers (MD)'
+        required: false
+        default: true
+        type: boolean
+      scraping_frequency:
+        description: 'Set scraping frequency (for future scheduling)'
+        required: false
+        default: 'daily'
+        type: choice
+        options:
+          - 'daily'
+          - 'every-6-hours'
+          - 'every-12-hours'
+          - 'twice-daily'
 
 jobs:
   # ============================================================================
@@ -13,6 +59,7 @@ jobs:
   government-scrapers:
     name: "Government & Federal Scrapers"
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_government != 'false' }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -37,6 +84,7 @@ jobs:
   state-ag-group-1:
     name: "State AG Group 1 (DE, CA, WA, HI)"
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_state_ag_1 != 'false' }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -76,6 +124,7 @@ jobs:
   state-ag-group-2:
     name: "State AG Group 2 (IN, IA, ME)"
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_state_ag_2 != 'false' }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -113,6 +162,7 @@ jobs:
   state-ag-group-3:
     name: "State AG Group 3 (MA, MT, NH, NJ)"
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_state_ag_3 != 'false' }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -148,6 +198,7 @@ jobs:
   state-ag-group-4:
     name: "State AG Group 4 (ND, OK, VT, WI, TX)"
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_state_ag_4 != 'false' }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -185,6 +236,7 @@ jobs:
   news-and-api-scrapers:
     name: "News & API Scrapers"
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_news_api != 'false' }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -221,6 +273,7 @@ jobs:
   problematic-scrapers:
     name: "Problematic Scrapers (MD)"
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_problematic != 'false' }}
     continue-on-error: true # Don't fail the workflow if these scrapers fail
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { ScheduleManager } from './ScheduleManager'
+import { githubActions } from '../../lib/github-actions'
 
 interface ScraperGroup {
   id: string
@@ -125,9 +126,34 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
 
   const loadScraperStatus = async () => {
     try {
-      // In a real implementation, this would call GitHub Actions API
-      // For now, we'll use the default groups
-      setScraperGroups(defaultScraperGroups)
+      // Try to load real status from GitHub Actions API
+      const scraperStatus = await githubActions.getScraperStatus()
+
+      if (scraperStatus.length > 0) {
+        // Update default groups with real status
+        const updatedGroups = defaultScraperGroups.map(group => {
+          const matchingStatus = scraperStatus.find(status =>
+            status.workflow.toLowerCase().includes(group.id.replace('-', ' ')) ||
+            status.workflow.toLowerCase().includes('parallel') ||
+            status.workflow.toLowerCase().includes('scraper')
+          )
+
+          if (matchingStatus) {
+            return {
+              ...group,
+              status: matchingStatus.status === 'completed'
+                ? (matchingStatus.conclusion === 'success' ? 'success' : 'failed')
+                : matchingStatus.status === 'in_progress' ? 'running' : 'idle',
+              lastRun: matchingStatus.lastRun
+            }
+          }
+          return group
+        })
+        setScraperGroups(updatedGroups)
+      } else {
+        // Fallback to default groups if API fails
+        setScraperGroups(defaultScraperGroups)
+      }
     } catch (error) {
       console.error('Failed to load scraper status:', error)
       setScraperGroups(defaultScraperGroups)
@@ -138,52 +164,157 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
 
   const triggerWorkflow = async (groupId: string) => {
     setTriggering(groupId)
-    
+
     try {
-      // Map group IDs to workflow file names
-      const workflowMap: Record<string, string> = {
-        'government-scrapers': 'main_scraper_workflow.yml',
-        'state-ag-group-1': 'main_scraper_workflow.yml',
-        'state-ag-group-2': 'main_scraper_workflow.yml',
-        'state-ag-group-3': 'main_scraper_workflow.yml',
-        'state-ag-group-4': 'main_scraper_workflow.yml',
-        'news-and-api-scrapers': 'main_scraper_workflow.yml',
-        'massachusetts-ag-frequent': 'massachusetts_ag.yml',
-        'problematic-scrapers': 'main_scraper_workflow.yml'
+      let success = false
+
+      // Handle special cases and workflow triggering
+      switch (groupId) {
+        case 'all':
+          // Trigger the main parallel workflow with all groups enabled
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'true',
+            run_state_ag_1: 'true',
+            run_state_ag_2: 'true',
+            run_state_ag_3: 'true',
+            run_state_ag_4: 'true',
+            run_news_api: 'true',
+            run_problematic: 'true'
+          })
+          break
+        case 'government-portals':
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'true',
+            run_state_ag_1: 'false',
+            run_state_ag_2: 'false',
+            run_state_ag_3: 'false',
+            run_state_ag_4: 'false',
+            run_news_api: 'false',
+            run_problematic: 'false'
+          })
+          break
+        case 'state-ag-group-1':
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'false',
+            run_state_ag_1: 'true',
+            run_state_ag_2: 'false',
+            run_state_ag_3: 'false',
+            run_state_ag_4: 'false',
+            run_news_api: 'false',
+            run_problematic: 'false'
+          })
+          break
+        case 'state-ag-group-2':
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'false',
+            run_state_ag_1: 'false',
+            run_state_ag_2: 'true',
+            run_state_ag_3: 'false',
+            run_state_ag_4: 'false',
+            run_news_api: 'false',
+            run_problematic: 'false'
+          })
+          break
+        case 'state-ag-group-3':
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'false',
+            run_state_ag_1: 'false',
+            run_state_ag_2: 'false',
+            run_state_ag_3: 'true',
+            run_state_ag_4: 'false',
+            run_news_api: 'false',
+            run_problematic: 'false'
+          })
+          break
+        case 'state-ag-group-4':
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'false',
+            run_state_ag_1: 'false',
+            run_state_ag_2: 'false',
+            run_state_ag_3: 'false',
+            run_state_ag_4: 'true',
+            run_news_api: 'false',
+            run_problematic: 'false'
+          })
+          break
+        case 'rss-news-feeds':
+        case 'news-and-api-scrapers':
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'false',
+            run_state_ag_1: 'false',
+            run_state_ag_2: 'false',
+            run_state_ag_3: 'false',
+            run_state_ag_4: 'false',
+            run_news_api: 'true',
+            run_problematic: 'false'
+          })
+          break
+        case 'problematic-scrapers':
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'false',
+            run_state_ag_1: 'false',
+            run_state_ag_2: 'false',
+            run_state_ag_3: 'false',
+            run_state_ag_4: 'false',
+            run_news_api: 'false',
+            run_problematic: 'true'
+          })
+          break
+        case 'massachusetts-ag-frequent':
+          success = await githubActions.triggerMassachusettsAG()
+          break
+        case 'california-ag-special':
+          success = await githubActions.triggerCaliforniaAG()
+          break
+        case 'state-ag-all':
+          // Run all state AG groups
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
+            run_government: 'false',
+            run_state_ag_1: 'true',
+            run_state_ag_2: 'true',
+            run_state_ag_3: 'true',
+            run_state_ag_4: 'true',
+            run_news_api: 'false',
+            run_problematic: 'false'
+          })
+          break
+        default:
+          // Fallback to running all groups
+          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)')
+          break
       }
 
-      const workflowFile = workflowMap[groupId]
-      
-      // This would trigger the GitHub Actions workflow
-      // For demo purposes, we'll simulate the API call
-      console.log(`Triggering workflow: ${workflowFile} for group: ${groupId}`)
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Update status
-      setScraperGroups(prev => prev.map(group => 
-        group.id === groupId 
-          ? { ...group, status: 'running' as const, lastRun: new Date().toISOString() }
-          : group
-      ))
-      
-      // Simulate completion after 30 seconds
-      setTimeout(() => {
-        setScraperGroups(prev => prev.map(group => 
-          group.id === groupId 
-            ? { ...group, status: 'success' as const }
+      if (success) {
+        console.log(`Successfully triggered workflow for group: ${groupId}`)
+
+        // Update status to running
+        setScraperGroups(prev => prev.map(group =>
+          group.id === groupId || groupId === 'all'
+            ? { ...group, status: 'running' as const, lastRun: new Date().toISOString() }
             : group
         ))
-      }, 30000)
-      
+
+        // Reload status after a delay to get real updates
+        setTimeout(() => {
+          loadScraperStatus()
+        }, 10000)
+
+      } else {
+        throw new Error('Failed to trigger workflow')
+      }
+
     } catch (error) {
       console.error('Failed to trigger workflow:', error)
-      setScraperGroups(prev => prev.map(group => 
-        group.id === groupId 
+
+      // Show error status
+      setScraperGroups(prev => prev.map(group =>
+        group.id === groupId
           ? { ...group, status: 'failed' as const }
           : group
       ))
+
+      // Show user-friendly error message
+      alert(`Failed to trigger workflow: ${error instanceof Error ? error.message : 'Unknown error'}. Please check if GitHub token is configured.`)
     } finally {
       setTriggering(null)
     }
@@ -335,29 +466,43 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
         {/* Schedule Management */}
         <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-            📅 Schedule Management
+            📅 Schedule Management & Frequency Control
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Current schedules are managed via GitHub Actions workflows. To modify schedules:
+            Current schedules and manual frequency controls:
           </p>
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2 text-sm mb-4">
             <div className="flex items-center space-x-2">
               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-              <span>Main workflow: Daily at 3 AM UTC (all scraper groups)</span>
+              <span><strong>Main workflow:</strong> Daily at 3 AM UTC (all scraper groups)</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              <span>Massachusetts AG: Every 6 hours (high frequency)</span>
+              <span><strong>Massachusetts AG:</strong> Every 6 hours (high frequency)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+              <span><strong>Manual triggers:</strong> Available for all groups with selective execution</span>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => setShowScheduleManager(true)}
-          >
-            📝 Manage Schedules
-          </Button>
+
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowScheduleManager(true)}
+            >
+              📝 Manage Schedules
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => triggerWorkflow('all')}
+              disabled={!!triggering}
+            >
+              🔄 Run All Now
+            </Button>
+          </div>
         </div>
 
         {/* Schedule Manager Modal */}
