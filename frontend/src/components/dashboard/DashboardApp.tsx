@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { FilterPanel } from '../filters/FilterPanel'
 import { DateFilter } from '../filters/DateFilter'
+import { PresetFilters } from '../filters/PresetFilters'
 import { BreachTable } from './BreachTable'
 import { ScraperControl } from './ScraperControl'
 import { SourceSummary } from './SourceSummary'
@@ -41,6 +42,24 @@ export function DashboardApp() {
     setFilters(prev => ({ ...prev, ...dateFilters }))
   }, [])
 
+  const handlePresetApplied = useCallback((preset: {
+    name: string
+    sourceTypes: string[]
+    selectedSources: number[]
+    scrapedDateRange: string
+    breachDateRange: string
+    publicationDateRange: string
+  }) => {
+    setFilters(prev => ({
+      ...prev,
+      sourceTypes: preset.sourceTypes,
+      selectedSources: preset.selectedSources,
+      scrapedDateRange: preset.scrapedDateRange,
+      breachDateRange: preset.breachDateRange,
+      publicationDateRange: preset.publicationDateRange
+    }))
+  }, [])
+
   return (
     <div className="space-y-6">
       {/* Control Bar */}
@@ -71,11 +90,29 @@ export function DashboardApp() {
         </div>
       </div>
 
+      {/* Quick Preset Filters */}
+      <PresetFilters onPresetApplied={handlePresetApplied} />
+
       {/* Filters */}
-      <FilterPanel onFiltersChange={handleFiltersChange} />
+      <FilterPanel
+        onFiltersChange={handleFiltersChange}
+        externalFilters={{
+          search: filters.search,
+          sourceTypes: filters.sourceTypes,
+          selectedSources: filters.selectedSources,
+          minAffected: filters.minAffected
+        }}
+      />
 
       {/* Date Filters */}
-      <DateFilter onDateFilterChange={handleDateFilterChange} />
+      <DateFilter
+        onDateFilterChange={handleDateFilterChange}
+        externalFilters={{
+          scrapedDateRange: filters.scrapedDateRange,
+          breachDateRange: filters.breachDateRange,
+          publicationDateRange: filters.publicationDateRange
+        }}
+      />
 
       {/* Main Table */}
       <BreachTable filters={filters} />
