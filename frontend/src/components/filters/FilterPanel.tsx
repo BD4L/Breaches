@@ -24,7 +24,7 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
   const [sourceTypeCounts, setSourceTypeCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [showSourceSelector, setShowSourceSelector] = useState<string | null>(null)
-  const [sourcesByCategory, setSourcesByCategory] = useState<Record<string, Array<{id: number, name: string, breachCount: number}>>>({})
+  const [sourcesByCategory, setSourcesByCategory] = useState<Record<string, Array<{id: number, name: string, itemCount: number, itemType: string}>>>({})
   const [sourceCounts, setSourceCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
@@ -103,6 +103,17 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
     }
   }
 
+  const getCategoryItemType = (category: string): string => {
+    switch (category) {
+      case 'State AG Sites': return 'breaches'
+      case 'Government Portals': return 'breaches'
+      case 'RSS News Feeds': return 'articles'
+      case 'Specialized Breach Sites': return 'breaches'
+      case 'Company IR Sites': return 'reports'
+      default: return 'items'
+    }
+  }
+
   const affectedThresholds = [
     { label: 'Any', value: 0 },
     { label: '1K+', value: 1000 },
@@ -169,7 +180,7 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
                       <span className="mr-2">{getCategoryIcon(type)}</span>
                       {type}
                       <span className="ml-2 text-xs opacity-75">
-                        ({sourceTypeCounts[type] || 0} breaches)
+                        ({sourceTypeCounts[type] || 0} {getCategoryItemType(type)})
                       </span>
                     </button>
 

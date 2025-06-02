@@ -15,7 +15,8 @@ interface Source {
   id: number
   name: string
   originalType: string
-  breachCount: number
+  itemCount: number
+  itemType: string
 }
 
 export function SourceSelector({ category, onClose, onSourcesSelected, selectedSources }: SourceSelectorProps) {
@@ -76,6 +77,15 @@ export function SourceSelector({ category, onClose, onSourcesSelected, selectedS
     }
   }
 
+  const getBadgeColor = (itemType: string): string => {
+    switch (itemType) {
+      case 'breaches': return 'bg-red-100 text-red-800'
+      case 'articles': return 'bg-blue-100 text-blue-800'
+      case 'reports': return 'bg-green-100 text-green-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
   const getStateFromName = (name: string): string => {
     // Extract state abbreviation or name from source name
     const statePatterns = [
@@ -133,7 +143,7 @@ export function SourceSelector({ category, onClose, onSourcesSelected, selectedS
                 Select {category}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {sources.reduce((sum, source) => sum + source.breachCount, 0)} total breaches across {sources.length} sources
+                {sources.reduce((sum, source) => sum + source.itemCount, 0)} total {sources[0]?.itemType || 'items'} across {sources.length} sources
               </p>
             </div>
           </div>
@@ -196,7 +206,7 @@ export function SourceSelector({ category, onClose, onSourcesSelected, selectedS
                           {source.name}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          ID: {source.id} • Type: {source.originalType} • {source.breachCount} breach{source.breachCount !== 1 ? 'es' : ''}
+                          ID: {source.id} • Type: {source.originalType} • {source.itemCount} {source.itemType}
                         </div>
                       </div>
                     </div>
@@ -207,10 +217,10 @@ export function SourceSelector({ category, onClose, onSourcesSelected, selectedS
                         </Badge>
                       )}
                       <Badge
-                        variant={source.breachCount > 0 ? "default" : "secondary"}
-                        className={`text-xs ${source.breachCount > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'}`}
+                        variant={source.itemCount > 0 ? "default" : "secondary"}
+                        className={`text-xs ${source.itemCount > 0 ? getBadgeColor(source.itemType) : 'bg-gray-100 text-gray-600'}`}
                       >
-                        {source.breachCount} breach{source.breachCount !== 1 ? 'es' : ''}
+                        {source.itemCount} {source.itemType}
                       </Badge>
                       {isSelected && (
                         <Badge variant="default" className="text-xs bg-green-100 text-green-800">

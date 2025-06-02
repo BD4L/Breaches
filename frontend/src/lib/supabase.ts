@@ -323,7 +323,7 @@ export async function getSourcesByCategory() {
   console.log('📊 Source breach counts:', sourceBreachCounts)
 
   // Group sources by new categorization
-  const categories: Record<string, Array<{id: number, name: string, originalType: string, breachCount: number}>> = {
+  const categories: Record<string, Array<{id: number, name: string, originalType: string, itemCount: number, itemType: string}>> = {
     'Government Portals': [],
     'State AG Sites': [],
     'RSS News Feeds': [],
@@ -333,23 +333,30 @@ export async function getSourcesByCategory() {
 
   sourcesData.forEach(source => {
     let category = ''
+    let itemType = 'breaches' // Default for breach notification sources
+
     switch (source.type) {
       case 'State AG':
       case 'State Cybersecurity':
       case 'State Agency':
         category = 'State AG Sites'
+        itemType = 'breaches'
         break
       case 'Government Portal':
         category = 'Government Portals'
+        itemType = 'breaches'
         break
       case 'News Feed':
         category = 'RSS News Feeds'
+        itemType = 'articles'
         break
       case 'Breach Database':
         category = 'Specialized Breach Sites'
+        itemType = 'breaches'
         break
       case 'Company IR':
         category = 'Company IR Sites'
+        itemType = 'reports'
         break
       default:
         return // Skip API and unknown types
@@ -360,16 +367,17 @@ export async function getSourcesByCategory() {
         id: source.id,
         name: source.name,
         originalType: source.type,
-        breachCount: sourceBreachCounts[source.id] || 0
+        itemCount: sourceBreachCounts[source.id] || 0,
+        itemType: itemType
       })
     }
   })
 
-  // Sort sources within each category by breach count (descending), then by name
+  // Sort sources within each category by item count (descending), then by name
   Object.keys(categories).forEach(category => {
     categories[category].sort((a, b) => {
-      if (b.breachCount !== a.breachCount) {
-        return b.breachCount - a.breachCount // Sort by breach count first
+      if (b.itemCount !== a.itemCount) {
+        return b.itemCount - a.itemCount // Sort by item count first
       }
       return a.name.localeCompare(b.name) // Then by name
     })
@@ -389,25 +397,25 @@ export async function getSourceTypeCounts() {
 
   console.log('📊 Raw source type data from database:', data.slice(0, 10))
 
-  // Map raw source types to new categorization
-  const typeMapping: Record<string, string> = {
-    'State AG': 'State AG Sites',
-    'Government Portal': 'Government Portals',
-    'News Feed': 'RSS News Feeds',
-    'Breach Database': 'Specialized Breach Sites',
-    'Company IR': 'Company IR Sites',
-    'State Cybersecurity': 'State AG Sites', // Group with State AG
-    'State Agency': 'State AG Sites' // Group with State AG
+  // Map raw source types to new categorization with appropriate terminology
+  const typeMapping: Record<string, {category: string, itemType: string}> = {
+    'State AG': {category: 'State AG Sites', itemType: 'breaches'},
+    'Government Portal': {category: 'Government Portals', itemType: 'breaches'},
+    'News Feed': {category: 'RSS News Feeds', itemType: 'articles'},
+    'Breach Database': {category: 'Specialized Breach Sites', itemType: 'breaches'},
+    'Company IR': {category: 'Company IR Sites', itemType: 'reports'},
+    'State Cybersecurity': {category: 'State AG Sites', itemType: 'breaches'}, // Group with State AG
+    'State Agency': {category: 'State AG Sites', itemType: 'breaches'} // Group with State AG
   }
 
   // Count occurrences by new category (excluding API)
   const counts = data.reduce((acc, item) => {
     const rawType = item.source_type
-    const mappedType = typeMapping[rawType]
+    const mapping = typeMapping[rawType]
 
     // Skip API and unknown types
-    if (mappedType && rawType !== 'API') {
-      acc[mappedType] = (acc[mappedType] || 0) + 1
+    if (mapping && rawType !== 'API') {
+      acc[mapping.category] = (acc[mapping.category] || 0) + 1
     }
 
     return acc
