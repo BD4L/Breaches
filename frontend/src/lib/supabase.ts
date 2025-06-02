@@ -389,47 +389,65 @@ export async function getSourcesByCategory() {
 }
 
 export async function getSourceTypeCounts() {
-  const { data, error } = await supabase
-    .from('v_breach_dashboard')
-    .select('source_type')
+  try {
+    // Get ALL records without any filters to ensure accurate counts
+    const { data, error, count } = await supabase
+      .from('v_breach_dashboard')
+      .select('source_type', { count: 'exact' })
 
-  if (error) throw error
-
-  console.log('📊 Raw source type data from database:', data.slice(0, 10))
-  console.log('📊 Total records by source type:', data.reduce((acc, item) => {
-    acc[item.source_type] = (acc[item.source_type] || 0) + 1
-    return acc
-  }, {} as Record<string, number>))
-
-  // Map raw source types to new categorization with appropriate terminology
-  const typeMapping: Record<string, {category: string, itemType: string}> = {
-    'State AG': {category: 'State AG Sites', itemType: 'breaches'},
-    'Government Portal': {category: 'Government Portals', itemType: 'breaches'},
-    'News Feed': {category: 'RSS News Feeds', itemType: 'articles'},
-    'Breach Database': {category: 'Specialized Breach Sites', itemType: 'breaches'},
-    'Company IR': {category: 'Company IR Sites', itemType: 'reports'},
-    'State Cybersecurity': {category: 'State AG Sites', itemType: 'breaches'}, // Group with State AG
-    'State Agency': {category: 'State AG Sites', itemType: 'breaches'} // Group with State AG
-  }
-
-  // Count occurrences by new category (excluding API)
-  const counts = data.reduce((acc, item) => {
-    const rawType = item.source_type
-    const mapping = typeMapping[rawType]
-
-    console.log(`Processing: ${rawType} -> ${mapping ? mapping.category : 'UNMAPPED'}`)
-
-    // Skip API and unknown types
-    if (mapping && rawType !== 'API') {
-      acc[mapping.category] = (acc[mapping.category] || 0) + 1
+    if (error) {
+      console.error('❌ Error fetching source type counts:', error)
+      throw error
     }
 
-    return acc
-  }, {} as Record<string, number>)
+    console.log('📊 Total records fetched:', data?.length || 0, 'Expected count:', count)
+    console.log('📊 Raw source type data sample:', data?.slice(0, 5))
 
-  console.log('📈 Final mapped source type counts:', counts)
+    if (!data || data.length === 0) {
+      console.warn('⚠️ No data returned from v_breach_dashboard')
+      return {}
+    }
 
-  return counts
+    const rawCounts = data.reduce((acc, item) => {
+      acc[item.source_type] = (acc[item.source_type] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
+    console.log('📊 Raw source type counts:', rawCounts)
+
+    // Map raw source types to new categorization with appropriate terminology
+    const typeMapping: Record<string, {category: string, itemType: string}> = {
+      'State AG': {category: 'State AG Sites', itemType: 'breaches'},
+      'Government Portal': {category: 'Government Portals', itemType: 'breaches'},
+      'News Feed': {category: 'RSS News Feeds', itemType: 'articles'},
+      'Breach Database': {category: 'Specialized Breach Sites', itemType: 'breaches'},
+      'Company IR': {category: 'Company IR Sites', itemType: 'reports'},
+      'State Cybersecurity': {category: 'State AG Sites', itemType: 'breaches'}, // Group with State AG
+      'State Agency': {category: 'State AG Sites', itemType: 'breaches'} // Group with State AG
+    }
+
+    // Count occurrences by new category (excluding API)
+    const counts = data.reduce((acc, item) => {
+      const rawType = item.source_type
+      const mapping = typeMapping[rawType]
+
+      console.log(`Processing: ${rawType} -> ${mapping ? mapping.category : 'UNMAPPED'}`)
+
+      // Skip API and unknown types
+      if (mapping && rawType !== 'API') {
+        acc[mapping.category] = (acc[mapping.category] || 0) + 1
+      }
+
+      return acc
+    }, {} as Record<string, number>)
+
+    console.log('📈 Final mapped source type counts:', counts)
+
+    return counts
+  } catch (err) {
+    console.error('💥 Error in getSourceTypeCounts:', err)
+    return {}
+  }
 }
 
 export async function getDataTypes() {
