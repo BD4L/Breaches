@@ -298,17 +298,32 @@ export async function getSourceTypes() {
   return uniqueTypes.filter(Boolean)
 }
 
-// Get sources by category for hierarchical filtering
+// Get sources by category for hierarchical filtering with breach counts
 export async function getSourcesByCategory() {
-  const { data, error } = await supabase
+  const { data: sourcesData, error: sourcesError } = await supabase
     .from('data_sources')
     .select('id, name, type')
     .not('type', 'is', null)
 
-  if (error) throw error
+  if (sourcesError) throw sourcesError
+
+  // Get breach counts per source
+  const { data: breachCounts, error: breachError } = await supabase
+    .from('v_breach_dashboard')
+    .select('source_id, source_name')
+
+  if (breachError) throw breachError
+
+  // Count breaches per source
+  const sourceBreachCounts = breachCounts.reduce((acc, breach) => {
+    acc[breach.source_id] = (acc[breach.source_id] || 0) + 1
+    return acc
+  }, {} as Record<number, number>)
+
+  console.log('📊 Source breach counts:', sourceBreachCounts)
 
   // Group sources by new categorization
-  const categories: Record<string, Array<{id: number, name: string, originalType: string}>> = {
+  const categories: Record<string, Array<{id: number, name: string, originalType: string, breachCount: number}>> = {
     'Government Portals': [],
     'State AG Sites': [],
     'RSS News Feeds': [],
@@ -316,7 +331,7 @@ export async function getSourcesByCategory() {
     'Company IR Sites': []
   }
 
-  data.forEach(source => {
+  sourcesData.forEach(source => {
     let category = ''
     switch (source.type) {
       case 'State AG':
@@ -344,15 +359,23 @@ export async function getSourcesByCategory() {
       categories[category].push({
         id: source.id,
         name: source.name,
-        originalType: source.type
+        originalType: source.type,
+        breachCount: sourceBreachCounts[source.id] || 0
       })
     }
   })
 
-  // Sort sources within each category
+  // Sort sources within each category by breach count (descending), then by name
   Object.keys(categories).forEach(category => {
-    categories[category].sort((a, b) => a.name.localeCompare(b.name))
+    categories[category].sort((a, b) => {
+      if (b.breachCount !== a.breachCount) {
+        return b.breachCount - a.breachCount // Sort by breach count first
+      }
+      return a.name.localeCompare(b.name) // Then by name
+    })
   })
+
+  console.log('📈 Sources by category with breach counts:', categories)
 
   return categories
 }

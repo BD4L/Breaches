@@ -15,6 +15,7 @@ interface Source {
   id: number
   name: string
   originalType: string
+  breachCount: number
 }
 
 export function SourceSelector({ category, onClose, onSourcesSelected, selectedSources }: SourceSelectorProps) {
@@ -127,9 +128,14 @@ export function SourceSelector({ category, onClose, onSourcesSelected, selectedS
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
             <span className="text-2xl">{getCategoryIcon(category)}</span>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Select {category}
-            </h3>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Select {category}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {sources.reduce((sum, source) => sum + source.breachCount, 0)} total breaches across {sources.length} sources
+              </p>
+            </div>
           </div>
           <Button variant="outline" onClick={onClose}>
             ✕ Close
@@ -190,7 +196,7 @@ export function SourceSelector({ category, onClose, onSourcesSelected, selectedS
                           {source.name}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          ID: {source.id} • Type: {source.originalType}
+                          ID: {source.id} • Type: {source.originalType} • {source.breachCount} breach{source.breachCount !== 1 ? 'es' : ''}
                         </div>
                       </div>
                     </div>
@@ -200,9 +206,15 @@ export function SourceSelector({ category, onClose, onSourcesSelected, selectedS
                           {stateCode}
                         </Badge>
                       )}
+                      <Badge
+                        variant={source.breachCount > 0 ? "default" : "secondary"}
+                        className={`text-xs ${source.breachCount > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'}`}
+                      >
+                        {source.breachCount} breach{source.breachCount !== 1 ? 'es' : ''}
+                      </Badge>
                       {isSelected && (
-                        <Badge variant="default" className="text-xs">
-                          Selected
+                        <Badge variant="default" className="text-xs bg-green-100 text-green-800">
+                          ✓ Selected
                         </Badge>
                       )}
                     </div>

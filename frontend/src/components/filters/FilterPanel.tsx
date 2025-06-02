@@ -24,7 +24,7 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
   const [sourceTypeCounts, setSourceTypeCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [showSourceSelector, setShowSourceSelector] = useState<string | null>(null)
-  const [sourcesByCategory, setSourcesByCategory] = useState<Record<string, Array<{id: number, name: string}>>>({})
+  const [sourcesByCategory, setSourcesByCategory] = useState<Record<string, Array<{id: number, name: string, breachCount: number}>>>({})
   const [sourceCounts, setSourceCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
