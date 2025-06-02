@@ -26,7 +26,7 @@ import Layout from '../layouts/Layout.astro'
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Breaches</p>
             <p class="text-2xl font-semibold text-gray-900 dark:text-white" id="total-breaches">
-              Loading...
+              <span class="animate-pulse">Loading...</span>
             </p>
           </div>
         </div>
@@ -42,7 +42,7 @@ import Layout from '../layouts/Layout.astro'
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">People Affected</p>
             <p class="text-2xl font-semibold text-gray-900 dark:text-white" id="total-affected">
-              Loading...
+              <span class="animate-pulse">Loading...</span>
             </p>
           </div>
         </div>
@@ -72,7 +72,7 @@ import Layout from '../layouts/Layout.astro'
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</p>
             <p class="text-2xl font-semibold text-gray-900 dark:text-white" id="last-updated">
-              Loading...
+              <span class="animate-pulse">Loading...</span>
             </p>
           </div>
         </div>
@@ -88,6 +88,8 @@ import Layout from '../layouts/Layout.astro'
   import { DashboardApp } from '../components/dashboard/DashboardApp'
   import { createRoot } from 'react-dom/client'
   import React from 'react'
+  import { supabase } from '../lib/supabase'
+  import { formatAffectedCount } from '../lib/utils'
 
   // Mount React app
   const container = document.getElementById('dashboard-root')
@@ -99,16 +101,89 @@ import Layout from '../layouts/Layout.astro'
   // Load dashboard stats
   async function loadStats() {
     try {
-      const response = await fetch('/api/stats')
-      const stats = await response.json()
+      console.log('Loading dashboard statistics...')
 
-      document.getElementById('total-breaches')!.textContent = stats.totalBreaches.toLocaleString()
-      document.getElementById('total-affected')!.textContent = stats.totalAffected.toLocaleString()
-      document.getElementById('last-updated')!.textContent = new Date(stats.lastUpdated).toLocaleDateString()
+      // Get total breach count
+      const { count: totalBreaches, error: countError } = await supabase
+        .from('v_breach_dashboard')
+        .select('*', { count: 'exact', head: true })
+
+      if (countError) {
+        console.error('Error getting breach count:', countError)
+        throw countError
+      }
+
+      // Get total affected individuals (sum of all non-null affected_individuals)
+      const { data: affectedData, error: affectedError } = await supabase
+        .from('v_breach_dashboard')
+        .select('affected_individuals')
+        .not('affected_individuals', 'is', null)
+
+      if (affectedError) {
+        console.error('Error getting affected individuals:', affectedError)
+        throw affectedError
+      }
+
+      const totalAffected = affectedData?.reduce((sum, item) => sum + (item.affected_individuals || 0), 0) || 0
+
+      // Get latest scraped date
+      const { data: latestData, error: latestError } = await supabase
+        .from('v_breach_dashboard')
+        .select('scraped_at')
+        .not('scraped_at', 'is', null)
+        .order('scraped_at', { ascending: false })
+        .limit(1)
+
+      if (latestError) {
+        console.error('Error getting latest scraped date:', latestError)
+        throw latestError
+      }
+
+      const lastUpdated = latestData?.[0]?.scraped_at || new Date().toISOString()
+
+      // Update the UI
+      const totalBreachesEl = document.getElementById('total-breaches')
+      const totalAffectedEl = document.getElementById('total-affected')
+      const lastUpdatedEl = document.getElementById('last-updated')
+
+      if (totalBreachesEl) {
+        totalBreachesEl.innerHTML = (totalBreaches || 0).toLocaleString()
+      }
+
+      if (totalAffectedEl) {
+        totalAffectedEl.innerHTML = formatAffectedCount(totalAffected)
+      }
+
+      if (lastUpdatedEl) {
+        lastUpdatedEl.innerHTML = new Date(lastUpdated).toLocaleDateString()
+      }
+
+      console.log('Dashboard stats loaded:', {
+        totalBreaches,
+        totalAffected,
+        lastUpdated
+      })
+
     } catch (error) {
       console.error('Failed to load stats:', error)
+
+      // Show error state
+      const errorMessages = {
+        'total-breaches': 'Error loading',
+        'total-affected': 'Error loading',
+        'last-updated': 'Error loading'
+      }
+
+      Object.entries(errorMessages).forEach(([id, message]) => {
+        const el = document.getElementById(id)
+        if (el) {
+          el.innerHTML = message
+          el.className = el.className.replace('text-gray-900 dark:text-white', 'text-red-500 dark:text-red-400')
+        }
+      })
     }
   }
 
-  loadStats()
+  // Load stats after a short delay to ensure Supabase is initialized
+  setTimeout(loadStats, 100)
 </script>
