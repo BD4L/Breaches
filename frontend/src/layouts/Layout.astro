@@ -1,0 +1,106 @@
+---
+export interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Comprehensive breach data dashboard tracking security incidents across government, state AG, and news sources." } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body class="h-full bg-gray-50 dark:bg-gray-900">
+    <div class="min-h-full">
+      <!-- Navigation -->
+      <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between h-16">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                  🛡️ Breach Dashboard
+                </h1>
+              </div>
+              <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                <a href="/" class="border-blue-500 text-gray-900 dark:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                  Dashboard
+                </a>
+                <a href="/settings" class="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                  Settings
+                </a>
+              </div>
+            </div>
+            <div class="flex items-center space-x-4">
+              <!-- Theme toggle placeholder -->
+              <button type="button" class="bg-gray-100 dark:bg-gray-700 p-2 rounded-md text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200">
+                <span class="sr-only">Toggle theme</span>
+                🌙
+              </button>
+              <!-- User menu placeholder -->
+              <div class="relative">
+                <button type="button" class="bg-gray-100 dark:bg-gray-700 p-2 rounded-md text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200">
+                  <span class="sr-only">User menu</span>
+                  👤
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main content -->
+      <main class="flex-1">
+        <slot />
+      </main>
+
+      <!-- Footer -->
+      <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between items-center">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              © 2025 Breach Dashboard. Monitoring {new Date().getFullYear()} security incidents.
+            </p>
+            <div class="flex space-x-4 text-sm text-gray-500 dark:text-gray-400">
+              <span>37+ Sources</span>
+              <span>•</span>
+              <span>Real-time Updates</span>
+              <span>•</span>
+              <span>AI-Powered Analysis</span>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>
+
+<style is:global>
+  html {
+    font-family: system-ui, sans-serif;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+</style>

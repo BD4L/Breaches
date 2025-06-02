@@ -191,14 +191,112 @@ INSERT INTO data_sources (id, name, url, type, description) VALUES
 --     FOR SELECT USING (true);
 
 -- ============================================================================
+-- 6. FRONTEND DASHBOARD VIEWS AND TABLES
+-- ============================================================================
+
+-- Enhanced dashboard view that exposes rich breach data for frontend
+CREATE VIEW v_breach_dashboard AS
+SELECT
+    si.id,
+    si.title as organization_name,
+    si.breach_date,
+    si.reported_date,
+    si.affected_individuals,
+    si.what_was_leaked,
+    si.data_types_compromised,
+    si.notice_document_url,
+    si.source_id,
+    ds.name as source_name,
+    ds.type as source_type,
+    si.publication_date,
+    si.summary_text,
+    si.tags_keywords,
+    si.incident_nature_text,
+    si.incident_discovery_date,
+    si.is_cybersecurity_related,
+    si.item_url,
+    si.created_at,
+    si.scraped_at
+FROM scraped_items si
+JOIN data_sources ds ON si.source_id = ds.id;
+
+-- User alert preferences table
+CREATE TABLE user_prefs (
+    user_id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    threshold INTEGER DEFAULT 0,        -- alert if affected_individuals > threshold
+    sources UUID[] DEFAULT '{}',        -- restrict to these source_id values
+    source_types TEXT[] DEFAULT '{}',   -- filter by source type (State AG, News Feed, etc.)
+    data_types TEXT[] DEFAULT '{}',     -- filter by data types compromised
+    keywords TEXT[] DEFAULT '{}',       -- optional org keywords (ILIKE %keyword%)
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- AI research jobs table
+CREATE TABLE research_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scraped_item UUID REFERENCES scraped_items(id) ON DELETE CASCADE,
+    status TEXT CHECK (status IN ('pending','planned','running','done','failed')) DEFAULT 'pending',
+    report_url TEXT,               -- PDF/Markdown stored in Supabase Storage
+    requested_by UUID REFERENCES auth.users ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    error_message TEXT
+);
+
+-- Enable Row Level Security
+ALTER TABLE user_prefs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE research_jobs ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Users can manage their own preferences" ON user_prefs
+    FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own research jobs" ON research_jobs
+    FOR ALL USING (auth.uid() = requested_by);
+
+-- Enhanced recipient matching function that considers rich breach data
+CREATE OR REPLACE FUNCTION match_alert_recipients(
+    p_source_id BIGINT,
+    p_source_type TEXT,
+    p_affected INTEGER,
+    p_title TEXT,
+    p_data_types TEXT[],
+    p_what_leaked TEXT
+) RETURNS TABLE (user_email TEXT, user_id UUID)
+LANGUAGE SQL AS $$
+    SELECT u.email, p.user_id
+    FROM user_prefs p
+    JOIN auth.users u ON u.id = p.user_id
+    WHERE
+        -- Threshold check
+        (p.threshold = 0 OR p_affected > p.threshold)
+        -- Source ID check
+        AND (p.sources = '{}' OR p_source_id = ANY(p.sources))
+        -- Source type check
+        AND (p.source_types = '{}' OR p_source_type = ANY(p.source_types))
+        -- Data type check
+        AND (p.data_types = '{}' OR p_data_types && p_data_types)
+        -- Keyword check in title and leaked data
+        AND (p.keywords = '{}' OR EXISTS (
+            SELECT 1 FROM unnest(p.keywords) kw
+            WHERE p_title ILIKE ('%'||kw||'%')
+               OR p_what_leaked ILIKE ('%'||kw||'%')
+        ));
+$$;
+
+-- ============================================================================
 -- SCHEMA CREATION COMPLETE
 -- ============================================================================
 --
 -- This schema includes:
 -- ✅ data_sources table with all 37 breach portal sources
 -- ✅ scraped_items table with standardized cross-portal fields
+-- ✅ Enhanced dashboard view exposing rich breach data
+-- ✅ User preferences with advanced filtering options
+-- ✅ AI research jobs tracking
 -- ✅ Performance indexes for fast querying
--- ✅ Standardized fields: affected_individuals, breach_date, reported_date, notice_document_url
--- ✅ All current breach portals (no vulnerability databases)
+-- ✅ Row Level Security for multi-user access
+-- ✅ Enhanced alert matching considering data types and breach details
 --
--- The database is now ready for breach data collection!
+-- The database is now ready for breach data collection AND frontend dashboard!
