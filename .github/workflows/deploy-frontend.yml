@@ -2,7 +2,10 @@ name: Deploy Frontend to GitHub Pages
 
 on:
   push:
-    branches: [ frontend ]
+    branches: [ main, frontend ]
+    paths: [ 'frontend/**' ]
+  pull_request:
+    branches: [ main ]
     paths: [ 'frontend/**' ]
   workflow_dispatch:
 
