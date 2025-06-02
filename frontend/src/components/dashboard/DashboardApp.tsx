@@ -1,25 +1,42 @@
 import React, { useState, useCallback } from 'react'
 import { FilterPanel } from '../filters/FilterPanel'
+import { DateFilter } from '../filters/DateFilter'
 import { BreachTable } from './BreachTable'
 import { ScraperControl } from './ScraperControl'
+import { SourceSummary } from './SourceSummary'
 import { Button } from '../ui/Button'
 
 interface Filters {
   search: string
   sourceTypes: string[]
   minAffected: number
+  scrapedDateRange: string
+  breachDateRange: string
+  publicationDateRange: string
 }
 
 export function DashboardApp() {
   const [filters, setFilters] = useState<Filters>({
     search: '',
     sourceTypes: [],
-    minAffected: 0
+    minAffected: 0,
+    scrapedDateRange: '',
+    breachDateRange: '',
+    publicationDateRange: ''
   })
   const [showScraperControl, setShowScraperControl] = useState(false)
+  const [showSourceSummary, setShowSourceSummary] = useState(false)
 
-  const handleFiltersChange = useCallback((newFilters: Filters) => {
-    setFilters(newFilters)
+  const handleFiltersChange = useCallback((newFilters: Partial<Filters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }))
+  }, [])
+
+  const handleDateFilterChange = useCallback((dateFilters: {
+    scrapedDateRange: string
+    breachDateRange: string
+    publicationDateRange: string
+  }) => {
+    setFilters(prev => ({ ...prev, ...dateFilters }))
   }, [])
 
   return (
@@ -34,8 +51,14 @@ export function DashboardApp() {
           >
             🔧 Scraper Control
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowSourceSummary(true)}
+          >
+            📊 Source Summary
+          </Button>
           <Button variant="outline" size="sm">
-            📊 Export Data
+            📤 Export Data
           </Button>
           <Button variant="outline" size="sm">
             🔄 Refresh
@@ -49,12 +72,19 @@ export function DashboardApp() {
       {/* Filters */}
       <FilterPanel onFiltersChange={handleFiltersChange} />
 
+      {/* Date Filters */}
+      <DateFilter onDateFilterChange={handleDateFilterChange} />
+
       {/* Main Table */}
       <BreachTable filters={filters} />
 
-      {/* Scraper Control Modal */}
+      {/* Modals */}
       {showScraperControl && (
         <ScraperControl onClose={() => setShowScraperControl(false)} />
+      )}
+
+      {showSourceSummary && (
+        <SourceSummary onClose={() => setShowSourceSummary(false)} />
       )}
     </div>
   )

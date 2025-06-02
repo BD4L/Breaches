@@ -20,6 +20,9 @@ interface BreachTableProps {
     search: string
     sourceTypes: string[]
     minAffected: number
+    scrapedDateRange: string
+    breachDateRange: string
+    publicationDateRange: string
   }
 }
 
@@ -183,6 +186,9 @@ export function BreachTable({ filters }: BreachTableProps) {
           search: filters.search,
           sortBy,
           sortOrder,
+          scrapedDateRange: filters.scrapedDateRange,
+          breachDateRange: filters.breachDateRange,
+          publicationDateRange: filters.publicationDateRange,
         })
 
         if (error) throw error

@@ -24,20 +24,20 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
   const [triggering, setTriggering] = useState<string | null>(null)
   const [showScheduleManager, setShowScheduleManager] = useState(false)
 
-  // Define scraper groups based on your GitHub Actions workflows
+  // Define scraper groups based on new categorization (Government Portals, AG Sites, RSS News Feeds)
   const defaultScraperGroups: ScraperGroup[] = [
     {
-      id: 'government-scrapers',
-      name: 'Government & Federal',
-      description: 'SEC EDGAR 8-K, HHS OCR',
-      scrapers: ['SEC EDGAR 8-K', 'HHS OCR'],
+      id: 'government-portals',
+      name: '🏢 Government Portals',
+      description: 'Federal agencies and government breach reporting',
+      scrapers: ['SEC EDGAR 8-K', 'HHS OCR Breach Portal'],
       schedule: 'Daily at 3 AM UTC',
       status: 'idle',
       canTrigger: true
     },
     {
       id: 'state-ag-group-1',
-      name: 'State AG Group 1',
+      name: '🏛️ State AG Group 1',
       description: 'Delaware, California, Washington, Hawaii',
       scrapers: ['Delaware AG', 'California AG', 'Washington AG', 'Hawaii AG'],
       schedule: 'Daily at 3 AM UTC',
@@ -46,7 +46,7 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
     },
     {
       id: 'state-ag-group-2',
-      name: 'State AG Group 2',
+      name: '🏛️ State AG Group 2',
       description: 'Indiana, Iowa, Maine',
       scrapers: ['Indiana AG', 'Iowa AG', 'Maine AG'],
       schedule: 'Daily at 3 AM UTC',
@@ -55,7 +55,7 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
     },
     {
       id: 'state-ag-group-3',
-      name: 'State AG Group 3',
+      name: '🏛️ State AG Group 3',
       description: 'Massachusetts, Montana',
       scrapers: ['Massachusetts AG', 'Montana AG'],
       schedule: 'Daily at 3 AM UTC',
@@ -64,7 +64,7 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
     },
     {
       id: 'state-ag-group-4',
-      name: 'State AG Group 4',
+      name: '🏛️ State AG Group 4',
       description: 'North Dakota, Oklahoma, Vermont, Wisconsin, Texas',
       scrapers: ['North Dakota AG', 'Oklahoma Cyber', 'Vermont AG', 'Wisconsin DATCP', 'Texas AG'],
       schedule: 'Daily at 3 AM UTC',
@@ -72,18 +72,36 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
       canTrigger: true
     },
     {
-      id: 'news-and-api-scrapers',
-      name: 'News & API Scrapers',
-      description: 'BreachSense, Cybersecurity News, Company IR, HIBP API',
-      scrapers: ['BreachSense', 'Cybersecurity News RSS', 'Company IR', 'HIBP API'],
+      id: 'rss-news-feeds',
+      name: '📰 RSS News Feeds',
+      description: 'Cybersecurity news, breach databases, and HIBP RSS',
+      scrapers: ['KrebsOnSecurity', 'BleepingComputer', 'The Hacker News', 'SecurityWeek', 'Dark Reading', 'DataBreaches.net', 'HIBP RSS', 'CISA News', 'Security Magazine'],
+      schedule: 'Daily at 3 AM UTC',
+      status: 'idle',
+      canTrigger: true
+    },
+    {
+      id: 'specialized-sites',
+      name: '🔍 Specialized Breach Sites',
+      description: 'Dedicated breach tracking platforms',
+      scrapers: ['BreachSense'],
+      schedule: 'Daily at 3 AM UTC',
+      status: 'idle',
+      canTrigger: true
+    },
+    {
+      id: 'company-ir-sites',
+      name: '💼 Company IR Sites',
+      description: 'Major tech company investor relations',
+      scrapers: ['Microsoft IR', 'Apple IR', 'Amazon IR', 'Alphabet IR', 'Meta IR'],
       schedule: 'Daily at 3 AM UTC',
       status: 'idle',
       canTrigger: true
     },
     {
       id: 'massachusetts-ag-frequent',
-      name: 'Massachusetts AG (Frequent)',
-      description: 'High-frequency Massachusetts AG scraper',
+      name: '🏛️ Massachusetts AG (High Frequency)',
+      description: 'High-priority state with 6-hour monitoring',
       scrapers: ['Massachusetts AG'],
       schedule: 'Every 6 hours',
       status: 'idle',
@@ -91,8 +109,8 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
     },
     {
       id: 'problematic-scrapers',
-      name: 'Problematic Scrapers',
-      description: 'Maryland, New Hampshire, New Jersey (Known Issues)',
+      name: '⚠️ Problematic Scrapers',
+      description: 'Sources with known technical issues',
       scrapers: ['Maryland AG', 'New Hampshire AG', 'New Jersey AG'],
       schedule: 'Daily at 3 AM UTC (Continue on Error)',
       status: 'idle',
@@ -226,29 +244,45 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
         <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
           <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Quick Actions</h3>
           <div className="flex flex-wrap gap-2">
-            <Button 
-              variant="default" 
+            <Button
+              variant="default"
               size="sm"
               onClick={() => triggerWorkflow('all')}
               disabled={!!triggering}
             >
               🚀 Run All Scrapers
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => triggerWorkflow('government-portals')}
+              disabled={!!triggering}
+            >
+              🏢 Government Portals
+            </Button>
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => triggerWorkflow('state-ag-all')}
               disabled={!!triggering}
             >
-              🏛️ Run All State AG
+              🏛️ All State AG Sites
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
-              onClick={() => triggerWorkflow('news-and-api-scrapers')}
+              onClick={() => triggerWorkflow('rss-news-feeds')}
               disabled={!!triggering}
             >
-              📰 Run News & API
+              📰 RSS News Feeds
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => triggerWorkflow('specialized-sites')}
+              disabled={!!triggering}
+            >
+              🔍 Specialized Sites
             </Button>
           </div>
         </div>

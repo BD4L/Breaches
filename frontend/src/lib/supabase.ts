@@ -73,6 +73,9 @@ export async function getBreaches(params: {
   search?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+  scrapedDateRange?: string
+  breachDateRange?: string
+  publicationDateRange?: string
 } = {}) {
   const {
     page = 0,
@@ -81,7 +84,10 @@ export async function getBreaches(params: {
     minAffected = 0,
     search = '',
     sortBy = 'publication_date',
-    sortOrder = 'desc'
+    sortOrder = 'desc',
+    scrapedDateRange = '',
+    breachDateRange = '',
+    publicationDateRange = ''
   } = params
 
   let query = supabase
@@ -101,6 +107,37 @@ export async function getBreaches(params: {
     query = query.or(`organization_name.ilike.%${search}%,what_was_leaked.ilike.%${search}%`)
   }
 
+  // Apply date filters
+  if (scrapedDateRange) {
+    const dateFilter = parseDateRange(scrapedDateRange)
+    if (dateFilter.start) {
+      query = query.gte('scraped_at', dateFilter.start)
+    }
+    if (dateFilter.end) {
+      query = query.lte('scraped_at', dateFilter.end)
+    }
+  }
+
+  if (breachDateRange) {
+    const dateFilter = parseDateRange(breachDateRange)
+    if (dateFilter.start) {
+      query = query.gte('breach_date', dateFilter.start)
+    }
+    if (dateFilter.end) {
+      query = query.lte('breach_date', dateFilter.end)
+    }
+  }
+
+  if (publicationDateRange) {
+    const dateFilter = parseDateRange(publicationDateRange)
+    if (dateFilter.start) {
+      query = query.gte('publication_date', dateFilter.start)
+    }
+    if (dateFilter.end) {
+      query = query.lte('publication_date', dateFilter.end)
+    }
+  }
+
   // Apply sorting
   query = query.order(sortBy, { ascending: sortOrder === 'asc' })
 
@@ -110,6 +147,93 @@ export async function getBreaches(params: {
   query = query.range(from, to)
 
   return query
+}
+
+// Helper function to parse date range strings
+function parseDateRange(range: string): { start?: string; end?: string } {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  switch (range) {
+    case 'today':
+      return {
+        start: today.toISOString(),
+        end: new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString()
+      }
+
+    case 'yesterday':
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+      return {
+        start: yesterday.toISOString(),
+        end: today.toISOString()
+      }
+
+    case 'last-3-days':
+      return {
+        start: new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        end: now.toISOString()
+      }
+
+    case 'last-week':
+    case 'last-7-days':
+      return {
+        start: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        end: now.toISOString()
+      }
+
+    case 'last-2-weeks':
+      return {
+        start: new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+        end: now.toISOString()
+      }
+
+    case 'last-month':
+    case 'last-30-days':
+      return {
+        start: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        end: now.toISOString()
+      }
+
+    case 'last-3-months':
+      return {
+        start: new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+        end: now.toISOString()
+      }
+
+    case 'last-6-months':
+      return {
+        start: new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+        end: now.toISOString()
+      }
+
+    case 'last-year':
+      return {
+        start: new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+        end: now.toISOString()
+      }
+
+    case 'all-time':
+      return {}
+
+    default:
+      // Handle custom date ranges (format: custom-type-YYYY-MM-DD)
+      if (range.startsWith('custom-')) {
+        const parts = range.split('-')
+        if (parts.length >= 4) {
+          const dateStr = parts.slice(2).join('-')
+          try {
+            const customDate = new Date(dateStr)
+            return {
+              start: customDate.toISOString(),
+              end: new Date(customDate.getTime() + 24 * 60 * 60 * 1000).toISOString()
+            }
+          } catch {
+            return {}
+          }
+        }
+      }
+      return {}
+  }
 }
 
 export async function getSourceTypes() {
