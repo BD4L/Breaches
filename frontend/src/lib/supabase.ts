@@ -389,65 +389,43 @@ export async function getSourcesByCategory() {
 }
 
 export async function getSourceTypeCounts() {
-  try {
-    // Get ALL records without any filters to ensure accurate counts
-    const { data, error, count } = await supabase
-      .from('v_breach_dashboard')
-      .select('source_type', { count: 'exact' })
+  const { data, error } = await supabase
+    .from('v_breach_dashboard')
+    .select('source_type')
 
-    if (error) {
-      console.error('❌ Error fetching source type counts:', error)
-      throw error
-    }
+  if (error) throw error
 
-    console.log('📊 Total records fetched:', data?.length || 0, 'Expected count:', count)
-    console.log('📊 Raw source type data sample:', data?.slice(0, 5))
+  // Simple count of entries by source type
+  const rawCounts = data.reduce((acc, item) => {
+    acc[item.source_type] = (acc[item.source_type] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
 
-    if (!data || data.length === 0) {
-      console.warn('⚠️ No data returned from v_breach_dashboard')
-      return {}
-    }
-
-    const rawCounts = data.reduce((acc, item) => {
-      acc[item.source_type] = (acc[item.source_type] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-
-    console.log('📊 Raw source type counts:', rawCounts)
-
-    // Map raw source types to new categorization with appropriate terminology
-    const typeMapping: Record<string, {category: string, itemType: string}> = {
-      'State AG': {category: 'State AG Sites', itemType: 'breaches'},
-      'Government Portal': {category: 'Government Portals', itemType: 'breaches'},
-      'News Feed': {category: 'RSS News Feeds', itemType: 'articles'},
-      'Breach Database': {category: 'Specialized Breach Sites', itemType: 'breaches'},
-      'Company IR': {category: 'Company IR Sites', itemType: 'reports'},
-      'State Cybersecurity': {category: 'State AG Sites', itemType: 'breaches'}, // Group with State AG
-      'State Agency': {category: 'State AG Sites', itemType: 'breaches'} // Group with State AG
-    }
-
-    // Count occurrences by new category (excluding API)
-    const counts = data.reduce((acc, item) => {
-      const rawType = item.source_type
-      const mapping = typeMapping[rawType]
-
-      console.log(`Processing: ${rawType} -> ${mapping ? mapping.category : 'UNMAPPED'}`)
-
-      // Skip API and unknown types
-      if (mapping && rawType !== 'API') {
-        acc[mapping.category] = (acc[mapping.category] || 0) + 1
-      }
-
-      return acc
-    }, {} as Record<string, number>)
-
-    console.log('📈 Final mapped source type counts:', counts)
-
-    return counts
-  } catch (err) {
-    console.error('💥 Error in getSourceTypeCounts:', err)
-    return {}
+  // Map to display categories
+  const categoryMapping: Record<string, string> = {
+    'State AG': 'State AG Sites',
+    'Government Portal': 'Government Portals',
+    'News Feed': 'RSS News Feeds',
+    'Breach Database': 'Specialized Breach Sites',
+    'Company IR': 'Company IR Sites',
+    'State Cybersecurity': 'State AG Sites',
+    'State Agency': 'State AG Sites'
   }
+
+  // Convert raw counts to category counts
+  const categoryCounts: Record<string, number> = {}
+
+  Object.entries(rawCounts).forEach(([sourceType, count]) => {
+    const category = categoryMapping[sourceType]
+    if (category) {
+      categoryCounts[category] = (categoryCounts[category] || 0) + count
+    }
+  })
+
+  console.log('📊 Raw counts:', rawCounts)
+  console.log('📈 Category counts:', categoryCounts)
+
+  return categoryCounts
 }
 
 export async function getDataTypes() {
