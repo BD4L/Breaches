@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
@@ -9,26 +9,12 @@ interface DateFilterProps {
     breachDateRange: string
     publicationDateRange: string
   }) => void
-  externalFilters?: {
-    scrapedDateRange?: string
-    breachDateRange?: string
-    publicationDateRange?: string
-  }
 }
 
-export function DateFilter({ onDateFilterChange, externalFilters }: DateFilterProps) {
+export function DateFilter({ onDateFilterChange }: DateFilterProps) {
   const [scrapedDateRange, setScrapedDateRange] = useState('')
   const [breachDateRange, setBreachDateRange] = useState('')
   const [publicationDateRange, setPublicationDateRange] = useState('')
-
-  // Sync with external filter changes (e.g., from presets)
-  useEffect(() => {
-    if (externalFilters) {
-      if (externalFilters.scrapedDateRange !== undefined) setScrapedDateRange(externalFilters.scrapedDateRange)
-      if (externalFilters.breachDateRange !== undefined) setBreachDateRange(externalFilters.breachDateRange)
-      if (externalFilters.publicationDateRange !== undefined) setPublicationDateRange(externalFilters.publicationDateRange)
-    }
-  }, [externalFilters])
 
   // Predefined date ranges for scraped data
   const scrapedPresets = [

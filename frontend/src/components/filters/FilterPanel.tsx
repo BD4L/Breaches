@@ -13,15 +13,9 @@ interface FilterPanelProps {
     selectedSources: number[]
     minAffected: number
   }) => void
-  externalFilters?: {
-    search?: string
-    sourceTypes?: string[]
-    selectedSources?: number[]
-    minAffected?: number
-  }
 }
 
-export function FilterPanel({ onFiltersChange, externalFilters }: FilterPanelProps) {
+export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
   const [search, setSearch] = useState('')
   const [selectedSourceTypes, setSelectedSourceTypes] = useState<string[]>([])
   const [selectedSources, setSelectedSources] = useState<number[]>([])
@@ -60,16 +54,6 @@ export function FilterPanel({ onFiltersChange, externalFilters }: FilterPanelPro
 
     loadFilterOptions()
   }, [])
-
-  // Sync with external filter changes (e.g., from presets)
-  useEffect(() => {
-    if (externalFilters) {
-      if (externalFilters.search !== undefined) setSearch(externalFilters.search)
-      if (externalFilters.sourceTypes !== undefined) setSelectedSourceTypes(externalFilters.sourceTypes)
-      if (externalFilters.selectedSources !== undefined) setSelectedSources(externalFilters.selectedSources)
-      if (externalFilters.minAffected !== undefined) setMinAffected(externalFilters.minAffected)
-    }
-  }, [externalFilters])
 
   useEffect(() => {
     onFiltersChange({
