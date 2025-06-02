@@ -174,12 +174,19 @@ export function BreachTable({ filters }: BreachTableProps) {
     async function loadData() {
       setLoading(true)
       setError(null)
-      
+
+      console.log('🔍 Loading breach data with parameters:', {
+        currentPage,
+        pageSize,
+        filters,
+        sorting
+      })
+
       try {
         const sortBy = sorting[0]?.id || 'publication_date'
         const sortOrder = sorting[0]?.desc ? 'desc' : 'asc'
-        
-        const { data: breaches, error, count } = await getBreaches({
+
+        const queryParams = {
           page: currentPage,
           limit: pageSize,
           sourceTypes: filters.sourceTypes,
@@ -191,13 +198,30 @@ export function BreachTable({ filters }: BreachTableProps) {
           scrapedDateRange: filters.scrapedDateRange,
           breachDateRange: filters.breachDateRange,
           publicationDateRange: filters.publicationDateRange,
-        })
+        }
 
-        if (error) throw error
+        console.log('📊 Query parameters:', queryParams)
+
+        const result = await getBreaches(queryParams)
+        console.log('📥 Supabase query result:', result)
+
+        const { data: breaches, error, count } = result
+
+        if (error) {
+          console.error('❌ Supabase error:', error)
+          throw error
+        }
+
+        console.log('✅ Successfully loaded breaches:', {
+          breachCount: breaches?.length || 0,
+          totalCount: count,
+          firstBreach: breaches?.[0]?.organization_name || 'None'
+        })
 
         setData(breaches || [])
         setTotalCount(count || 0)
       } catch (err) {
+        console.error('💥 Error loading breach data:', err)
         setError(err instanceof Error ? err.message : 'Failed to load data')
       } finally {
         setLoading(false)
