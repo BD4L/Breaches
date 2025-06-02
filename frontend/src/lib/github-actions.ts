@@ -29,9 +29,9 @@ class GitHubActionsAPI {
   private getHeaders() {
     const token = import.meta.env.PUBLIC_GITHUB_TOKEN
     if (!token) {
-      throw new Error('GitHub token not configured')
+      throw new Error('GitHub token not configured. Please add PUBLIC_GITHUB_TOKEN to repository secrets and redeploy.')
     }
-    
+
     return {
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github.v3+json',
