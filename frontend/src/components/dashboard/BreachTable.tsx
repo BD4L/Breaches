@@ -4,12 +4,10 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getExpandedRowModel,
-  getColumnResizeMode,
   flexRender,
   type ColumnDef,
   type SortingState,
   type ExpandedState,
-  type ColumnResizeMode,
 } from '@tanstack/react-table'
 import { getBreaches, type BreachRecord } from '../../lib/supabase'
 import { formatDate, formatAffectedCount, getSourceTypeColor, getSeverityColor, truncateText } from '../../lib/utils'
@@ -58,7 +56,7 @@ export function BreachTable({ filters }: BreachTableProps) {
         accessorKey: 'organization_name',
         header: 'Organization',
         cell: ({ getValue, row }) => (
-          <div className="min-w-0 max-w-xs">
+          <div className="min-w-0">
             <div className="font-medium text-gray-900 dark:text-white truncate">
               {getValue() as string}
             </div>
@@ -67,21 +65,17 @@ export function BreachTable({ filters }: BreachTableProps) {
             </div>
           </div>
         ),
-        size: 200,
-        minSize: 150,
-        maxSize: 300,
+        size: 250,
       },
       {
         accessorKey: 'source_type',
-        header: 'Type',
+        header: 'Source Type',
         cell: ({ getValue }) => (
           <Badge className={getSourceTypeColor(getValue() as string)}>
-            {(getValue() as string).replace(' ', '\n')}
+            {getValue() as string}
           </Badge>
         ),
-        size: 90,
-        minSize: 80,
-        maxSize: 120,
+        size: 120,
       },
       {
         accessorKey: 'affected_individuals',
@@ -94,59 +88,48 @@ export function BreachTable({ filters }: BreachTableProps) {
             </span>
           )
         },
-        size: 80,
-        minSize: 70,
-        maxSize: 100,
+        size: 100,
       },
       {
         accessorKey: 'breach_date',
-        header: 'Breach',
+        header: 'Breach Date',
         cell: ({ getValue }) => (
-          <span className="text-sm whitespace-nowrap">
+          <span className="text-sm">
             {formatDate(getValue() as string)}
           </span>
         ),
-        size: 90,
-        minSize: 80,
-        maxSize: 110,
+        size: 120,
       },
       {
         accessorKey: 'publication_date',
         header: 'Published',
         cell: ({ getValue }) => (
-          <span className="text-sm whitespace-nowrap">
+          <span className="text-sm">
             {formatDate(getValue() as string)}
           </span>
         ),
-        size: 90,
-        minSize: 80,
-        maxSize: 110,
+        size: 120,
       },
       {
         accessorKey: 'what_was_leaked',
         header: 'Data Compromised',
         cell: ({ getValue }) => (
-          <div className="max-w-xs">
-            <span className="text-sm text-gray-600 dark:text-gray-400 block overflow-hidden">
-              {truncateText(getValue() as string, 60)}
-            </span>
-          </div>
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {truncateText(getValue() as string, 80)}
+          </span>
         ),
-        size: 180,
-        minSize: 150,
-        maxSize: 250,
+        size: 200,
       },
       {
         id: 'actions',
-        header: 'Links',
+        header: 'Actions',
         cell: ({ row }) => (
-          <div className="flex flex-col space-y-1">
+          <div className="flex space-x-2">
             {row.original.notice_document_url && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => window.open(row.original.notice_document_url!, '_blank')}
-                className="text-xs px-2 py-1"
               >
                 📄 Notice
               </Button>
@@ -156,16 +139,13 @@ export function BreachTable({ filters }: BreachTableProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => window.open(row.original.item_url!, '_blank')}
-                className="text-xs px-2 py-1"
               >
                 🔗 Source
               </Button>
             )}
           </div>
         ),
-        size: 100,
-        minSize: 90,
-        maxSize: 120,
+        size: 150,
       },
     ],
     []
@@ -184,8 +164,6 @@ export function BreachTable({ filters }: BreachTableProps) {
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getRowCanExpand: () => true,
-    columnResizeMode: 'onChange' as ColumnResizeMode,
-    enableColumnResizing: true,
   })
 
   useEffect(() => {
@@ -264,14 +242,14 @@ export function BreachTable({ filters }: BreachTableProps) {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-max" style={{ width: table.getCenterTotalSize() }}>
+        <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
                   <th
                     key={header.id}
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider relative"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                     style={{ width: header.getSize() }}
                   >
                     {header.isPlaceholder ? null : (
@@ -279,7 +257,7 @@ export function BreachTable({ filters }: BreachTableProps) {
                         className={
                           header.column.getCanSort()
                             ? 'cursor-pointer select-none flex items-center space-x-1'
-                            : 'flex items-center space-x-1'
+                            : ''
                         }
                         onClick={header.column.getToggleSortingHandler()}
                       >
@@ -289,14 +267,6 @@ export function BreachTable({ filters }: BreachTableProps) {
                           desc: ' 🔽',
                         }[header.column.getIsSorted() as string] ?? null}
                       </div>
-                    )}
-                    {/* Column Resizer */}
-                    {header.column.getCanResize() && (
-                      <div
-                        onMouseDown={header.getResizeHandler()}
-                        onTouchStart={header.getResizeHandler()}
-                        className="absolute right-0 top-0 h-full w-1 bg-gray-300 cursor-col-resize hover:bg-blue-500 opacity-0 hover:opacity-100"
-                      />
                     )}
                   </th>
                 ))}
@@ -310,7 +280,7 @@ export function BreachTable({ filters }: BreachTableProps) {
                   {row.getVisibleCells().map(cell => (
                     <td
                       key={cell.id}
-                      className="px-3 py-4"
+                      className="px-6 py-4 whitespace-nowrap"
                       style={{ width: cell.column.getSize() }}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
