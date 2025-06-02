@@ -364,12 +364,33 @@ export async function getSourceTypeCounts() {
 
   if (error) throw error
 
-  // Count occurrences of each source type
+  console.log('📊 Raw source type data from database:', data.slice(0, 10))
+
+  // Map raw source types to new categorization
+  const typeMapping: Record<string, string> = {
+    'State AG': 'State AG Sites',
+    'Government Portal': 'Government Portals',
+    'News Feed': 'RSS News Feeds',
+    'Breach Database': 'Specialized Breach Sites',
+    'Company IR': 'Company IR Sites',
+    'State Cybersecurity': 'State AG Sites', // Group with State AG
+    'State Agency': 'State AG Sites' // Group with State AG
+  }
+
+  // Count occurrences by new category (excluding API)
   const counts = data.reduce((acc, item) => {
-    const type = item.source_type
-    acc[type] = (acc[type] || 0) + 1
+    const rawType = item.source_type
+    const mappedType = typeMapping[rawType]
+
+    // Skip API and unknown types
+    if (mappedType && rawType !== 'API') {
+      acc[mappedType] = (acc[mappedType] || 0) + 1
+    }
+
     return acc
   }, {} as Record<string, number>)
+
+  console.log('📈 Mapped source type counts:', counts)
 
   return counts
 }
