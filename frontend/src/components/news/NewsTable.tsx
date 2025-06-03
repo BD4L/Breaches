@@ -169,6 +169,7 @@ export function NewsTable({ filters }: NewsTableProps) {
 
       if (error) {
         console.error('❌ Error loading news articles:', error)
+        console.error('❌ Error details:', JSON.stringify(error, null, 2))
         throw error
       }
 

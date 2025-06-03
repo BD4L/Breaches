@@ -236,6 +236,8 @@ export async function getNewsArticles(params: {
     publicationDateRange = ''
   } = params
 
+  console.log('🔍 getNewsArticles called with params:', params)
+
   let query = supabase
     .from('v_breach_dashboard')
     .select('id, organization_name as title, source_id, source_name, source_type, publication_date, summary_text, item_url, tags_keywords, created_at, scraped_at', { count: 'exact' })
@@ -244,13 +246,15 @@ export async function getNewsArticles(params: {
   const newsSourceTypes = ['News Feed', 'Company IR']
   query = query.in('source_type', newsSourceTypes)
 
+  console.log('🔍 Applied news source filter:', newsSourceTypes)
+
   // Apply specific source filtering
   if (selectedSources.length > 0) {
     query = query.in('source_id', selectedSources)
   }
 
   if (search) {
-    query = query.or(`title.ilike.%${search}%,summary_text.ilike.%${search}%`)
+    query = query.or(`organization_name.ilike.%${search}%,summary_text.ilike.%${search}%`)
   }
 
   // Apply date filters
@@ -281,6 +285,9 @@ export async function getNewsArticles(params: {
   const from = page * limit
   const to = from + limit - 1
   query = query.range(from, to)
+
+  console.log('🔍 Final query range:', { from, to, page, limit })
+  console.log('🔍 About to execute news query...')
 
   return query
 }
