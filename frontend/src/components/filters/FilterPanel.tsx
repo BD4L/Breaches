@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { Input } from '../ui/Input'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
-import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory } from '../../lib/supabase'
+import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory, isNewsSource, isBreachSource } from '../../lib/supabase'
 import { getSourceTypeColor } from '../../lib/utils'
 import { SourceSelector } from './SourceSelector'
+import type { ViewType } from '../dashboard/ViewToggle'
 
 interface FilterPanelProps {
   onFiltersChange: (filters: {
@@ -13,9 +14,10 @@ interface FilterPanelProps {
     selectedSources: number[]
     minAffected: number
   }) => void
+  currentView: ViewType
 }
 
-export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
+export function FilterPanel({ onFiltersChange, currentView }: FilterPanelProps) {
   const [search, setSearch] = useState('')
   const [selectedSourceTypes, setSelectedSourceTypes] = useState<string[]>([])
   const [selectedSources, setSelectedSources] = useState<number[]>([])
@@ -144,12 +146,15 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
         {/* Search */}
         <div>
           <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Search Organizations
+            {currentView === 'breaches' ? 'Search Organizations' : 'Search Articles'}
           </label>
           <Input
             id="search"
             type="text"
-            placeholder="Search by organization name or leaked data..."
+            placeholder={currentView === 'breaches'
+              ? "Search by organization name or leaked data..."
+              : "Search by article title or content..."
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -161,7 +166,14 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
             Source Categories
           </label>
           <div className="space-y-3">
-            {sourceTypes.map(type => {
+            {sourceTypes.filter(type => {
+              // Filter source types based on current view
+              if (currentView === 'breaches') {
+                return !['RSS News Feeds', 'Company IR Sites'].includes(type)
+              } else {
+                return ['RSS News Feeds', 'Company IR Sites'].includes(type)
+              }
+            }).map(type => {
               const selectedCount = getSelectedSourcesForCategory(type).length
               const totalCount = sourceCounts[type] || 0
               const isTypeSelected = selectedSourceTypes.includes(type)
@@ -205,27 +217,29 @@ export function FilterPanel({ onFiltersChange }: FilterPanelProps) {
           </div>
         </div>
 
-        {/* Affected Individuals Threshold */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            Minimum Affected Individuals
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {affectedThresholds.map(threshold => (
-              <button
-                key={threshold.value}
-                onClick={() => setMinAffected(threshold.value)}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  minAffected === threshold.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                {threshold.label}
-              </button>
-            ))}
+        {/* Affected Individuals Threshold - Only for breach view */}
+        {currentView === 'breaches' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Minimum Affected Individuals
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {affectedThresholds.map(threshold => (
+                <button
+                  key={threshold.value}
+                  onClick={() => setMinAffected(threshold.value)}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    minAffected === threshold.value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {threshold.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Active Filters & Clear */}
         {(search || selectedSourceTypes.length > 0 || selectedSources.length > 0 || minAffected > 0) && (

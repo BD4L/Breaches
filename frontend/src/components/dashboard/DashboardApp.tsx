@@ -1,11 +1,14 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { FilterPanel } from '../filters/FilterPanel'
 import { DateFilter } from '../filters/DateFilter'
 import { BreachTable } from './BreachTable'
+import { NewsTable } from '../news/NewsTable'
+import { ViewToggle, type ViewType } from './ViewToggle'
 import { ScraperControl } from './ScraperControl'
 import { SourceSummary } from './SourceSummary'
 import { NonWorkingSites } from './NonWorkingSites'
 import { Button } from '../ui/Button'
+import { supabase, isNewsSource, isBreachSource } from '../../lib/supabase'
 
 interface Filters {
   search: string
@@ -18,6 +21,9 @@ interface Filters {
 }
 
 export function DashboardApp() {
+  const [currentView, setCurrentView] = useState<ViewType>('breaches')
+  const [breachCount, setBreachCount] = useState<number | undefined>(undefined)
+  const [newsCount, setNewsCount] = useState<number | undefined>(undefined)
   const [filters, setFilters] = useState<Filters>({
     search: '',
     sourceTypes: [],
@@ -41,6 +47,32 @@ export function DashboardApp() {
     publicationDateRange: string
   }) => {
     setFilters(prev => ({ ...prev, ...dateFilters }))
+  }, [])
+
+  // Load counts for view toggle
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        // Get breach count
+        const { count: breaches } = await supabase
+          .from('v_breach_dashboard')
+          .select('*', { count: 'exact', head: true })
+          .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
+
+        // Get news count
+        const { count: news } = await supabase
+          .from('v_breach_dashboard')
+          .select('*', { count: 'exact', head: true })
+          .in('source_type', ['News Feed', 'Company IR'])
+
+        setBreachCount(breaches || 0)
+        setNewsCount(news || 0)
+      } catch (error) {
+        console.error('Failed to load counts:', error)
+      }
+    }
+
+    loadCounts()
   }, [])
 
   return (
@@ -80,14 +112,33 @@ export function DashboardApp() {
         </div>
       </div>
 
+      {/* View Toggle */}
+      <div className="flex justify-center">
+        <ViewToggle
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          breachCount={breachCount}
+          newsCount={newsCount}
+        />
+      </div>
+
       {/* Filters */}
-      <FilterPanel onFiltersChange={handleFiltersChange} />
+      <FilterPanel onFiltersChange={handleFiltersChange} currentView={currentView} />
 
       {/* Date Filters */}
-      <DateFilter onDateFilterChange={handleDateFilterChange} />
+      <DateFilter onDateFilterChange={handleDateFilterChange} currentView={currentView} />
 
-      {/* Main Table */}
-      <BreachTable filters={filters} />
+      {/* Main Content */}
+      {currentView === 'breaches' ? (
+        <BreachTable filters={filters} />
+      ) : (
+        <NewsTable filters={{
+          search: filters.search,
+          selectedSources: filters.selectedSources,
+          scrapedDateRange: filters.scrapedDateRange,
+          publicationDateRange: filters.publicationDateRange
+        }} />
+      )}
 
       {/* Modals */}
       {showScraperControl && (

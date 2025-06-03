@@ -24,9 +24,12 @@ import Layout from '../layouts/Layout.astro'
             </div>
           </div>
           <div class="ml-4">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Breaches</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Breach Notifications</p>
             <p class="text-2xl font-semibold text-gray-900 dark:text-white" id="total-breaches">
               <span class="animate-pulse">Loading...</span>
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400" id="news-count">
+              <span class="animate-pulse">+ Loading news...</span>
             </p>
           </div>
         </div>
@@ -103,14 +106,26 @@ import Layout from '../layouts/Layout.astro'
     try {
       console.log('Loading dashboard statistics...')
 
-      // Get total breach count
+      // Get breach count (excluding news feeds)
       const { count: totalBreaches, error: countError } = await supabase
         .from('v_breach_dashboard')
         .select('*', { count: 'exact', head: true })
+        .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
 
       if (countError) {
         console.error('Error getting breach count:', countError)
         throw countError
+      }
+
+      // Get news count
+      const { count: totalNews, error: newsError } = await supabase
+        .from('v_breach_dashboard')
+        .select('*', { count: 'exact', head: true })
+        .in('source_type', ['News Feed', 'Company IR'])
+
+      if (newsError) {
+        console.error('Error getting news count:', newsError)
+        throw newsError
       }
 
       // Get total affected individuals (sum of all non-null affected_individuals)
@@ -143,11 +158,16 @@ import Layout from '../layouts/Layout.astro'
 
       // Update the UI
       const totalBreachesEl = document.getElementById('total-breaches')
+      const newsCountEl = document.getElementById('news-count')
       const totalAffectedEl = document.getElementById('total-affected')
       const lastUpdatedEl = document.getElementById('last-updated')
 
       if (totalBreachesEl) {
         totalBreachesEl.innerHTML = (totalBreaches || 0).toLocaleString()
+      }
+
+      if (newsCountEl) {
+        newsCountEl.innerHTML = `+ ${(totalNews || 0).toLocaleString()} news articles`
       }
 
       if (totalAffectedEl) {
@@ -160,6 +180,7 @@ import Layout from '../layouts/Layout.astro'
 
       console.log('Dashboard stats loaded:', {
         totalBreaches,
+        totalNews,
         totalAffected,
         lastUpdated
       })
@@ -170,6 +191,7 @@ import Layout from '../layouts/Layout.astro'
       // Show error state
       const errorMessages = {
         'total-breaches': 'Error loading',
+        'news-count': 'Error loading',
         'total-affected': 'Error loading',
         'last-updated': 'Error loading'
       }

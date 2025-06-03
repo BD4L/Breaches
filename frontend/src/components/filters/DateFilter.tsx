@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
+import type { ViewType } from '../dashboard/ViewToggle'
 
 interface DateFilterProps {
   onDateFilterChange: (filter: {
@@ -9,9 +10,10 @@ interface DateFilterProps {
     breachDateRange: string
     publicationDateRange: string
   }) => void
+  currentView: ViewType
 }
 
-export function DateFilter({ onDateFilterChange }: DateFilterProps) {
+export function DateFilter({ onDateFilterChange, currentView }: DateFilterProps) {
   const [scrapedDateRange, setScrapedDateRange] = useState('')
   const [breachDateRange, setBreachDateRange] = useState('')
   const [publicationDateRange, setPublicationDateRange] = useState('')
@@ -124,32 +126,34 @@ export function DateFilter({ onDateFilterChange }: DateFilterProps) {
           )}
         </div>
 
-        {/* Breach Date Filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            ⚠️ Breach Occurrence Date
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {eventPresets.map(preset => (
-              <button
-                key={preset.value}
-                onClick={() => handleBreachDateChange(preset.value)}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  breachDateRange === preset.value
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-          {breachDateRange && (
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Breaches that occurred: {getDateRangeDescription(breachDateRange, eventPresets)}
+        {/* Breach Date Filter - Only for breach view */}
+        {currentView === 'breaches' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              ⚠️ Breach Occurrence Date
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {eventPresets.map(preset => (
+                <button
+                  key={preset.value}
+                  onClick={() => handleBreachDateChange(preset.value)}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    breachDateRange === preset.value
+                      ? 'bg-red-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+            {breachDateRange && (
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Breaches that occurred: {getDateRangeDescription(breachDateRange, eventPresets)}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Publication Date Filter */}
         <div>

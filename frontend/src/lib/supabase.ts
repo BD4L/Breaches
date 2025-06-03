@@ -19,6 +19,15 @@ console.log('Supabase configuration:', {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Helper functions to distinguish between news and breach sources
+export const isNewsSource = (sourceType: string): boolean => {
+  return ['News Feed', 'Company IR'].includes(sourceType)
+}
+
+export const isBreachSource = (sourceType: string): boolean => {
+  return ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'].includes(sourceType)
+}
+
 // Database types
 export interface BreachRecord {
   id: number
@@ -39,6 +48,21 @@ export interface BreachRecord {
   incident_discovery_date: string | null
   is_cybersecurity_related: boolean | null
   item_url: string | null
+  created_at: string
+  scraped_at: string | null
+}
+
+export interface NewsArticle {
+  id: number
+  title: string
+  source_id: number
+  source_name: string
+  source_type: string
+  publication_date: string | null
+  summary_text: string | null
+  full_content: string | null
+  item_url: string | null
+  tags_keywords: string[] | null
   created_at: string
   scraped_at: string | null
 }
@@ -106,15 +130,18 @@ export async function getBreaches(params: {
     .from('v_breach_dashboard')
     .select('*', { count: 'exact' })
 
+  // Filter to only breach sources (exclude news feeds)
+  const breachSourceTypes = ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API']
+  query = query.in('source_type', breachSourceTypes)
+
   // Apply filters
   if (sourceTypes.length > 0) {
     // Map source types to the new categorization for filtering
     const typeMapping: Record<string, string[]> = {
       'State AG Sites': ['State AG', 'State Cybersecurity', 'State Agency'],
       'Government Portals': ['Government Portal'],
-      'RSS News Feeds': ['News Feed'],
       'Specialized Breach Sites': ['Breach Database'],
-      'Company IR Sites': ['Company IR']
+      'API Services': ['API']
     }
 
     const mappedTypes: string[] = []
@@ -125,7 +152,11 @@ export async function getBreaches(params: {
     })
 
     if (mappedTypes.length > 0) {
-      query = query.in('source_type', mappedTypes)
+      // Intersect with breach source types
+      const filteredTypes = mappedTypes.filter(type => breachSourceTypes.includes(type))
+      if (filteredTypes.length > 0) {
+        query = query.in('source_type', filteredTypes)
+      }
     }
   }
 
@@ -160,6 +191,77 @@ export async function getBreaches(params: {
     }
     if (dateFilter.end) {
       query = query.lte('breach_date', dateFilter.end)
+    }
+  }
+
+  if (publicationDateRange) {
+    const dateFilter = parseDateRange(publicationDateRange)
+    if (dateFilter.start) {
+      query = query.gte('publication_date', dateFilter.start)
+    }
+    if (dateFilter.end) {
+      query = query.lte('publication_date', dateFilter.end)
+    }
+  }
+
+  // Apply sorting
+  query = query.order(sortBy, { ascending: sortOrder === 'asc' })
+
+  // Apply pagination
+  const from = page * limit
+  const to = from + limit - 1
+  query = query.range(from, to)
+
+  return query
+}
+
+// Get news articles (RSS feeds, Company IR, etc.)
+export async function getNewsArticles(params: {
+  page?: number
+  limit?: number
+  selectedSources?: number[]
+  search?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+  scrapedDateRange?: string
+  publicationDateRange?: string
+} = {}) {
+  const {
+    page = 0,
+    limit = 50,
+    selectedSources = [],
+    search = '',
+    sortBy = 'publication_date',
+    sortOrder = 'desc',
+    scrapedDateRange = '',
+    publicationDateRange = ''
+  } = params
+
+  let query = supabase
+    .from('v_breach_dashboard')
+    .select('id, title as title, source_id, source_name, source_type, publication_date, summary_text, full_content, item_url, tags_keywords, created_at, scraped_at', { count: 'exact' })
+
+  // Filter to only news sources
+  const newsSourceTypes = ['News Feed', 'Company IR']
+  query = query.in('source_type', newsSourceTypes)
+
+  // Apply specific source filtering
+  if (selectedSources.length > 0) {
+    query = query.in('source_id', selectedSources)
+  }
+
+  if (search) {
+    query = query.or(`title.ilike.%${search}%,summary_text.ilike.%${search}%`)
+  }
+
+  // Apply date filters
+  if (scrapedDateRange) {
+    const dateFilter = parseDateRange(scrapedDateRange)
+    if (dateFilter.start) {
+      query = query.gte('scraped_at', dateFilter.start)
+    }
+    if (dateFilter.end) {
+      query = query.lte('scraped_at', dateFilter.end)
     }
   }
 
