@@ -60,7 +60,6 @@ export interface NewsArticle {
   source_type: string
   publication_date: string | null
   summary_text: string | null
-  full_content: string | null
   item_url: string | null
   tags_keywords: string[] | null
   created_at: string
@@ -239,7 +238,7 @@ export async function getNewsArticles(params: {
 
   let query = supabase
     .from('v_breach_dashboard')
-    .select('id, title as title, source_id, source_name, source_type, publication_date, summary_text, full_content, item_url, tags_keywords, created_at, scraped_at', { count: 'exact' })
+    .select('id, organization_name as title, source_id, source_name, source_type, publication_date, summary_text, item_url, tags_keywords, created_at, scraped_at', { count: 'exact' })
 
   // Filter to only news sources
   const newsSourceTypes = ['News Feed', 'Company IR']
