@@ -1,0 +1,211 @@
+---
+import Layout from '../layouts/Layout.astro'
+---
+
+<Layout title="Breach Dashboard - Real-time Security Incident Monitoring">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Dashboard Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+        Breach Dashboard
+      </h1>
+      <p class="mt-2 text-gray-600 dark:text-gray-400">
+        Real-time monitoring of security incidents across 37+ sources including government portals, state AG offices, and cybersecurity news feeds.
+      </p>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-md flex items-center justify-center">
+              📊
+            </div>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Breach Notifications</p>
+            <p class="text-2xl font-semibold text-gray-900 dark:text-white" id="total-breaches">
+              <span class="animate-pulse">Loading...</span>
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400" id="news-count">
+              <span class="animate-pulse">+ Loading news...</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-md flex items-center justify-center">
+              👥
+            </div>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">People Affected</p>
+            <p class="text-2xl font-semibold text-gray-900 dark:text-white" id="total-affected">
+              <span class="animate-pulse">Loading...</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-md flex items-center justify-center">
+              🔄
+            </div>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Sources</p>
+            <p class="text-2xl font-semibold text-gray-900 dark:text-white">37+</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-md flex items-center justify-center">
+              📅
+            </div>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</p>
+            <p class="text-2xl font-semibold text-gray-900 dark:text-white" id="last-updated">
+              <span class="animate-pulse">Loading...</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Dashboard Content -->
+    <div id="dashboard-root"></div>
+  </div>
+</Layout>
+
+<script>
+  import { DashboardApp } from '../components/dashboard/DashboardApp'
+  import { createRoot } from 'react-dom/client'
+  import React from 'react'
+  import { supabase } from '../lib/supabase'
+  import { formatAffectedCount } from '../lib/utils'
+
+  // Mount React app
+  const container = document.getElementById('dashboard-root')
+  if (container) {
+    const root = createRoot(container)
+    root.render(React.createElement(DashboardApp))
+  }
+
+  // Load dashboard stats
+  async function loadStats() {
+    try {
+      console.log('Loading dashboard statistics...')
+
+      // Get breach count (excluding news feeds)
+      const { count: totalBreaches, error: countError } = await supabase
+        .from('v_breach_dashboard')
+        .select('*', { count: 'exact', head: true })
+        .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
+
+      if (countError) {
+        console.error('Error getting breach count:', countError)
+        throw countError
+      }
+
+      // Get news count
+      const { count: totalNews, error: newsError } = await supabase
+        .from('v_breach_dashboard')
+        .select('*', { count: 'exact', head: true })
+        .in('source_type', ['News Feed', 'Company IR'])
+
+      if (newsError) {
+        console.error('Error getting news count:', newsError)
+        throw newsError
+      }
+
+      // Get total affected individuals (sum of all non-null affected_individuals)
+      const { data: affectedData, error: affectedError } = await supabase
+        .from('v_breach_dashboard')
+        .select('affected_individuals')
+        .not('affected_individuals', 'is', null)
+
+      if (affectedError) {
+        console.error('Error getting affected individuals:', affectedError)
+        throw affectedError
+      }
+
+      const totalAffected = affectedData?.reduce((sum, item) => sum + (item.affected_individuals || 0), 0) || 0
+
+      // Get latest scraped date
+      const { data: latestData, error: latestError } = await supabase
+        .from('v_breach_dashboard')
+        .select('scraped_at')
+        .not('scraped_at', 'is', null)
+        .order('scraped_at', { ascending: false })
+        .limit(1)
+
+      if (latestError) {
+        console.error('Error getting latest scraped date:', latestError)
+        throw latestError
+      }
+
+      const lastUpdated = latestData?.[0]?.scraped_at || new Date().toISOString()
+
+      // Update the UI
+      const totalBreachesEl = document.getElementById('total-breaches')
+      const newsCountEl = document.getElementById('news-count')
+      const totalAffectedEl = document.getElementById('total-affected')
+      const lastUpdatedEl = document.getElementById('last-updated')
+
+      if (totalBreachesEl) {
+        totalBreachesEl.innerHTML = (totalBreaches || 0).toLocaleString()
+      }
+
+      if (newsCountEl) {
+        newsCountEl.innerHTML = `+ ${(totalNews || 0).toLocaleString()} news articles`
+      }
+
+      if (totalAffectedEl) {
+        totalAffectedEl.innerHTML = formatAffectedCount(totalAffected)
+      }
+
+      if (lastUpdatedEl) {
+        lastUpdatedEl.innerHTML = new Date(lastUpdated).toLocaleDateString()
+      }
+
+      console.log('Dashboard stats loaded:', {
+        totalBreaches,
+        totalNews,
+        totalAffected,
+        lastUpdated
+      })
+
+    } catch (error) {
+      console.error('Failed to load stats:', error)
+
+      // Show error state
+      const errorMessages = {
+        'total-breaches': 'Error loading',
+        'news-count': 'Error loading',
+        'total-affected': 'Error loading',
+        'last-updated': 'Error loading'
+      }
+
+      Object.entries(errorMessages).forEach(([id, message]) => {
+        const el = document.getElementById(id)
+        if (el) {
+          el.innerHTML = message
+          el.className = el.className.replace('text-gray-900 dark:text-white', 'text-red-500 dark:text-red-400')
+        }
+      })
+    }
+  }
+
+  // Load stats after a short delay to ensure Supabase is initialized
+  setTimeout(loadStats, 100)
+</script>

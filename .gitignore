@@ -1,4 +1,23 @@
+# Python
 __pycache__/
 *.pyc
 venv/
 .env
+
+# Frontend (Node.js) - handled by frontend/.gitignore
+# Note: frontend/ directory has its own .gitignore for Node.js specific files
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
