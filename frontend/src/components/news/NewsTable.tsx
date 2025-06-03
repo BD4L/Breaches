@@ -268,11 +268,11 @@ export function NewsTable({ filters }: NewsTableProps) {
                     <tr>
                       <td colSpan={columns.length} className="px-4 py-4 bg-gray-50 dark:bg-gray-700/50">
                         <div className="space-y-3">
-                          {row.original.full_content && (
+                          {row.original.summary_text && (
                             <div>
-                              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Full Content</h4>
+                              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Full Summary</h4>
                               <div className="text-sm text-gray-700 dark:text-gray-300 max-h-40 overflow-y-auto">
-                                {row.original.full_content}
+                                {row.original.summary_text}
                               </div>
                             </div>
                           )}
