@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -38,6 +38,10 @@ export function BreachTable({ filters }: BreachTableProps) {
   const [totalCount, setTotalCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(0)
   const pageSize = 50
+
+  // Add debouncing to prevent excessive API calls
+  const [debouncedFilters, setDebouncedFilters] = useState(filters)
+  const debounceTimeoutRef = useRef<NodeJS.Timeout>()
 
   const columns = useMemo<ColumnDef<BreachRecord>[]>(
     () => [
@@ -170,6 +174,23 @@ export function BreachTable({ filters }: BreachTableProps) {
     getRowCanExpand: () => true,
   })
 
+  // Debounce filter changes to prevent excessive API calls
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current)
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedFilters(filters)
+    }, 300)
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [filters])
+
   useEffect(() => {
     async function loadData() {
       setLoading(true)
@@ -178,7 +199,7 @@ export function BreachTable({ filters }: BreachTableProps) {
       console.log('🔍 Loading breach data with parameters:', {
         currentPage,
         pageSize,
-        filters,
+        filters: debouncedFilters,
         sorting
       })
 
@@ -189,15 +210,15 @@ export function BreachTable({ filters }: BreachTableProps) {
         const queryParams = {
           page: currentPage,
           limit: pageSize,
-          sourceTypes: filters.sourceTypes,
-          selectedSources: filters.selectedSources,
-          minAffected: filters.minAffected,
-          search: filters.search,
+          sourceTypes: debouncedFilters.sourceTypes,
+          selectedSources: debouncedFilters.selectedSources,
+          minAffected: debouncedFilters.minAffected,
+          search: debouncedFilters.search,
           sortBy,
           sortOrder,
-          scrapedDateRange: filters.scrapedDateRange,
-          breachDateRange: filters.breachDateRange,
-          publicationDateRange: filters.publicationDateRange,
+          scrapedDateRange: debouncedFilters.scrapedDateRange,
+          breachDateRange: debouncedFilters.breachDateRange,
+          publicationDateRange: debouncedFilters.publicationDateRange,
         }
 
         console.log('📊 Query parameters:', queryParams)
@@ -229,7 +250,7 @@ export function BreachTable({ filters }: BreachTableProps) {
     }
 
     loadData()
-  }, [filters, sorting, currentPage])
+  }, [debouncedFilters, sorting, currentPage])
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
