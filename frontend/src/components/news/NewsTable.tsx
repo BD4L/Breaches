@@ -51,7 +51,7 @@ export function NewsTable({ filters }: NewsTableProps) {
       size: 40,
     },
     {
-      accessorKey: 'title',
+      accessorKey: 'organization_name',
       header: 'Article Title',
       cell: ({ row }) => (
         <div className="space-y-1">
@@ -63,10 +63,10 @@ export function NewsTable({ filters }: NewsTableProps) {
                 rel="noopener noreferrer"
                 className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
               >
-                {truncateText(row.original.title, 80)}
+                {truncateText(row.original.organization_name, 80)}
               </a>
             ) : (
-              truncateText(row.original.title, 80)
+              truncateText(row.original.organization_name, 80)
             )}
           </div>
           {row.original.summary_text && (
