@@ -97,7 +97,13 @@ export function NumericSlider({
             step={step}
             value={sliderValue}
             onChange={(e) => handleSliderChange(Number(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 slider"
+            className="w-full h-2 bg-gray-200 rounded-lg cursor-pointer dark:bg-gray-700"
+            style={{
+              WebkitAppearance: 'none',
+              appearance: 'none',
+              background: 'transparent',
+              outline: 'none'
+            }}
           />
           <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
             <span>{formatValue(min)}</span>
@@ -114,89 +120,59 @@ export function NumericSlider({
         )}
       </div>
 
-      <style jsx>{`
-        .slider {
-          -webkit-appearance: none;
-          appearance: none;
-          background: transparent;
-          cursor: pointer;
-        }
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          input[type="range"]::-webkit-slider-track {
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            border: none;
+          }
 
-        .slider::-webkit-slider-track {
-          height: 8px;
-          border-radius: 4px;
-          background: #e5e7eb;
-          border: none;
-        }
+          input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: grab;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            margin-top: -6px;
+          }
 
-        .slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          height: 24px;
-          width: 24px;
-          border-radius: 50%;
-          background: #2563eb;
-          cursor: grab;
-          border: 3px solid #ffffff;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-          margin-top: -8px;
-          transition: all 0.2s ease;
-        }
+          input[type="range"]::-webkit-slider-thumb:hover {
+            background: #1d4ed8;
+            transform: scale(1.1);
+          }
 
-        .slider::-webkit-slider-thumb:hover {
-          background: #1d4ed8;
-          transform: scale(1.1);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
+          input[type="range"]::-webkit-slider-thumb:active {
+            cursor: grabbing;
+          }
 
-        .slider::-webkit-slider-thumb:active {
-          cursor: grabbing;
-          transform: scale(1.05);
-        }
+          input[type="range"]::-moz-range-track {
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            border: none;
+          }
 
-        .slider::-moz-range-track {
-          height: 8px;
-          border-radius: 4px;
-          background: #e5e7eb;
-          border: none;
-        }
+          input[type="range"]::-moz-range-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: grab;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+          }
 
-        .slider::-moz-range-thumb {
-          height: 24px;
-          width: 24px;
-          border-radius: 50%;
-          background: #2563eb;
-          cursor: grab;
-          border: 3px solid #ffffff;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-          transition: all 0.2s ease;
-        }
-
-        .slider::-moz-range-thumb:hover {
-          background: #1d4ed8;
-          transform: scale(1.1);
-        }
-
-        .slider::-moz-range-thumb:active {
-          cursor: grabbing;
-        }
-
-        .dark .slider::-webkit-slider-track {
-          background: #374151;
-        }
-
-        .dark .slider::-moz-range-track {
-          background: #374151;
-        }
-
-        .dark .slider::-webkit-slider-thumb {
-          border-color: #1f2937;
-        }
-
-        .dark .slider::-moz-range-thumb {
-          border-color: #1f2937;
-        }
-      `}</style>
+          input[type="range"]::-moz-range-thumb:hover {
+            background: #1d4ed8;
+          }
+        `
+      }} />
     </div>
   )
 }
