@@ -50,8 +50,25 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     loadSourceTypes()
   }, [currentView])
 
+  // Debounced search effect
   useEffect(() => {
-    // Update filters whenever any filter value changes
+    const timeoutId = setTimeout(() => {
+      onFiltersChange({
+        search,
+        sourceTypes,
+        selectedSources,
+        minAffected,
+        scrapedDateRange,
+        breachDateRange,
+        publicationDateRange
+      })
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [search])
+
+  // Immediate effect for non-search filters
+  useEffect(() => {
     onFiltersChange({
       search,
       sourceTypes,
@@ -61,7 +78,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       breachDateRange,
       publicationDateRange
     })
-  }, [search, sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
+  }, [sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
 
   const loadSourceTypes = async () => {
     try {
@@ -220,8 +237,8 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                 value={minAffected}
                 onChange={setMinAffected}
                 min={0}
-                max={10000000}
-                step={1000}
+                max={100000}
+                step={100}
               />
             </SectionHeader>
           )}

@@ -12,13 +12,13 @@ interface NumericSliderProps {
   formatValue?: (value: number) => string
 }
 
-export function NumericSlider({ 
-  label, 
-  value, 
-  onChange, 
-  min = 0, 
-  max = 1000000, 
-  step = 1000,
+export function NumericSlider({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 100000,
+  step = 100,
   formatValue = (val) => val.toLocaleString()
 }: NumericSliderProps) {
   const [sliderValue, setSliderValue] = useState(value)
@@ -42,10 +42,13 @@ export function NumericSlider({
   // Predefined quick values
   const quickValues = [
     { label: 'Any', value: 0 },
+    { label: '100+', value: 100 },
+    { label: '500+', value: 500 },
     { label: '1K+', value: 1000 },
+    { label: '5K+', value: 5000 },
     { label: '10K+', value: 10000 },
+    { label: '50K+', value: 50000 },
     { label: '100K+', value: 100000 },
-    { label: '1M+', value: 1000000 },
   ]
 
   return (
@@ -112,37 +115,70 @@ export function NumericSlider({
       </div>
 
       <style jsx>{`
-        .slider::-webkit-slider-thumb {
+        .slider {
+          -webkit-appearance: none;
           appearance: none;
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #2563eb;
+          background: transparent;
           cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .slider::-moz-range-thumb {
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #2563eb;
-          cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .slider::-webkit-slider-track {
           height: 8px;
           border-radius: 4px;
           background: #e5e7eb;
+          border: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 24px;
+          width: 24px;
+          border-radius: 50%;
+          background: #2563eb;
+          cursor: grab;
+          border: 3px solid #ffffff;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+          margin-top: -8px;
+          transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+          background: #1d4ed8;
+          transform: scale(1.1);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider::-webkit-slider-thumb:active {
+          cursor: grabbing;
+          transform: scale(1.05);
         }
 
         .slider::-moz-range-track {
           height: 8px;
           border-radius: 4px;
           background: #e5e7eb;
+          border: none;
+        }
+
+        .slider::-moz-range-thumb {
+          height: 24px;
+          width: 24px;
+          border-radius: 50%;
+          background: #2563eb;
+          cursor: grab;
+          border: 3px solid #ffffff;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+          transition: all 0.2s ease;
+        }
+
+        .slider::-moz-range-thumb:hover {
+          background: #1d4ed8;
+          transform: scale(1.1);
+        }
+
+        .slider::-moz-range-thumb:active {
+          cursor: grabbing;
         }
 
         .dark .slider::-webkit-slider-track {
@@ -151,6 +187,14 @@ export function NumericSlider({
 
         .dark .slider::-moz-range-track {
           background: #374151;
+        }
+
+        .dark .slider::-webkit-slider-thumb {
+          border-color: #1f2937;
+        }
+
+        .dark .slider::-moz-range-thumb {
+          border-color: #1f2937;
         }
       `}</style>
     </div>
