@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Filter, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
@@ -111,7 +111,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
   }
 
   // Update filters immediately for non-search changes
-  const updateFiltersImmediate = () => {
+  const updateFiltersImmediate = useCallback(() => {
     onFiltersChange({
       search: lastSearchRef.current || search,
       sourceTypes,
@@ -121,12 +121,12 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       breachDateRange,
       publicationDateRange
     })
-  }
+  }, [onFiltersChange, search, sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
 
   // Effect for non-search filters
   useEffect(() => {
     updateFiltersImmediate()
-  }, [sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
+  }, [updateFiltersImmediate])
 
   // Cleanup timeout on unmount
   useEffect(() => {
