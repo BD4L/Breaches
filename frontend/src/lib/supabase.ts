@@ -54,7 +54,7 @@ export interface BreachRecord {
 
 export interface NewsArticle {
   id: number
-  title: string
+  organization_name: string
   source_id: number
   source_name: string
   source_type: string
@@ -240,7 +240,7 @@ export async function getNewsArticles(params: {
 
   let query = supabase
     .from('v_breach_dashboard')
-    .select('id, organization_name as title, source_id, source_name, source_type, publication_date, summary_text, item_url, tags_keywords, created_at, scraped_at', { count: 'exact' })
+    .select('id, organization_name, source_id, source_name, source_type, publication_date, summary_text, item_url, tags_keywords, created_at, scraped_at', { count: 'exact' })
 
   // Filter to only news sources
   const newsSourceTypes = ['News Feed', 'Company IR']
