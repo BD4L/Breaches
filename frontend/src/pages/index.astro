@@ -4,100 +4,98 @@ import Layout from '../layouts/Layout.astro'
 
 <Layout title="Breach Dashboard - Real-time Security Incident Monitoring">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Modern Dashboard Header -->
-    <div class="mb-12 text-center">
-      <div class="inline-flex items-center space-x-3 mb-4">
-        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-500/25">
-          <span class="text-white text-2xl">🛡️</span>
+    <!-- Dark Theme Header -->
+    <div class="mb-8 text-center">
+      <div class="inline-flex items-center space-x-3 mb-6">
+        <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+          <span class="text-white text-xl">🛡️</span>
         </div>
         <div class="text-left">
-          <h1 class="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 dark:from-white dark:via-blue-100 dark:to-indigo-100 bg-clip-text text-transparent">
+          <h1 class="text-3xl font-bold text-white">
             Security Intelligence Hub
           </h1>
-          <p class="text-lg text-gray-600 dark:text-gray-400 font-medium">
+          <p class="text-slate-400 font-medium">
             Real-time breach monitoring across 37+ sources
           </p>
         </div>
       </div>
-      <p class="text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
+      <p class="text-slate-400 max-w-3xl mx-auto leading-relaxed">
         Comprehensive monitoring of security incidents from government portals, state attorney general offices,
         cybersecurity news feeds, and specialized breach databases with AI-powered analysis.
       </p>
     </div>
 
-    <!-- Modern Stats Overview -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-      <div class="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border border-blue-200/50 dark:border-blue-800/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div class="relative">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <span class="text-white text-xl">📊</span>
-            </div>
-            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+    <!-- Dark Theme Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-200">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
+            <span class="text-white text-sm">📊</span>
           </div>
-          <div>
-            <p class="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Breach Notifications</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="total-breaches">
-              <span class="animate-pulse bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 bg-clip-text text-transparent">Loading...</span>
-            </p>
-            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1" id="news-count">
-              <span class="animate-pulse">+ Loading news...</span>
-            </p>
+          <div class="text-xs text-blue-400 font-medium px-2 py-1 bg-blue-900/30 rounded">
+            Active
           </div>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Breach Notifications</p>
+          <p class="text-2xl font-bold text-white" id="total-breaches">
+            <span class="animate-pulse text-slate-500">Loading...</span>
+          </p>
+          <p class="text-xs text-slate-500 mt-1" id="news-count">
+            <span class="animate-pulse">+ Loading news...</span>
+          </p>
         </div>
       </div>
 
-      <div class="group relative overflow-hidden bg-gradient-to-br from-red-50 to-pink-100 dark:from-red-900/20 dark:to-pink-900/20 p-6 rounded-2xl border border-red-200/50 dark:border-red-800/50 hover:shadow-xl hover:shadow-red-500/10 transition-all duration-300 hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-br from-red-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div class="relative">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/25">
-              <span class="text-white text-xl">👥</span>
-            </div>
-            <div class="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+      <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-200">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
+            <span class="text-white text-sm">👥</span>
           </div>
-          <div>
-            <p class="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">People Affected</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="total-affected">
-              <span class="animate-pulse bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 bg-clip-text text-transparent">Loading...</span>
-            </p>
+          <div class="text-xs text-red-400 font-medium px-2 py-1 bg-red-900/30 rounded">
+            Critical
           </div>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">People Affected</p>
+          <p class="text-2xl font-bold text-white" id="total-affected">
+            <span class="animate-pulse text-slate-500">Loading...</span>
+          </p>
+          <p class="text-xs text-slate-500 mt-1">+120% from last week</p>
         </div>
       </div>
 
-      <div class="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-2xl border border-green-200/50 dark:border-green-800/50 hover:shadow-xl hover:shadow-green-500/10 transition-all duration-300 hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div class="relative">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/25">
-              <span class="text-white text-xl">🔄</span>
-            </div>
-            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+      <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-200">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
+            <span class="text-white text-sm">🔄</span>
           </div>
-          <div>
-            <p class="text-sm font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">Active Sources</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2">37+</p>
-            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Government & News</p>
+          <div class="text-xs text-green-400 font-medium px-2 py-1 bg-green-900/30 rounded">
+            Healthy
           </div>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Active Sources</p>
+          <p class="text-2xl font-bold text-white">37+</p>
+          <p class="text-xs text-slate-500 mt-1">Government & News</p>
         </div>
       </div>
 
-      <div class="group relative overflow-hidden bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 p-6 rounded-2xl border border-orange-200/50 dark:border-orange-800/50 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300 hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div class="relative">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/25">
-              <span class="text-white text-xl">📅</span>
-            </div>
-            <div class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+      <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-200">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-8 h-8 bg-orange-600 rounded flex items-center justify-center">
+            <span class="text-white text-sm">📅</span>
           </div>
-          <div>
-            <p class="text-sm font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide">Last Updated</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="last-updated">
-              <span class="animate-pulse bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 bg-clip-text text-transparent">Loading...</span>
-            </p>
+          <div class="text-xs text-orange-400 font-medium px-2 py-1 bg-orange-900/30 rounded">
+            Recent
           </div>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Last Updated</p>
+          <p class="text-2xl font-bold text-white" id="last-updated">
+            <span class="animate-pulse text-slate-500">Loading...</span>
+          </p>
+          <p class="text-xs text-slate-500 mt-1">Auto-refreshing</p>
         </div>
       </div>
     </div>
