@@ -1,57 +1,52 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { FilterPanel } from '../filters/FilterPanel'
-import { DateFilter } from '../filters/DateFilter'
 import { BreachTable } from './BreachTable'
 import { NewsTable } from '../news/NewsTable'
 import { ViewToggle, type ViewType } from './ViewToggle'
+import { FilterSidebar } from '../filters/FilterSidebar'
+import { FilterToggle } from '../filters/FilterToggle'
+import { ActiveFilterPills, createFilterPills } from '../filters/ActiveFilterPills'
 import { ScraperControl } from './ScraperControl'
 import { SourceSummary } from './SourceSummary'
 import { NonWorkingSites } from './NonWorkingSites'
 import { Button } from '../ui/Button'
-import { supabase, isNewsSource, isBreachSource } from '../../lib/supabase'
+import { supabase, getDataSources } from '../../lib/supabase'
 
 interface Filters {
   search: string
   sourceTypes: string[]
   selectedSources: number[]
   minAffected: number
-  scrapedDateRange: string
-  breachDateRange: string
-  publicationDateRange: string
+  scrapedDateRange: { start?: string; end?: string }
+  breachDateRange: { start?: string; end?: string }
+  publicationDateRange: { start?: string; end?: string }
 }
 
 export function DashboardApp() {
   const [currentView, setCurrentView] = useState<ViewType>('breaches')
   const [breachCount, setBreachCount] = useState<number | undefined>(undefined)
   const [newsCount, setNewsCount] = useState<number | undefined>(undefined)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [dataSources, setDataSources] = useState<Array<{ id: number; name: string }>>([])
   const [filters, setFilters] = useState<Filters>({
     search: '',
     sourceTypes: [],
     selectedSources: [],
     minAffected: 0,
-    scrapedDateRange: '',
-    breachDateRange: '',
-    publicationDateRange: ''
+    scrapedDateRange: {},
+    breachDateRange: {},
+    publicationDateRange: {}
   })
   const [showScraperControl, setShowScraperControl] = useState(false)
   const [showSourceSummary, setShowSourceSummary] = useState(false)
   const [showNonWorkingSites, setShowNonWorkingSites] = useState(false)
 
-  const handleFiltersChange = useCallback((newFilters: Partial<Filters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }))
+  const handleFiltersChange = useCallback((newFilters: Filters) => {
+    setFilters(newFilters)
   }, [])
 
-  const handleDateFilterChange = useCallback((dateFilters: {
-    scrapedDateRange: string
-    breachDateRange: string
-    publicationDateRange: string
-  }) => {
-    setFilters(prev => ({ ...prev, ...dateFilters }))
-  }, [])
-
-  // Load counts for view toggle
+  // Load initial data
   useEffect(() => {
-    const loadCounts = async () => {
+    const loadInitialData = async () => {
       try {
         // Get breach count
         const { count: breaches } = await supabase
@@ -65,80 +60,143 @@ export function DashboardApp() {
           .select('*', { count: 'exact', head: true })
           .in('source_type', ['News Feed', 'Company IR'])
 
+        // Get data sources for filter pills
+        const sourcesResult = await getDataSources()
+        if (sourcesResult.data) {
+          setDataSources(sourcesResult.data.map(source => ({
+            id: source.id,
+            name: source.name
+          })))
+        }
+
         setBreachCount(breaches || 0)
         setNewsCount(news || 0)
       } catch (error) {
-        console.error('Failed to load counts:', error)
+        console.error('Failed to load initial data:', error)
       }
     }
 
-    loadCounts()
+    loadInitialData()
   }, [])
 
+  // Create filter pills
+  const filterPills = createFilterPills(filters, dataSources, {
+    onSearchChange: (search) => setFilters(prev => ({ ...prev, search })),
+    onSourceTypesChange: (sourceTypes) => setFilters(prev => ({ ...prev, sourceTypes })),
+    onSelectedSourcesChange: (selectedSources) => setFilters(prev => ({ ...prev, selectedSources })),
+    onMinAffectedChange: (minAffected) => setFilters(prev => ({ ...prev, minAffected })),
+    onScrapedDateRangeChange: (scrapedDateRange) => setFilters(prev => ({ ...prev, scrapedDateRange })),
+    onBreachDateRangeChange: (breachDateRange) => setFilters(prev => ({ ...prev, breachDateRange })),
+    onPublicationDateRangeChange: (publicationDateRange) => setFilters(prev => ({ ...prev, publicationDateRange }))
+  })
+
+  const clearAllFilters = () => {
+    setFilters({
+      search: '',
+      sourceTypes: [],
+      selectedSources: [],
+      minAffected: 0,
+      scrapedDateRange: {},
+      breachDateRange: {},
+      publicationDateRange: {}
+    })
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Control Bar */}
-      <div className="flex justify-between items-center">
-        <div className="flex space-x-3">
-          <Button
-            variant="default"
-            onClick={() => setShowScraperControl(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            🔧 Scraper Control
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowSourceSummary(true)}
-          >
-            📊 Source Summary
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowNonWorkingSites(true)}
-            className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
-          >
-            ⚠️ Non-Working Sites
-          </Button>
-          <Button variant="outline" size="sm">
-            📤 Export Data
-          </Button>
-          <Button variant="outline" size="sm">
-            🔄 Refresh
-          </Button>
-        </div>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          Last updated: {new Date().toLocaleTimeString()}
-        </div>
-      </div>
-
-      {/* View Toggle */}
-      <div className="flex justify-center">
-        <ViewToggle
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          breachCount={breachCount}
-          newsCount={newsCount}
-        />
-      </div>
-
-      {/* Filters */}
-      <FilterPanel onFiltersChange={handleFiltersChange} currentView={currentView} />
-
-      {/* Date Filters */}
-      <DateFilter onDateFilterChange={handleDateFilterChange} currentView={currentView} />
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Filter Sidebar */}
+      <FilterSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        currentView={currentView}
+        onFiltersChange={handleFiltersChange}
+      />
 
       {/* Main Content */}
-      {currentView === 'breaches' ? (
-        <BreachTable filters={filters} />
-      ) : (
-        <NewsTable filters={{
-          search: filters.search,
-          selectedSources: filters.selectedSources,
-          scrapedDateRange: filters.scrapedDateRange,
-          publicationDateRange: filters.publicationDateRange
-        }} />
-      )}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <FilterToggle
+                onClick={() => setSidebarOpen(true)}
+                activeFiltersCount={filterPills.length}
+              />
+
+              <ViewToggle
+                currentView={currentView}
+                onViewChange={setCurrentView}
+                breachCount={breachCount}
+                newsCount={newsCount}
+              />
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setShowScraperControl(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                🔧 Scraper Control
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSourceSummary(true)}
+              >
+                📊 Source Summary
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowNonWorkingSites(true)}
+                className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+              >
+                ⚠️ Issues
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-full">
+            {/* Active Filter Pills */}
+            <ActiveFilterPills
+              filters={filterPills}
+              onClearAll={clearAllFilters}
+            />
+
+            {/* Main Table */}
+            {currentView === 'breaches' ? (
+              <BreachTable filters={{
+                ...filters,
+                scrapedDateRange: filters.scrapedDateRange.start || filters.scrapedDateRange.end
+                  ? `${filters.scrapedDateRange.start || ''}|${filters.scrapedDateRange.end || ''}`
+                  : '',
+                breachDateRange: filters.breachDateRange.start || filters.breachDateRange.end
+                  ? `${filters.breachDateRange.start || ''}|${filters.breachDateRange.end || ''}`
+                  : '',
+                publicationDateRange: filters.publicationDateRange.start || filters.publicationDateRange.end
+                  ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
+                  : ''
+              }} />
+            ) : (
+              <NewsTable filters={{
+                search: filters.search,
+                selectedSources: filters.selectedSources,
+                scrapedDateRange: filters.scrapedDateRange.start || filters.scrapedDateRange.end
+                  ? `${filters.scrapedDateRange.start || ''}|${filters.scrapedDateRange.end || ''}`
+                  : '',
+                publicationDateRange: filters.publicationDateRange.start || filters.publicationDateRange.end
+                  ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
+                  : ''
+              }} />
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Modals */}
       {showScraperControl && (
