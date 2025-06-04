@@ -191,9 +191,9 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 lg:hidden"
           onClick={onClose}
-          style={{ zIndex: 60 }}
+          style={{ zIndex: 40 }}
         />
       )}
 
@@ -205,7 +205,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           flex flex-col h-full shadow-2xl lg:shadow-none
         `}
-        style={{ zIndex: 70 }}
+        style={{ zIndex: 45 }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
