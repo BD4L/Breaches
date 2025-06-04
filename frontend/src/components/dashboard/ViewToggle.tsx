@@ -18,9 +18,9 @@ export function ViewToggle({ currentView, onViewChange, breachCount, newsCount }
         size="sm"
         onClick={() => onViewChange('breaches')}
         className={`flex items-center space-x-2 ${
-          currentView === 'breaches' 
-            ? 'bg-white dark:bg-gray-800 shadow-sm' 
-            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+          currentView === 'breaches'
+            ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white'
+            : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
         }`}
       >
         <span>🚨</span>
@@ -37,9 +37,9 @@ export function ViewToggle({ currentView, onViewChange, breachCount, newsCount }
         size="sm"
         onClick={() => onViewChange('news')}
         className={`flex items-center space-x-2 ${
-          currentView === 'news' 
-            ? 'bg-white dark:bg-gray-800 shadow-sm' 
-            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+          currentView === 'news'
+            ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white'
+            : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
         }`}
       >
         <span>📰</span>
