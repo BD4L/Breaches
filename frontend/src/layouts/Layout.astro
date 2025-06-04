@@ -17,42 +17,45 @@ const { title, description = "Comprehensive breach data dashboard tracking secur
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
   </head>
-  <body class="h-full bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+  <body class="h-full bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
     <div class="min-h-full">
-      <!-- Modern Navigation with Glassmorphism -->
-      <nav class="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg shadow-gray-200/20 dark:shadow-gray-900/20">
+      <!-- Dark Theme Navigation -->
+      <nav class="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/90 border-b border-slate-700/50 shadow-lg shadow-black/20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex justify-between h-20">
             <div class="flex items-center">
               <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                  <span class="text-white text-xl font-bold">🛡️</span>
+                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <span class="text-white text-lg font-bold">🛡️</span>
                 </div>
                 <div>
-                  <h1 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                  <h1 class="text-xl font-bold text-white">
                     Breach Dashboard
                   </h1>
-                  <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Real-time Security Intelligence</p>
+                  <p class="text-xs text-slate-400 font-medium">Real-time security intelligence</p>
                 </div>
               </div>
-              <div class="hidden sm:ml-8 sm:flex sm:space-x-2">
-                <a href="/" class="px-4 py-2 rounded-xl text-sm font-medium bg-blue-500 text-white shadow-lg hover:bg-blue-600 transition-all duration-200 hover:shadow-xl hover:scale-105">
+              <div class="hidden sm:ml-8 sm:flex sm:space-x-1">
+                <a href="/" class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200">
                   Dashboard
                 </a>
-                <a href="/settings" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all duration-200">
+                <a href="/workflows" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-200">
+                  Workflows
+                </a>
+                <a href="/settings" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-200">
                   Settings
                 </a>
               </div>
             </div>
             <div class="flex items-center space-x-3">
               <!-- Theme toggle -->
-              <button type="button" class="p-3 rounded-xl bg-white/50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-gray-800/80 transition-all duration-200 hover:scale-105">
+              <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200">
                 <span class="sr-only">Toggle theme</span>
                 <span class="text-lg">🌙</span>
               </button>
               <!-- User menu -->
               <div class="relative">
-                <button type="button" class="p-3 rounded-xl bg-white/50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-gray-800/80 transition-all duration-200 hover:scale-105">
+                <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200">
                   <span class="sr-only">User menu</span>
                   <span class="text-lg">👤</span>
                 </button>

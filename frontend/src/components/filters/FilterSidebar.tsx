@@ -197,10 +197,10 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         />
       )}
 
-      {/* Sidebar */}
+      {/* Dark Theme Sidebar */}
       <div
         className={`
-          fixed lg:static inset-y-0 left-0 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+          fixed lg:static inset-y-0 left-0 w-80 bg-slate-800/50 backdrop-blur-sm border-r border-slate-700/50
           transform transition-transform duration-300 ease-in-out lg:transform-none
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           flex flex-col h-full shadow-2xl lg:shadow-none
@@ -208,8 +208,8 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         style={{ zIndex: 45 }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
+          <h2 className="text-lg font-semibold text-white flex items-center">
             <Filter className="w-5 h-5 mr-2" />
             Filters
           </h2>
@@ -218,7 +218,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
               variant="ghost"
               size="sm"
               onClick={clearAllFilters}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              className="text-slate-400 hover:text-white hover:bg-slate-700"
             >
               Clear All
             </Button>
@@ -226,7 +226,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="lg:hidden p-1"
+              className="lg:hidden p-1 text-slate-400 hover:text-white hover:bg-slate-700"
             >
               <X className="w-5 h-5" />
             </Button>

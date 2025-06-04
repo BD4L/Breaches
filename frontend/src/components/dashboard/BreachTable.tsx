@@ -256,11 +256,39 @@ export function BreachTable({ filters }: BreachTableProps) {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg border border-slate-700/50 overflow-hidden">
+        {/* Loading Header */}
+        <div className="px-6 py-4 border-b border-slate-700/50">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <div className="h-5 w-40 bg-slate-700 rounded animate-pulse"></div>
+              <div className="flex space-x-2">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-6 w-16 bg-slate-700 rounded animate-pulse"></div>
+                ))}
+              </div>
+            </div>
+            <div className="h-6 w-20 bg-slate-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Loading Table */}
         <div className="p-6">
-          <div className="animate-pulse space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="space-y-3">
+            {/* Header Row */}
+            <div className="flex space-x-4 pb-3 border-b border-slate-700/50">
+              {[...Array(7)].map((_, i) => (
+                <div key={i} className="h-4 bg-slate-700 rounded animate-pulse flex-1"></div>
+              ))}
+            </div>
+
+            {/* Data Rows */}
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="flex space-x-4 py-2">
+                {[...Array(7)].map((_, j) => (
+                  <div key={j} className="h-4 bg-slate-700/50 rounded animate-pulse flex-1"></div>
+                ))}
+              </div>
             ))}
           </div>
         </div>
@@ -280,45 +308,72 @@ export function BreachTable({ filters }: BreachTableProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg border border-slate-700/50 overflow-hidden">
+      {/* Dark Theme Header */}
+      <div className="px-6 py-4 border-b border-slate-700/50">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Breach Records
-          </h2>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {totalCount.toLocaleString()} total records
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-white font-medium">🛡️ Breach Notifications</span>
+              <div className="flex items-center space-x-2 ml-4">
+                <button className="px-3 py-1 text-xs bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors">
+                  🔍 Breach Notifications
+                </button>
+                <button className="px-3 py-1 text-xs text-slate-400 hover:text-white transition-colors">
+                  📰 Cybersecurity News
+                </button>
+                <button className="px-3 py-1 text-xs text-slate-400 hover:text-white transition-colors">
+                  🔧 Scraper Control
+                </button>
+                <button className="px-3 py-1 text-xs text-slate-400 hover:text-white transition-colors">
+                  📊 Source Summary
+                </button>
+                <button className="px-3 py-1 text-xs text-slate-400 hover:text-white transition-colors">
+                  ⚠️ Issues
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button className="px-3 py-1 text-xs text-slate-400 hover:text-white transition-colors">
+              Clear All
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Dark Theme Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-700">
+          <thead className="bg-slate-900/50">
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
                   <th
                     key={header.id}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                    className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider border-b border-slate-700/50"
                     style={{ width: header.getSize() }}
                   >
                     {header.isPlaceholder ? null : (
                       <div
                         className={
                           header.column.getCanSort()
-                            ? 'cursor-pointer select-none flex items-center space-x-1'
-                            : ''
+                            ? 'cursor-pointer select-none flex items-center space-x-1 hover:text-white transition-colors duration-200'
+                            : 'flex items-center space-x-1'
                         }
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
-                        {{
-                          asc: ' 🔼',
-                          desc: ' 🔽',
-                        }[header.column.getIsSorted() as string] ?? null}
+                        <div className="flex flex-col">
+                          {{
+                            asc: <span className="text-blue-400">▲</span>,
+                            desc: <span className="text-blue-400">▼</span>,
+                          }[header.column.getIsSorted() as string] ?? (
+                            header.column.getCanSort() && (
+                              <span className="text-slate-600">⇅</span>
+                            )
+                          )}
+                        </div>
                       </div>
                     )}
                   </th>
@@ -326,14 +381,17 @@ export function BreachTable({ filters }: BreachTableProps) {
               </tr>
             ))}
           </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {table.getRowModel().rows.map(row => (
+          <tbody className="bg-slate-800/30 divide-y divide-slate-700/30">
+            {table.getRowModel().rows.map((row, index) => (
               <React.Fragment key={row.id}>
-                <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr className={`
+                  group transition-all duration-200 hover:bg-slate-700/30
+                  ${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-900/20'}
+                `}>
                   {row.getVisibleCells().map(cell => (
                     <td
                       key={cell.id}
-                      className="px-6 py-4 whitespace-nowrap"
+                      className="px-4 py-3 text-sm text-slate-300"
                       style={{ width: cell.column.getSize() }}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -353,32 +411,37 @@ export function BreachTable({ filters }: BreachTableProps) {
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* Dark Theme Pagination */}
       {totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-6 py-4 bg-slate-900/50 border-t border-slate-700/50">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalCount)} of {totalCount} results
+            <div className="text-sm text-slate-400">
+              Showing <span className="text-white font-medium">{currentPage * pageSize + 1}</span> to{' '}
+              <span className="text-white font-medium">{Math.min((currentPage + 1) * pageSize, totalCount)}</span> of{' '}
+              <span className="text-white font-medium">{totalCount}</span> results
             </div>
-            <div className="flex space-x-2">
+            <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
                 disabled={currentPage === 0}
+                className="px-3 py-1 text-xs bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Previous
+                ← Previous
               </Button>
-              <span className="flex items-center px-3 py-1 text-sm">
-                Page {currentPage + 1} of {totalPages}
-              </span>
+              <div className="px-3 py-1 text-xs text-slate-400">
+                Page <span className="text-white font-medium">{currentPage + 1}</span> of{' '}
+                <span className="text-white font-medium">{totalPages}</span>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                 disabled={currentPage >= totalPages - 1}
+                className="px-3 py-1 text-xs bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next
+                Next →
               </Button>
             </div>
           </div>
