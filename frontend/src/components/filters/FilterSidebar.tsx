@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, Filter, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
@@ -34,6 +34,10 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
   const [breachDateRange, setBreachDateRange] = useState<{ start?: string; end?: string }>({})
   const [publicationDateRange, setPublicationDateRange] = useState<{ start?: string; end?: string }>({})
 
+  // Use refs to prevent re-renders during typing
+  const searchTimeoutRef = useRef<NodeJS.Timeout>()
+  const lastSearchRef = useRef('')
+
   // Collapsible sections
   const [expandedSections, setExpandedSections] = useState({
     search: true,
@@ -50,27 +54,36 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     loadSourceTypes()
   }, [currentView])
 
-  // Debounced search effect
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      onFiltersChange({
-        search,
-        sourceTypes,
-        selectedSources,
-        minAffected,
-        scrapedDateRange,
-        breachDateRange,
-        publicationDateRange
-      })
-    }, 300)
+  // Handle search input with debouncing
+  const handleSearchChange = (value: string) => {
+    setSearch(value)
 
-    return () => clearTimeout(timeoutId)
-  }, [search])
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
 
-  // Immediate effect for non-search filters
-  useEffect(() => {
+    // Set new timeout for search
+    searchTimeoutRef.current = setTimeout(() => {
+      if (lastSearchRef.current !== value) {
+        lastSearchRef.current = value
+        onFiltersChange({
+          search: value,
+          sourceTypes,
+          selectedSources,
+          minAffected,
+          scrapedDateRange,
+          breachDateRange,
+          publicationDateRange
+        })
+      }
+    }, 500) // Increased debounce time
+  }
+
+  // Update filters immediately for non-search changes
+  const updateFiltersImmediate = () => {
     onFiltersChange({
-      search,
+      search: lastSearchRef.current || search,
       sourceTypes,
       selectedSources,
       minAffected,
@@ -78,7 +91,21 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       breachDateRange,
       publicationDateRange
     })
+  }
+
+  // Effect for non-search filters
+  useEffect(() => {
+    updateFiltersImmediate()
   }, [sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const loadSourceTypes = async () => {
     try {
@@ -197,12 +224,12 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
           <SectionHeader title="Search" section="search">
             <Input
               type="text"
-              placeholder={currentView === 'breaches' 
-                ? "Search organizations, data types..." 
+              placeholder={currentView === 'breaches'
+                ? "Search organizations, data types..."
                 : "Search articles, content..."
               }
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </SectionHeader>
 
