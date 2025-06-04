@@ -379,6 +379,13 @@ function parseDateRange(range: string): { start?: string; end?: string } {
   }
 }
 
+export async function getDataSources() {
+  return supabase
+    .from('data_sources')
+    .select('id, name, type')
+    .order('name')
+}
+
 export async function getSourceTypes() {
   const { data, error } = await supabase
     .from('data_sources')
