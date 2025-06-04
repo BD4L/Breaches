@@ -10,6 +10,36 @@ import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory, isNewsSource
 import { getSourceTypeColor } from '../../lib/utils'
 import type { ViewType } from '../dashboard/ViewToggle'
 
+// Move SectionHeader outside to prevent remounting
+const SectionHeader = ({
+  title,
+  section,
+  children,
+  expandedSections,
+  onToggle
+}: {
+  title: string
+  section: string
+  children: React.ReactNode
+  expandedSections: Record<string, boolean>
+  onToggle: (section: string) => void
+}) => (
+  <div className="space-y-3">
+    <button
+      onClick={() => onToggle(section)}
+      className="flex items-center justify-between w-full text-left"
+    >
+      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</h3>
+      {expandedSections[section] ? (
+        <ChevronDown className="w-4 h-4 text-gray-400" />
+      ) : (
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+      )}
+    </button>
+    {expandedSections[section] && <div className="space-y-3">{children}</div>}
+  </div>
+)
+
 interface FilterSidebarProps {
   isOpen: boolean
   onClose: () => void
@@ -154,26 +184,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     setPublicationDateRange({})
   }
 
-  const SectionHeader = ({ title, section, children }: { 
-    title: string
-    section: keyof typeof expandedSections
-    children: React.ReactNode 
-  }) => (
-    <div className="space-y-3">
-      <button
-        onClick={() => toggleSection(section)}
-        className="flex items-center justify-between w-full text-left"
-      >
-        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</h3>
-        {expandedSections[section] ? (
-          <ChevronDown className="w-4 h-4 text-gray-400" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-gray-400" />
-        )}
-      </button>
-      {expandedSections[section] && <div className="space-y-3">{children}</div>}
-    </div>
-  )
+
 
   return (
     <>
@@ -221,7 +232,12 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         {/* Filter Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Search */}
-          <SectionHeader title="Search" section="search">
+          <SectionHeader
+            title="Search"
+            section="search"
+            expandedSections={expandedSections}
+            onToggle={toggleSection}
+          >
             <Input
               type="text"
               placeholder={currentView === 'breaches'
@@ -234,13 +250,18 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
           </SectionHeader>
 
           {/* Date Filters */}
-          <SectionHeader title="Date Ranges" section="dates">
+          <SectionHeader
+            title="Date Ranges"
+            section="dates"
+            expandedSections={expandedSections}
+            onToggle={toggleSection}
+          >
             <DateRangePicker
               label="Scraped Date"
               value={scrapedDateRange}
               onChange={setScrapedDateRange}
             />
-            
+
             {currentView === 'breaches' && (
               <DateRangePicker
                 label="Breach Date"
@@ -248,7 +269,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                 onChange={setBreachDateRange}
               />
             )}
-            
+
             <DateRangePicker
               label="Publication Date"
               value={publicationDateRange}
@@ -258,7 +279,12 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
 
           {/* Affected Individuals - Only for breach view */}
           {currentView === 'breaches' && (
-            <SectionHeader title="People Affected" section="affected">
+            <SectionHeader
+              title="People Affected"
+              section="affected"
+              expandedSections={expandedSections}
+              onToggle={toggleSection}
+            >
               <NumericSlider
                 label="Minimum Affected"
                 value={minAffected}
@@ -271,7 +297,12 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
           )}
 
           {/* Source Categories */}
-          <SectionHeader title="Source Categories" section="sources">
+          <SectionHeader
+            title="Source Categories"
+            section="sources"
+            expandedSections={expandedSections}
+            onToggle={toggleSection}
+          >
             <div className="space-y-3">
               {availableSourceTypes.map(type => {
                 const count = sourceTypeCounts[type] || 0
