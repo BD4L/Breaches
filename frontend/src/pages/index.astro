@@ -4,104 +4,118 @@ import Layout from '../layouts/Layout.astro'
 
 <Layout title="Breach Dashboard - Real-time Security Incident Monitoring">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Dark Theme Header -->
-    <div class="mb-8 text-center">
-      <div class="inline-flex items-center space-x-3 mb-6">
-        <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-          <span class="text-white text-xl">🛡️</span>
+    <!-- Modern Dashboard Header -->
+    <div class="mb-10 text-center">
+      <div class="inline-flex items-center space-x-3 mb-4">
+        <div class="w-16 h-16 bg-gradient-to-br from-teal to-purple rounded-2xl flex items-center justify-center shadow-glow-teal">
+          <span class="text-dark-900 text-2xl">🛡️</span>
         </div>
         <div class="text-left">
-          <h1 class="text-3xl font-bold text-white">
+          <h1 class="text-4xl font-bold bg-gradient-to-r from-teal-light via-teal to-purple-light bg-clip-text text-transparent">
             Security Intelligence Hub
           </h1>
-          <p class="text-slate-400 font-medium">
+          <p class="text-lg text-gray-400 font-medium">
             Real-time breach monitoring across 37+ sources
           </p>
         </div>
       </div>
-      <p class="text-slate-400 max-w-3xl mx-auto leading-relaxed">
+      <p class="text-gray-400 max-w-3xl mx-auto leading-relaxed">
         Comprehensive monitoring of security incidents from government portals, state attorney general offices,
         cybersecurity news feeds, and specialized breach databases with AI-powered analysis.
       </p>
     </div>
 
-    <!-- Dark Theme Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-200">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-            <span class="text-white text-sm">📊</span>
+    <!-- Modern Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+      <!-- Breach Notifications Card -->
+      <div class="group relative overflow-hidden bg-dark-800/50 backdrop-blur-sm p-6 rounded-2xl border border-dark-700/50 hover:border-teal/30 transition-all duration-300 hover:shadow-glow-teal">
+        <div class="absolute inset-0 bg-gradient-to-br from-teal/5 to-teal/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div class="relative">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-teal-light to-teal rounded-xl flex items-center justify-center shadow-md">
+              <span class="text-dark-900 text-xl">📊</span>
+            </div>
+            <div class="w-2 h-2 bg-teal rounded-full animate-pulse"></div>
           </div>
-          <div class="text-xs text-blue-400 font-medium px-2 py-1 bg-blue-900/30 rounded">
-            Active
+          <div>
+            <p class="text-sm font-semibold text-teal uppercase tracking-wide">Active</p>
+            <h3 class="text-base font-medium text-gray-300 mt-1">Breach Notifications</h3>
+            <p class="text-3xl font-bold text-white mt-2" id="total-breaches">
+              <span class="animate-pulse bg-gradient-to-r from-dark-700 to-dark-600 bg-clip-text text-transparent shimmer">Loading...</span>
+            </p>
+            <p class="text-sm text-gray-400 mt-1" id="news-count">
+              <span class="animate-pulse">+ Loading news...</span>
+            </p>
           </div>
-        </div>
-        <div>
-          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Breach Notifications</p>
-          <p class="text-2xl font-bold text-white" id="total-breaches">
-            <span class="animate-pulse text-slate-500">Loading...</span>
-          </p>
-          <p class="text-xs text-slate-500 mt-1" id="news-count">
-            <span class="animate-pulse">+ Loading news...</span>
-          </p>
         </div>
       </div>
 
-      <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-200">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
-            <span class="text-white text-sm">👥</span>
+      <!-- People Affected Card -->
+      <div class="group relative overflow-hidden bg-dark-800/50 backdrop-blur-sm p-6 rounded-2xl border border-dark-700/50 hover:border-purple/30 transition-all duration-300 hover:shadow-glow-purple">
+        <div class="absolute inset-0 bg-gradient-to-br from-purple/5 to-purple/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div class="relative">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-purple-light to-purple rounded-xl flex items-center justify-center shadow-md">
+              <span class="text-dark-900 text-xl">👥</span>
+            </div>
+            <div class="w-2 h-2 bg-purple rounded-full animate-pulse"></div>
           </div>
-          <div class="text-xs text-red-400 font-medium px-2 py-1 bg-red-900/30 rounded">
-            Critical
+          <div>
+            <p class="text-sm font-semibold text-purple uppercase tracking-wide">Critical</p>
+            <h3 class="text-base font-medium text-gray-300 mt-1">People Affected</h3>
+            <p class="text-3xl font-bold text-white mt-2" id="total-affected">
+              <span class="animate-pulse bg-gradient-to-r from-dark-700 to-dark-600 bg-clip-text text-transparent shimmer">Loading...</span>
+            </p>
+            <p class="text-sm text-gray-400 mt-1">
+              <span id="affected-change">+120% from last week</span>
+            </p>
           </div>
-        </div>
-        <div>
-          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">People Affected</p>
-          <p class="text-2xl font-bold text-white" id="total-affected">
-            <span class="animate-pulse text-slate-500">Loading...</span>
-          </p>
-          <p class="text-xs text-slate-500 mt-1">+120% from last week</p>
         </div>
       </div>
 
-      <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-200">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
-            <span class="text-white text-sm">🔄</span>
+      <!-- Active Sources Card -->
+      <div class="group relative overflow-hidden bg-dark-800/50 backdrop-blur-sm p-6 rounded-2xl border border-dark-700/50 hover:border-teal/30 transition-all duration-300 hover:shadow-glow-teal">
+        <div class="absolute inset-0 bg-gradient-to-br from-teal/5 to-teal/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div class="relative">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-teal-light to-teal rounded-xl flex items-center justify-center shadow-md">
+              <span class="text-dark-900 text-xl">🔄</span>
+            </div>
+            <div class="w-2 h-2 bg-teal rounded-full animate-pulse"></div>
           </div>
-          <div class="text-xs text-green-400 font-medium px-2 py-1 bg-green-900/30 rounded">
-            Healthy
+          <div>
+            <p class="text-sm font-semibold text-teal uppercase tracking-wide">Healthy</p>
+            <h3 class="text-base font-medium text-gray-300 mt-1">Active Sources</h3>
+            <p class="text-3xl font-bold text-white mt-2">37+</p>
+            <p class="text-sm text-gray-400 mt-1">Government & News</p>
           </div>
-        </div>
-        <div>
-          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Active Sources</p>
-          <p class="text-2xl font-bold text-white">37+</p>
-          <p class="text-xs text-slate-500 mt-1">Government & News</p>
         </div>
       </div>
 
-      <div class="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-all duration-200">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-8 h-8 bg-orange-600 rounded flex items-center justify-center">
-            <span class="text-white text-sm">📅</span>
+      <!-- Last Updated Card -->
+      <div class="group relative overflow-hidden bg-dark-800/50 backdrop-blur-sm p-6 rounded-2xl border border-dark-700/50 hover:border-purple/30 transition-all duration-300 hover:shadow-glow-purple">
+        <div class="absolute inset-0 bg-gradient-to-br from-purple/5 to-purple/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div class="relative">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-purple-light to-purple rounded-xl flex items-center justify-center shadow-md">
+              <span class="text-dark-900 text-xl">📅</span>
+            </div>
+            <div class="w-2 h-2 bg-purple rounded-full animate-pulse"></div>
           </div>
-          <div class="text-xs text-orange-400 font-medium px-2 py-1 bg-orange-900/30 rounded">
-            Recent
+          <div>
+            <p class="text-sm font-semibold text-purple uppercase tracking-wide">Recent</p>
+            <h3 class="text-base font-medium text-gray-300 mt-1">Last Updated</h3>
+            <p class="text-3xl font-bold text-white mt-2" id="last-updated">
+              <span class="animate-pulse bg-gradient-to-r from-dark-700 to-dark-600 bg-clip-text text-transparent shimmer">Loading...</span>
+            </p>
+            <p class="text-sm text-gray-400 mt-1">Auto-refreshing</p>
           </div>
-        </div>
-        <div>
-          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Last Updated</p>
-          <p class="text-2xl font-bold text-white" id="last-updated">
-            <span class="animate-pulse text-slate-500">Loading...</span>
-          </p>
-          <p class="text-xs text-slate-500 mt-1">Auto-refreshing</p>
         </div>
       </div>
     </div>
 
     <!-- Main Dashboard Content -->
-    <div id="dashboard-root"></div>
+    <div id="dashboard-root" class="bg-dark-900/70 backdrop-blur-sm rounded-2xl border border-dark-700/50 shadow-xl"></div>
   </div>
 </Layout>
 
@@ -182,18 +196,22 @@ import Layout from '../layouts/Layout.astro'
 
       if (totalBreachesEl) {
         totalBreachesEl.innerHTML = (totalBreaches || 0).toLocaleString()
+        totalBreachesEl.classList.remove('animate-pulse', 'bg-gradient-to-r', 'from-dark-700', 'to-dark-600', 'bg-clip-text', 'text-transparent', 'shimmer')
       }
 
       if (newsCountEl) {
         newsCountEl.innerHTML = `+ ${(totalNews || 0).toLocaleString()} news articles`
+        newsCountEl.classList.remove('animate-pulse')
       }
 
       if (totalAffectedEl) {
         totalAffectedEl.innerHTML = formatAffectedCount(totalAffected)
+        totalAffectedEl.classList.remove('animate-pulse', 'bg-gradient-to-r', 'from-dark-700', 'to-dark-600', 'bg-clip-text', 'text-transparent', 'shimmer')
       }
 
       if (lastUpdatedEl) {
         lastUpdatedEl.innerHTML = new Date(lastUpdated).toLocaleDateString()
+        lastUpdatedEl.classList.remove('animate-pulse', 'bg-gradient-to-r', 'from-dark-700', 'to-dark-600', 'bg-clip-text', 'text-transparent', 'shimmer')
       }
 
       console.log('Dashboard stats loaded:', {
@@ -218,7 +236,7 @@ import Layout from '../layouts/Layout.astro'
         const el = document.getElementById(id)
         if (el) {
           el.innerHTML = message
-          el.className = el.className.replace('text-gray-900 dark:text-white', 'text-red-500 dark:text-red-400')
+          el.className = 'text-red-500'
         }
       })
     }

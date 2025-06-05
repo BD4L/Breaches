@@ -63,7 +63,7 @@ export function NumericSlider({
             variant="ghost"
             size="sm"
             onClick={handleClear}
-            className="p-1 h-6 w-6 text-gray-400 hover:text-gray-600"
+            className="p-1 h-6 w-6 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
           >
             <X className="w-3 h-3" />
           </Button>
@@ -78,7 +78,7 @@ export function NumericSlider({
             onClick={() => handleSliderChange(quick.value)}
             className={`px-2 py-1 text-xs rounded-md transition-colors ${
               sliderValue === quick.value
-                ? 'bg-blue-600 text-white'
+                ? 'bg-teal-600 text-white dark:bg-teal-500'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -113,7 +113,7 @@ export function NumericSlider({
 
         {hasValue && (
           <div className="text-center">
-            <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
+            <span className="inline-block px-3 py-1 bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 rounded-full text-sm font-medium shadow-sm">
               Minimum: {formatValue(sliderValue)} people
             </span>
           </div>
@@ -128,6 +128,10 @@ export function NumericSlider({
             background: #e5e7eb;
             border: none;
           }
+          
+          .dark input[type="range"]::-webkit-slider-track {
+            background: #374151;
+          }
 
           input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -135,15 +139,26 @@ export function NumericSlider({
             height: 20px;
             width: 20px;
             border-radius: 50%;
-            background: #2563eb;
+            background: #0d9488;
             cursor: grab;
             border: 2px solid #ffffff;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
             margin-top: -6px;
           }
+          
+          .dark input[type="range"]::-webkit-slider-thumb {
+            background: #14b8a6;
+            border: 2px solid #1f2937;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          }
 
           input[type="range"]::-webkit-slider-thumb:hover {
-            background: #1d4ed8;
+            background: #0f766e;
+            transform: scale(1.1);
+          }
+          
+          .dark input[type="range"]::-webkit-slider-thumb:hover {
+            background: #2dd4bf;
             transform: scale(1.1);
           }
 
@@ -157,19 +172,33 @@ export function NumericSlider({
             background: #e5e7eb;
             border: none;
           }
+          
+          .dark input[type="range"]::-moz-range-track {
+            background: #374151;
+          }
 
           input[type="range"]::-moz-range-thumb {
             height: 20px;
             width: 20px;
             border-radius: 50%;
-            background: #2563eb;
+            background: #0d9488;
             cursor: grab;
             border: 2px solid #ffffff;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
           }
+          
+          .dark input[type="range"]::-moz-range-thumb {
+            background: #14b8a6;
+            border: 2px solid #1f2937;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          }
 
           input[type="range"]::-moz-range-thumb:hover {
-            background: #1d4ed8;
+            background: #0f766e;
+          }
+          
+          .dark input[type="range"]::-moz-range-thumb:hover {
+            background: #2dd4bf;
           }
         `
       }} />
