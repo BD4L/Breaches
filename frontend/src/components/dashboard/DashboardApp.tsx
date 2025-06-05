@@ -27,6 +27,11 @@ export function DashboardApp() {
   const [breachCount, setBreachCount] = useState<number | undefined>(undefined)
   const [newsCount, setNewsCount] = useState<number | undefined>(undefined)
   const [savedCount, setSavedCount] = useState<number | undefined>(undefined)
+
+  // Handle saved count updates from BreachTable
+  const handleSavedCountChange = (count: number) => {
+    setSavedCount(count)
+  }
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [dataSources, setDataSources] = useState<Array<{ id: number; name: string }>>([])
   const [filters, setFilters] = useState<Filters>({
@@ -178,18 +183,21 @@ export function DashboardApp() {
 
             {/* Main Content */}
             {currentView === 'breaches' ? (
-              <BreachTable filters={{
-                ...filters,
-                scrapedDateRange: filters.scrapedDateRange.start || filters.scrapedDateRange.end
-                  ? `${filters.scrapedDateRange.start || ''}|${filters.scrapedDateRange.end || ''}`
-                  : '',
-                breachDateRange: filters.breachDateRange.start || filters.breachDateRange.end
-                  ? `${filters.breachDateRange.start || ''}|${filters.breachDateRange.end || ''}`
-                  : '',
-                publicationDateRange: filters.publicationDateRange.start || filters.publicationDateRange.end
-                  ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
-                  : ''
-              }} />
+              <BreachTable
+                filters={{
+                  ...filters,
+                  scrapedDateRange: filters.scrapedDateRange.start || filters.scrapedDateRange.end
+                    ? `${filters.scrapedDateRange.start || ''}|${filters.scrapedDateRange.end || ''}`
+                    : '',
+                  breachDateRange: filters.breachDateRange.start || filters.breachDateRange.end
+                    ? `${filters.breachDateRange.start || ''}|${filters.breachDateRange.end || ''}`
+                    : '',
+                  publicationDateRange: filters.publicationDateRange.start || filters.publicationDateRange.end
+                    ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
+                    : ''
+                }}
+                onSavedCountChange={handleSavedCountChange}
+              />
             ) : currentView === 'news' ? (
               <NewsTable filters={{
                 search: filters.search,

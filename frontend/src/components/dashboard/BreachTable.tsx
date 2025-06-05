@@ -26,9 +26,10 @@ interface BreachTableProps {
     breachDateRange: string
     publicationDateRange: string
   }
+  onSavedCountChange?: (count: number) => void
 }
 
-export function BreachTable({ filters }: BreachTableProps) {
+export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
   const [data, setData] = useState<BreachRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +47,14 @@ export function BreachTable({ filters }: BreachTableProps) {
 
   // Track saved breaches
   const [savedBreaches, setSavedBreaches] = useState<Record<number, any>>({})
+
+  // Update saved count when savedBreaches changes
+  useEffect(() => {
+    const savedCount = Object.keys(savedBreaches).length
+    if (onSavedCountChange) {
+      onSavedCountChange(savedCount)
+    }
+  }, [savedBreaches, onSavedCountChange])
 
   // Load saved breach status for current data
   useEffect(() => {
@@ -244,6 +253,7 @@ export function BreachTable({ filters }: BreachTableProps) {
               )}
             </div>
             <SaveBreachButton
+              key={`save-${row.original.id}-${!!savedBreaches[row.original.id]}`}
               breach={row.original}
               isSaved={!!savedBreaches[row.original.id]}
               savedData={savedBreaches[row.original.id]}

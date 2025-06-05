@@ -37,6 +37,9 @@ export function SaveBreachButton({
 }: SaveBreachButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
+  // Debug logging
+  console.log(`SaveBreachButton for breach ${breach.id}: isSaved=${isSaved}, savedData=`, savedData)
+
   const handleToggleSave = async () => {
     if (isSaved && onRemove) {
       setIsLoading(true)
@@ -86,7 +89,7 @@ export function SaveBreachButton({
       `}
     >
       {isSaved ? (
-        <Star className="w-4 h-4 mr-1 fill-current" />
+        <Star className="w-4 h-4 mr-1" fill="currentColor" />
       ) : (
         <Bookmark className="w-4 h-4 mr-1" />
       )}
