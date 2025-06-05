@@ -1,0 +1,104 @@
+name: Daily Breach Activity Report
+
+on:
+  schedule:
+    - cron: '0 1 * * *' # Daily at 1 AM UTC (start of new day)
+  workflow_dispatch: # Allows manual triggering
+    inputs:
+      report_type:
+        description: 'Type of report to generate'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - 'full'      # Both yesterday and today
+          - 'today'     # Today only (1am to now)
+          - 'yesterday' # Yesterday only (1am to 1am)
+
+jobs:
+  daily-breach-report:
+    name: "📅 Daily Breach Activity Report"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    outputs:
+      today_new_items: ${{ steps.daily-stats.outputs.today_new_items }}
+      today_new_breaches: ${{ steps.daily-stats.outputs.today_new_breaches }}
+      today_new_news: ${{ steps.daily-stats.outputs.today_new_news }}
+      today_new_affected: ${{ steps.daily-stats.outputs.today_new_affected }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Generate daily activity report
+        id: daily-stats
+        run: |
+          echo "📅 Generating daily breach activity report..."
+          
+          # Determine report type
+          REPORT_TYPE="${{ github.event.inputs.report_type || 'full' }}"
+          
+          case $REPORT_TYPE in
+            "today")
+              echo "📊 Generating today's activity report..."
+              python scrapers/daily_change_tracker.py --today
+              ;;
+            "yesterday")
+              echo "📊 Generating yesterday's activity report..."
+              python scrapers/daily_change_tracker.py --yesterday
+              ;;
+            "full"|*)
+              echo "📊 Generating comprehensive daily report..."
+              python scrapers/daily_change_tracker.py --report
+              ;;
+          esac
+          
+      - name: Generate summary for notifications
+        run: |
+          echo ""
+          echo "🔔 DAILY SUMMARY FOR NOTIFICATIONS:"
+          echo "=================================="
+          
+          # Get today's stats for potential alerting
+          python scrapers/daily_change_tracker.py --today > /tmp/today_report.txt
+          
+          # Extract key metrics (this could be enhanced for webhook/email integration)
+          echo "📊 Report generated and ready for integration with:"
+          echo "   • Email notifications"
+          echo "   • Slack/Discord webhooks" 
+          echo "   • Dashboard updates"
+          echo "   • Security team alerts"
+          echo ""
+          echo "🔗 View live dashboard: https://hackermanmarlin.github.io/Breaches/"
+
+  # Optional: Send daily digest (can be enabled when notification system is ready)
+  daily-digest:
+    name: "📧 Daily Digest Notification"
+    runs-on: ubuntu-latest
+    needs: daily-breach-report
+    if: ${{ always() && needs.daily-breach-report.outputs.today_new_breaches > 5 }} # Only if significant activity
+    steps:
+      - name: High activity alert
+        run: |
+          echo "🚨 HIGH BREACH ACTIVITY DETECTED!"
+          echo "================================"
+          echo "📊 Today's Activity:"
+          echo "   • New Items: ${{ needs.daily-breach-report.outputs.today_new_items }}"
+          echo "   • New Breaches: ${{ needs.daily-breach-report.outputs.today_new_breaches }}"
+          echo "   • New News: ${{ needs.daily-breach-report.outputs.today_new_news }}"
+          echo "   • People Affected: ${{ needs.daily-breach-report.outputs.today_new_affected }}"
+          echo ""
+          echo "🔗 Dashboard: https://hackermanmarlin.github.io/Breaches/"
+          echo ""
+          echo "This alert triggers when >5 new breaches are detected in a day."
+          echo "Customize the threshold or add email/Slack integration as needed."
