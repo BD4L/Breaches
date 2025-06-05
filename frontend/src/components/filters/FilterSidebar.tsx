@@ -79,9 +79,12 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
   // Available source types and counts
   const [availableSourceTypes, setAvailableSourceTypes] = useState<string[]>([])
   const [sourceTypeCounts, setSourceTypeCounts] = useState<Record<string, number>>({})
+  const [sourcesByCategory, setSourcesByCategory] = useState<Record<string, Array<{id: number, name: string, itemCount: number, itemType: string}>>>({})
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     loadSourceTypes()
+    loadSourcesByCategory()
   }, [currentView])
 
   // Handle search input with debouncing
@@ -160,7 +163,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         })
 
         setAvailableSourceTypes(filteredTypes)
-        
+
         const counts: Record<string, number> = {}
         countsResult.data.forEach(item => {
           counts[item.type] = item.count
@@ -169,6 +172,29 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       }
     } catch (error) {
       console.error('Failed to load source types:', error)
+    }
+  }
+
+  const loadSourcesByCategory = async () => {
+    try {
+      const sourcesByCategory = await getSourcesByCategory()
+
+      // Filter categories based on current view
+      const filteredCategories: Record<string, Array<{id: number, name: string, itemCount: number, itemType: string}>> = {}
+
+      Object.entries(sourcesByCategory).forEach(([category, sources]) => {
+        const isNewsCategory = ['RSS News Feeds', 'Company IR Sites'].includes(category)
+
+        if (currentView === 'breaches' && !isNewsCategory) {
+          filteredCategories[category] = sources
+        } else if (currentView === 'news' && isNewsCategory) {
+          filteredCategories[category] = sources
+        }
+      })
+
+      setSourcesByCategory(filteredCategories)
+    } catch (error) {
+      console.error('Failed to load sources by category:', error)
     }
   }
 
@@ -199,6 +225,45 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       breachDateRange: {},
       publicationDateRange: {}
     })
+  }
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }))
+  }
+
+  const toggleCategorySelection = (category: string) => {
+    const categorySourceIds = sourcesByCategory[category]?.map(source => source.id) || []
+    const allSelected = categorySourceIds.every(id => selectedSources.includes(id))
+
+    if (allSelected) {
+      // Deselect all sources in this category
+      setSelectedSources(prev => prev.filter(id => !categorySourceIds.includes(id)))
+    } else {
+      // Select all sources in this category
+      setSelectedSources(prev => [...new Set([...prev, ...categorySourceIds])])
+    }
+  }
+
+  const toggleSourceSelection = (sourceId: number) => {
+    setSelectedSources(prev =>
+      prev.includes(sourceId)
+        ? prev.filter(id => id !== sourceId)
+        : [...prev, sourceId]
+    )
+  }
+
+  const getCategoryIcon = (category: string): string => {
+    switch (category) {
+      case 'State AG Sites': return '🏛️'
+      case 'Government Portals': return '🏢'
+      case 'RSS News Feeds': return '📰'
+      case 'Specialized Breach Sites': return '🔍'
+      case 'Company IR Sites': return '💼'
+      default: return '📊'
+    }
   }
 
 
@@ -324,56 +389,95 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
             expandedSections={expandedSections}
             onToggle={toggleSection}
           >
-            <div className="space-y-3">
-              {availableSourceTypes.map(type => {
-                const count = sourceTypeCounts[type] || 0
-                const isSelected = sourceTypes.includes(type)
-                
+            <div className="space-y-2">
+              {Object.entries(sourcesByCategory).map(([category, sources]) => {
+                const isExpanded = expandedCategories[category]
+                const categorySourceIds = sources.map(source => source.id)
+                const selectedInCategory = categorySourceIds.filter(id => selectedSources.includes(id))
+                const totalCount = sources.reduce((sum, source) => sum + source.itemCount, 0)
+
                 return (
-                  <div key={type} className="flex items-center justify-between">
-                    <button
-                      onClick={() => {
-                        let newSourceTypes: string[]
-                        if (isSelected) {
-                          newSourceTypes = sourceTypes.filter(t => t !== type)
-                          setSourceTypes(newSourceTypes)
-                        } else {
-                          newSourceTypes = [...sourceTypes, type]
-                          setSourceTypes(newSourceTypes)
-                        }
-                        // Immediately update filters when source type changes
-                        setTimeout(() => updateFiltersImmediate(), 0)
-                      }}
-                      className={`flex-1 text-left p-2 rounded-md transition-colors ${
-                        isSelected
-                          ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    >
+                  <div key={category} className="border border-gray-200 dark:border-gray-700 rounded-lg">
+                    {/* Category Header */}
+                    <div className="p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {type}
-                        </span>
-                        <Badge className={getSourceTypeColor(type)}>
-                          {count.toLocaleString()}
-                        </Badge>
+                        <button
+                          onClick={() => toggleCategory(category)}
+                          className="flex items-center space-x-2 flex-1 text-left hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded"
+                        >
+                          <span className="text-lg">{getCategoryIcon(category)}</span>
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900 dark:text-white text-sm">
+                              {category}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {sources.length} sources • {totalCount.toLocaleString()} {sources[0]?.itemType || 'items'}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {selectedInCategory.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {selectedInCategory.length} selected
+                              </Badge>
+                            )}
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-400" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-400" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* Category Select All/None */}
+                        <button
+                          onClick={() => toggleCategorySelection(category)}
+                          className="ml-2 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          {selectedInCategory.length === categorySourceIds.length ? 'None' : 'All'}
+                        </button>
                       </div>
-                    </button>
+                    </div>
+
+                    {/* Expanded Sources */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-200 dark:border-gray-700 p-3 space-y-2">
+                        {sources.map(source => {
+                          const isSelected = selectedSources.includes(source.id)
+
+                          return (
+                            <div
+                              key={source.id}
+                              className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                isSelected
+                                  ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                              }`}
+                              onClick={() => toggleSourceSelection(source.id)}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <div className={`w-3 h-3 rounded border flex items-center justify-center ${
+                                  isSelected
+                                    ? 'border-blue-500 bg-blue-500'
+                                    : 'border-gray-300 dark:border-gray-600'
+                                }`}>
+                                  {isSelected && <span className="text-white text-xs">✓</span>}
+                                </div>
+                                <span className="text-sm text-gray-900 dark:text-white">
+                                  {source.name}
+                                </span>
+                              </div>
+                              <Badge variant="secondary" className="text-xs">
+                                {source.itemCount.toLocaleString()}
+                              </Badge>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
-
-            {/* Individual Source Selection */}
-            {sourceTypes.length > 0 && (
-              <div className="mt-4">
-                <SourceSelector
-                  selectedSourceTypes={sourceTypes}
-                  selectedSources={selectedSources}
-                  onSourcesChange={setSelectedSources}
-                />
-              </div>
-            )}
           </SectionHeader>
         </div>
       </div>
