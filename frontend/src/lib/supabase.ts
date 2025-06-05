@@ -595,6 +595,8 @@ export async function saveBreach(breachId: number, data: {
   assigned_to?: string
   due_date?: string
 }) {
+  console.log('💾 Saving breach:', { breachId, data })
+
   const { data: result, error } = await supabase
     .from('saved_breaches')
     .insert({
@@ -604,6 +606,7 @@ export async function saveBreach(breachId: number, data: {
     })
     .select()
 
+  console.log('📊 Save result:', { result, error })
   return { data: result, error }
 }
 
@@ -638,12 +641,15 @@ export async function getSavedBreaches(params: {
 }
 
 export async function removeSavedBreach(savedId: number) {
+  console.log('🗑️ Removing saved breach:', savedId)
+
   const { error } = await supabase
     .from('saved_breaches')
     .delete()
     .eq('id', savedId)
     .eq('user_id', 'anonymous') // For now, using anonymous user
 
+  console.log('📊 Remove result:', { error })
   return { error }
 }
 
@@ -670,12 +676,15 @@ export async function updateSavedBreach(savedId: number, updates: {
 }
 
 export async function checkIfBreachSaved(breachId: number) {
+  console.log('🔍 Checking if breach is saved:', breachId)
+
   const { data, error } = await supabase
     .from('saved_breaches')
     .select('id, collection_name, priority_level, review_status')
     .eq('breach_id', breachId)
     .eq('user_id', 'anonymous') // For now, using anonymous user
-    .single()
+    .maybeSingle() // Use maybeSingle instead of single to handle no results
 
+  console.log('📊 Check result:', { data, error, breachId })
   return { data, error }
 }

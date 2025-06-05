@@ -50,17 +50,25 @@ export function BreachTable({ filters }: BreachTableProps) {
   // Load saved breach status for current data
   useEffect(() => {
     const loadSavedStatus = async () => {
+      console.log('🔍 Loading saved status for', data.length, 'breaches')
       const savedStatus: Record<number, any> = {}
       for (const breach of data) {
         try {
           const result = await checkIfBreachSaved(breach.id)
           if (result.data && !result.error) {
-            savedStatus[breach.id] = result.data
+            console.log('✅ Found saved breach:', breach.id, result.data)
+            savedStatus[breach.id] = {
+              id: result.data.id, // This is the saved_breaches.id
+              collection_name: result.data.collection_name,
+              priority_level: result.data.priority_level,
+              review_status: result.data.review_status
+            }
           }
         } catch (error) {
-          // Ignore errors for individual checks
+          console.error('❌ Error checking saved status for breach', breach.id, error)
         }
       }
+      console.log('📊 Final saved status:', savedStatus)
       setSavedBreaches(savedStatus)
     }
 
@@ -71,25 +79,33 @@ export function BreachTable({ filters }: BreachTableProps) {
 
   const handleSaveBreach = async (breachId: number, saveData: SaveBreachData) => {
     try {
-      await saveBreach(breachId, saveData)
-      // Update local state
-      setSavedBreaches(prev => ({
-        ...prev,
-        [breachId]: {
-          collection_name: saveData.collection_name,
-          priority_level: saveData.priority_level,
-          review_status: saveData.review_status
-        }
-      }))
+      console.log('💾 Handling save breach:', breachId, saveData)
+      const result = await saveBreach(breachId, saveData)
+      if (result.data && result.data[0]) {
+        // Update local state with the returned saved breach data
+        setSavedBreaches(prev => ({
+          ...prev,
+          [breachId]: {
+            id: result.data[0].id, // This is the saved_breaches.id
+            collection_name: saveData.collection_name,
+            priority_level: saveData.priority_level,
+            review_status: saveData.review_status
+          }
+        }))
+        console.log('✅ Successfully saved and updated local state')
+      }
     } catch (error) {
-      console.error('Failed to save breach:', error)
+      console.error('❌ Failed to save breach:', error)
       throw error
     }
   }
 
   const handleRemoveSavedBreach = async (breachId: number) => {
     try {
+      console.log('🗑️ Handling remove saved breach:', breachId)
       const savedData = savedBreaches[breachId]
+      console.log('📊 Saved data for removal:', savedData)
+
       if (savedData?.id) {
         await removeSavedBreach(savedData.id)
         // Update local state
@@ -98,9 +114,12 @@ export function BreachTable({ filters }: BreachTableProps) {
           delete newState[breachId]
           return newState
         })
+        console.log('✅ Successfully removed and updated local state')
+      } else {
+        console.warn('⚠️ No saved data found for breach:', breachId)
       }
     } catch (error) {
-      console.error('Failed to remove saved breach:', error)
+      console.error('❌ Failed to remove saved breach:', error)
       throw error
     }
   }
