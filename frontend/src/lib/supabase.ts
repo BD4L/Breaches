@@ -589,21 +589,32 @@ export async function getDataTypes() {
 export async function saveBreach(breachId: number, data: {
   collection_name: string
   priority_level: 'low' | 'medium' | 'high' | 'critical'
-  notes?: string
-  tags?: string[]
+  notes: string
+  tags: string[]
   review_status: 'pending' | 'in_progress' | 'reviewed' | 'escalated' | 'closed'
-  assigned_to?: string
-  due_date?: string
+  assigned_to: string
+  due_date: string
 }) {
   console.log('💾 Saving breach:', { breachId, data })
 
+  // Clean the data to ensure it matches database expectations
+  const cleanData = {
+    user_id: 'anonymous',
+    breach_id: breachId,
+    collection_name: data.collection_name || 'Default',
+    priority_level: data.priority_level || 'medium',
+    notes: data.notes || null,
+    tags: data.tags && data.tags.length > 0 ? data.tags : null,
+    review_status: data.review_status || 'pending',
+    assigned_to: data.assigned_to || null,
+    due_date: data.due_date || null
+  }
+
+  console.log('🧹 Cleaned data:', cleanData)
+
   const { data: result, error } = await supabase
     .from('saved_breaches')
-    .insert({
-      user_id: 'anonymous', // For now, using anonymous user
-      breach_id: breachId,
-      ...data
-    })
+    .insert(cleanData)
     .select()
 
   console.log('📊 Save result:', { result, error })
