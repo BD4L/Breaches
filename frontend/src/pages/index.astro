@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro'
+import { DashboardApp } from '../components/dashboard/DashboardApp'
 ---
 
 <Layout title="Breach Dashboard - Real-time Security Incident Monitoring">
@@ -115,23 +116,13 @@ import Layout from '../layouts/Layout.astro'
     </div>
 
     <!-- Main Dashboard Content -->
-    <div id="dashboard-root" class="bg-dark-900/70 backdrop-blur-sm rounded-2xl border border-dark-700/50 shadow-xl"></div>
+    <DashboardApp client:load />
   </div>
 </Layout>
 
 <script>
-  import { DashboardApp } from '../components/dashboard/DashboardApp'
-  import { createRoot } from 'react-dom/client'
-  import React from 'react'
   import { supabase } from '../lib/supabase'
   import { formatAffectedCount } from '../lib/utils'
-
-  // Mount React app
-  const container = document.getElementById('dashboard-root')
-  if (container) {
-    const root = createRoot(container)
-    root.render(React.createElement(DashboardApp))
-  }
 
   // Load dashboard stats
   async function loadStats() {
