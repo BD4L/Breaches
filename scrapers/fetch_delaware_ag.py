@@ -296,10 +296,17 @@ def process_delaware_ag_breaches():
 
             # Prioritize reported date (to AG), then breach date for publication_date
             publication_date_iso = None
+            original_publication_date = None  # Track if we used a real date or fallback
+
             if reported_date_str and reported_date_str.lower() not in ['n/a', 'unknown', '']:
                 publication_date_iso = parse_date_delaware(reported_date_str)
+                if publication_date_iso:
+                    original_publication_date = publication_date_iso
+
             if not publication_date_iso and date_of_breach_str and date_of_breach_str.lower() not in ['n/a', 'unknown', '']:
                 publication_date_iso = parse_date_delaware(date_of_breach_str)
+                if publication_date_iso:
+                    original_publication_date = publication_date_iso
 
             # If no valid date could be parsed, use current date as fallback to preserve the record
             current_datetime_iso = datetime.now().isoformat()
@@ -309,8 +316,8 @@ def process_delaware_ag_breaches():
 
             # Filter: Only collect breaches from today onward (exclude archived/past listings)
             # But only apply this filter if we successfully parsed a real date (not using fallback)
-            if publication_date_iso != current_datetime_iso and not is_recent_breach(publication_date_iso):
-                logger.info(f"Skipping '{entity_name}' - breach date {publication_date_iso.split('T')[0]} is before today")
+            if original_publication_date and not is_recent_breach(original_publication_date):
+                logger.info(f"Skipping '{entity_name}' - breach date {original_publication_date.split('T')[0]} is before today")
                 skipped_count += 1
                 continue
 
@@ -379,12 +386,12 @@ def process_delaware_ag_breaches():
             summary = ". ".join(summary_parts) + "." if summary_parts else "Data breach notification."
 
 
-            # Generate unique URL if no specific URL available
+            # Generate stable unique URL if no specific URL available
             if not item_specific_url:
                 import urllib.parse
                 org_slug = urllib.parse.quote(entity_name.replace(' ', '-').lower())
-                date_slug = publication_date_iso.split('T')[0]  # Just the date part
-                item_specific_url = f"{DELAWARE_AG_BREACH_URL}#{org_slug}-{date_slug}"
+                # Use incident_uid for stable URL instead of current date
+                item_specific_url = f"{DELAWARE_AG_BREACH_URL}#{org_slug}-{incident_uid}"
 
             item_data = {
                 "source_id": SOURCE_ID_DELAWARE_AG,
@@ -410,13 +417,25 @@ def process_delaware_ag_breaches():
                 "keyword_contexts": None  # Will be populated from PDF text analysis
             }
 
-            # Check for existing record before inserting
+            # Check for existing record using stable identifiers
             try:
-                query_result = supabase_client.client.table("scraped_items").select("id").eq("title", entity_name).eq("publication_date", publication_date_iso).eq("source_id", SOURCE_ID_DELAWARE_AG).execute()
+                # First check by URL (most reliable)
+                query_result = supabase_client.client.table("scraped_items").select("id").eq("item_url", item_specific_url).eq("source_id", SOURCE_ID_DELAWARE_AG).execute()
                 if query_result.data:
-                    logger.info(f"Item '{entity_name}' on {publication_date_iso} already exists. Skipping.")
+                    logger.info(f"Item '{entity_name}' with URL {item_specific_url} already exists. Skipping.")
                     skipped_count += 1
                     continue
+
+                # Secondary check by incident_uid in raw_data_json
+                query_result = supabase_client.client.table("scraped_items").select("id, raw_data_json").eq("title", entity_name).eq("source_id", SOURCE_ID_DELAWARE_AG).execute()
+                for existing_item in query_result.data or []:
+                    existing_raw_data = existing_item.get('raw_data_json', {})
+                    existing_uid = existing_raw_data.get('delaware_ag_derived', {}).get('incident_uid')
+                    if existing_uid == incident_uid:
+                        logger.info(f"Item '{entity_name}' with incident_uid {incident_uid} already exists. Skipping.")
+                        skipped_count += 1
+                        continue
+
             except Exception as e_check:
                 logger.warning(f"Could not check for existing record: {e_check}. Proceeding with insert.")
 
