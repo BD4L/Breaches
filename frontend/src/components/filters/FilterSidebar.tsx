@@ -3,8 +3,8 @@ import { X } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { DateRangePicker } from './DateRangePicker'
 import { SourceTypeFilter } from './SourceTypeFilter'
-import { SourceFilter } from './SourceFilter'
-import { AffectedSlider } from './AffectedSlider'
+import { SourceSelector } from './SourceSelector'
+import { NumericSlider } from './NumericSlider'
 import { SearchInput } from './SearchInput'
 import { ViewType } from '../dashboard/ViewToggle'
 import { getDataSources } from '../../lib/supabase'
@@ -129,12 +129,10 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
             {/* Source Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Data Sources</label>
-              <SourceFilter
-                sources={dataSources}
+              <SourceSelector
+                selectedSourceTypes={sourceTypes}
                 selectedSources={selectedSources}
-                onChange={setSelectedSources}
-                loading={loading}
-                className="bg-dark-700 border-dark-600 text-white"
+                onSourcesChange={setSelectedSources}
               />
             </div>
 
@@ -142,14 +140,17 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
             {currentView === 'breaches' && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-300">Minimum Affected Individuals</label>
-                <AffectedSlider
+                <NumericSlider
+                  label="Minimum Affected"
                   value={minAffected}
                   onChange={setMinAffected}
-                  className="text-teal"
+                  min={0}
+                  max={100000}
+                  step={100}
                 />
                 <div className="text-xs text-gray-400 mt-1">
-                  {minAffected === 0 
-                    ? 'Show all breaches' 
+                  {minAffected === 0
+                    ? 'Show all breaches'
                     : `Minimum: ${minAffected.toLocaleString()} affected`}
                 </div>
               </div>
