@@ -289,7 +289,7 @@ jobs:
       - name: Run BreachSense Scraper
         run: python scrapers/fetch_breachsense.py
       - name: Wait between scrapers
-        run: sleep 10
+      #  run: sleep 10
      # - name: Run Cybersecurity News RSS Scraper
       #  run: python scrapers/fetch_cybersecurity_news.py
      # - name: Wait between scrapers
