@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Bookmark, BookmarkCheck } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Heart, Star } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import type { BreachRecord } from '../../lib/supabase'
@@ -77,14 +77,16 @@ export function SaveBreachButton({
       disabled={isLoading}
       className={`
         ${className}
+        transition-all duration-200 ease-in-out
         ${isSaved
-          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-          : 'hover:bg-blue-50 text-blue-600 border-blue-200'
+          ? 'bg-green-600 hover:bg-green-700 text-white shadow-md border-green-600'
+          : 'hover:bg-blue-50 text-blue-600 border-blue-200 hover:border-blue-300'
         }
+        ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
       `}
     >
       {isSaved ? (
-        <BookmarkCheck className="w-4 h-4 mr-1" />
+        <Star className="w-4 h-4 mr-1 fill-current" />
       ) : (
         <Bookmark className="w-4 h-4 mr-1" />
       )}

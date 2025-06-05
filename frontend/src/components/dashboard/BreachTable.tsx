@@ -82,7 +82,7 @@ export function BreachTable({ filters }: BreachTableProps) {
       console.log('💾 Handling save breach:', breachId, saveData)
       const result = await saveBreach(breachId, saveData)
       if (result.data && result.data[0]) {
-        // Update local state with the returned saved breach data
+        // Immediately update local state to show saved status
         setSavedBreaches(prev => ({
           ...prev,
           [breachId]: {
@@ -93,6 +93,9 @@ export function BreachTable({ filters }: BreachTableProps) {
           }
         }))
         console.log('✅ Successfully saved and updated local state')
+      } else if (result.error) {
+        console.error('❌ Supabase error:', result.error)
+        throw new Error(result.error.message || 'Failed to save breach')
       }
     } catch (error) {
       console.error('❌ Failed to save breach:', error)
@@ -107,8 +110,13 @@ export function BreachTable({ filters }: BreachTableProps) {
       console.log('📊 Saved data for removal:', savedData)
 
       if (savedData?.id) {
-        await removeSavedBreach(savedData.id)
-        // Update local state
+        const result = await removeSavedBreach(savedData.id)
+        if (result.error) {
+          console.error('❌ Supabase error:', result.error)
+          throw new Error(result.error.message || 'Failed to remove saved breach')
+        }
+
+        // Immediately update local state to show unsaved status
         setSavedBreaches(prev => {
           const newState = { ...prev }
           delete newState[breachId]
@@ -117,6 +125,7 @@ export function BreachTable({ filters }: BreachTableProps) {
         console.log('✅ Successfully removed and updated local state')
       } else {
         console.warn('⚠️ No saved data found for breach:', breachId)
+        throw new Error('No saved data found for this breach')
       }
     } catch (error) {
       console.error('❌ Failed to remove saved breach:', error)
@@ -418,28 +427,37 @@ export function BreachTable({ filters }: BreachTableProps) {
             ))}
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {table.getRowModel().rows.map(row => (
-              <React.Fragment key={row.id}>
-                <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  {row.getVisibleCells().map(cell => (
-                    <td
-                      key={cell.id}
-                      className="px-6 py-4 whitespace-nowrap"
-                      style={{ width: cell.column.getSize() }}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-                {row.getIsExpanded() && (
-                  <tr>
-                    <td colSpan={columns.length} className="px-6 py-4 bg-gray-50 dark:bg-gray-700">
-                      <BreachDetail breach={row.original} />
-                    </td>
+            {table.getRowModel().rows.map(row => {
+              const isSaved = !!savedBreaches[row.original.id]
+              return (
+                <React.Fragment key={row.id}>
+                  <tr className={`
+                    transition-colors duration-200
+                    ${isSaved
+                      ? 'bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 border-l-4 border-green-500'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }
+                  `}>
+                    {row.getVisibleCells().map(cell => (
+                      <td
+                        key={cell.id}
+                        className="px-6 py-4 whitespace-nowrap"
+                        style={{ width: cell.column.getSize() }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
+                  {row.getIsExpanded() && (
+                    <tr>
+                      <td colSpan={columns.length} className={`px-6 py-4 ${isSaved ? 'bg-green-50 dark:bg-green-900/10' : 'bg-gray-50 dark:bg-gray-700'}`}>
+                        <BreachDetail breach={row.original} />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              )
+            })}
           </tbody>
         </table>
       </div>
