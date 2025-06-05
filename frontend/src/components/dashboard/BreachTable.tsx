@@ -53,7 +53,7 @@ export function BreachTable({ filters }: BreachTableProps) {
             variant="ghost"
             size="sm"
             onClick={row.getToggleExpandedHandler()}
-            className="p-1 text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400"
+            className="p-1"
           >
             {row.getIsExpanded() ? '▼' : '▶'}
           </Button>
@@ -102,7 +102,7 @@ export function BreachTable({ filters }: BreachTableProps) {
         accessorKey: 'breach_date',
         header: 'Breach Date',
         cell: ({ getValue }) => (
-          <span className="text-sm text-gray-700 dark:text-gray-300">
+          <span className="text-sm">
             {formatDate(getValue() as string)}
           </span>
         ),
@@ -112,7 +112,7 @@ export function BreachTable({ filters }: BreachTableProps) {
         accessorKey: 'publication_date',
         header: 'Published',
         cell: ({ getValue }) => (
-          <span className="text-sm text-gray-700 dark:text-gray-300">
+          <span className="text-sm">
             {formatDate(getValue() as string)}
           </span>
         ),
@@ -138,7 +138,6 @@ export function BreachTable({ filters }: BreachTableProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => window.open(row.original.notice_document_url!, '_blank')}
-                className="border-gray-200 dark:border-gray-600 hover:bg-teal-50 dark:hover:bg-teal-900/20"
               >
                 📄 Notice
               </Button>
@@ -148,7 +147,6 @@ export function BreachTable({ filters }: BreachTableProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => window.open(row.original.item_url!, '_blank')}
-                className="border-gray-200 dark:border-gray-600 hover:bg-purple-50 dark:hover:bg-purple-900/20"
               >
                 🔗 Source
               </Button>
@@ -260,10 +258,10 @@ export function BreachTable({ filters }: BreachTableProps) {
     return (
       <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
         {/* Loading Header */}
-        <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800/80 dark:to-gray-700/80 border-b border-gray-200/50 dark:border-gray-700/50">
+        <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200/50 dark:border-gray-700/50">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white text-lg">🛡️</span>
               </div>
               <div>
@@ -272,7 +270,7 @@ export function BreachTable({ filters }: BreachTableProps) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="px-4 py-2 bg-white/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+              <div className="px-4 py-2 bg-white/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50">
                 <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                 <div className="h-6 w-16 bg-gray-200 dark:bg-gray-700 rounded mt-1 animate-pulse"></div>
               </div>
@@ -318,14 +316,14 @@ export function BreachTable({ filters }: BreachTableProps) {
   return (
     <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
       {/* Modern Header */}
-      <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800/80 dark:to-gray-700/80 border-b border-gray-200/50 dark:border-gray-700/50">
+      <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200/50 dark:border-gray-700/50">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white text-lg">🛡️</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-teal-300 bg-clip-text text-transparent">
+              <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                 Security Incidents
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -334,14 +332,14 @@ export function BreachTable({ filters }: BreachTableProps) {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="px-4 py-2 bg-white/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+            <div className="px-4 py-2 bg-white/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50">
               <div className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Records</div>
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {totalCount.toLocaleString()}
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Live</span>
             </div>
           </div>
@@ -351,7 +349,7 @@ export function BreachTable({ filters }: BreachTableProps) {
       {/* Modern Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700/80 dark:to-gray-600/80">
+          <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
@@ -364,7 +362,7 @@ export function BreachTable({ filters }: BreachTableProps) {
                       <div
                         className={
                           header.column.getCanSort()
-                            ? 'cursor-pointer select-none flex items-center space-x-2 hover:text-teal-600 dark:hover:text-teal-400 transition-colors duration-200'
+                            ? 'cursor-pointer select-none flex items-center space-x-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200'
                             : 'flex items-center space-x-2'
                         }
                         onClick={header.column.getToggleSortingHandler()}
@@ -372,8 +370,8 @@ export function BreachTable({ filters }: BreachTableProps) {
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         <div className="flex flex-col">
                           {{
-                            asc: <span className="text-teal-500">▲</span>,
-                            desc: <span className="text-teal-500">▼</span>,
+                            asc: <span className="text-blue-500">▲</span>,
+                            desc: <span className="text-blue-500">▼</span>,
                           }[header.column.getIsSorted() as string] ?? (
                             header.column.getCanSort() && (
                               <span className="text-gray-300 dark:text-gray-600">⇅</span>
@@ -391,8 +389,8 @@ export function BreachTable({ filters }: BreachTableProps) {
             {table.getRowModel().rows.map((row, index) => (
               <React.Fragment key={row.id}>
                 <tr className={`
-                  group transition-all duration-200 hover:bg-gradient-to-r hover:from-teal-50/50 hover:to-purple-50/50
-                  dark:hover:from-teal-900/10 dark:hover:to-purple-900/10 hover:shadow-sm
+                  group transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50
+                  dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 hover:shadow-sm
                   ${index % 2 === 0 ? 'bg-white/30 dark:bg-gray-800/30' : 'bg-gray-50/30 dark:bg-gray-700/30'}
                 `}>
                   {row.getVisibleCells().map(cell => (
@@ -407,7 +405,7 @@ export function BreachTable({ filters }: BreachTableProps) {
                 </tr>
                 {row.getIsExpanded() && (
                   <tr>
-                    <td colSpan={columns.length} className="px-6 py-4 bg-gray-50/70 dark:bg-gray-700/70 backdrop-blur-sm">
+                    <td colSpan={columns.length} className="px-6 py-4 bg-gray-50 dark:bg-gray-700">
                       <BreachDetail breach={row.original} />
                     </td>
                   </tr>
@@ -420,13 +418,13 @@ export function BreachTable({ filters }: BreachTableProps) {
 
       {/* Modern Pagination */}
       {totalPages > 1 && (
-        <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800/80 dark:to-gray-700/80 border-t border-gray-200/50 dark:border-gray-700/50">
+        <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 border-t border-gray-200/50 dark:border-gray-700/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">
-                Showing <span className="font-bold text-teal-600 dark:text-teal-400">{currentPage * pageSize + 1}</span> to{' '}
-                <span className="font-bold text-teal-600 dark:text-teal-400">{Math.min((currentPage + 1) * pageSize, totalCount)}</span> of{' '}
-                <span className="font-bold text-teal-600 dark:text-teal-400">{totalCount}</span> results
+                Showing <span className="font-bold text-blue-600 dark:text-blue-400">{currentPage * pageSize + 1}</span> to{' '}
+                <span className="font-bold text-blue-600 dark:text-blue-400">{Math.min((currentPage + 1) * pageSize, totalCount)}</span> of{' '}
+                <span className="font-bold text-blue-600 dark:text-blue-400">{totalCount}</span> results
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -435,14 +433,14 @@ export function BreachTable({ filters }: BreachTableProps) {
                 size="sm"
                 onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
                 disabled={currentPage === 0}
-                className="px-4 py-2 rounded-xl border-gray-300 dark:border-gray-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:border-teal-300 dark:hover:border-teal-600 transition-all duration-200"
+                className="px-4 py-2 rounded-xl border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200"
               >
                 ← Previous
               </Button>
-              <div className="flex items-center px-4 py-2 bg-white/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+              <div className="flex items-center px-4 py-2 bg-white/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50">
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                  Page <span className="font-bold text-teal-600 dark:text-teal-400">{currentPage + 1}</span> of{' '}
-                  <span className="font-bold text-teal-600 dark:text-teal-400">{totalPages}</span>
+                  Page <span className="font-bold text-blue-600 dark:text-blue-400">{currentPage + 1}</span> of{' '}
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{totalPages}</span>
                 </span>
               </div>
               <Button
@@ -450,7 +448,7 @@ export function BreachTable({ filters }: BreachTableProps) {
                 size="sm"
                 onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                 disabled={currentPage >= totalPages - 1}
-                className="px-4 py-2 rounded-xl border-gray-300 dark:border-gray-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:border-teal-300 dark:hover:border-teal-600 transition-all duration-200"
+                className="px-4 py-2 rounded-xl border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200"
               >
                 Next →
               </Button>

@@ -13,12 +13,12 @@ export function FilterToggle({ onClick, activeFiltersCount = 0 }: FilterTogglePr
       variant="outline"
       size="sm"
       onClick={onClick}
-      className="relative border-dark-600 text-gray-300 hover:bg-dark-700/50"
+      className="lg:hidden relative"
     >
       <Filter className="w-4 h-4 mr-2" />
       Filters
       {activeFiltersCount > 0 && (
-        <span className="absolute -top-2 -right-2 bg-teal text-dark-900 text-xs font-medium rounded-full h-5 w-5 flex items-center justify-center shadow-glow-teal">
+        <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
           {activeFiltersCount > 9 ? '9+' : activeFiltersCount}
         </span>
       )}
