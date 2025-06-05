@@ -24,6 +24,20 @@ export const isNewsSource = (sourceType: string): boolean => {
   return ['News Feed', 'Company IR'].includes(sourceType)
 }
 
+// Types for saved breaches
+export interface SavedBreachRecord extends BreachRecord {
+  saved_id: number
+  collection_name: string
+  priority_level: 'low' | 'medium' | 'high' | 'critical'
+  notes?: string
+  tags?: string[]
+  review_status: 'pending' | 'in_progress' | 'reviewed' | 'escalated' | 'closed'
+  assigned_to?: string
+  due_date?: string
+  saved_at: string
+  last_updated: string
+}
+
 export const isBreachSource = (sourceType: string): boolean => {
   return ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'].includes(sourceType)
 }
@@ -569,4 +583,99 @@ export async function getDataTypes() {
   // Flatten and get unique data types
   const allTypes = data.flatMap(item => item.data_types_compromised || [])
   return [...new Set(allTypes)].filter(Boolean)
+}
+
+// Saved Breaches Functions
+export async function saveBreach(breachId: number, data: {
+  collection_name: string
+  priority_level: 'low' | 'medium' | 'high' | 'critical'
+  notes?: string
+  tags?: string[]
+  review_status: 'pending' | 'in_progress' | 'reviewed' | 'escalated' | 'closed'
+  assigned_to?: string
+  due_date?: string
+}) {
+  const { data: result, error } = await supabase
+    .from('saved_breaches')
+    .insert({
+      user_id: 'anonymous', // For now, using anonymous user
+      breach_id: breachId,
+      ...data
+    })
+    .select()
+
+  return { data: result, error }
+}
+
+export async function getSavedBreaches(params: {
+  collection?: string
+  priority?: string
+  status?: string
+  assignedTo?: string
+} = {}) {
+  let query = supabase
+    .from('v_saved_breaches')
+    .select('*')
+    .eq('user_id', 'anonymous') // For now, using anonymous user
+    .order('saved_at', { ascending: false })
+
+  if (params.collection) {
+    query = query.eq('collection_name', params.collection)
+  }
+  if (params.priority) {
+    query = query.eq('priority_level', params.priority)
+  }
+  if (params.status) {
+    query = query.eq('review_status', params.status)
+  }
+  if (params.assignedTo) {
+    query = query.eq('assigned_to', params.assignedTo)
+  }
+
+  const { data, error } = await query
+
+  return { data, error }
+}
+
+export async function removeSavedBreach(savedId: number) {
+  const { error } = await supabase
+    .from('saved_breaches')
+    .delete()
+    .eq('id', savedId)
+    .eq('user_id', 'anonymous') // For now, using anonymous user
+
+  return { error }
+}
+
+export async function updateSavedBreach(savedId: number, updates: {
+  collection_name?: string
+  priority_level?: 'low' | 'medium' | 'high' | 'critical'
+  notes?: string
+  tags?: string[]
+  review_status?: 'pending' | 'in_progress' | 'reviewed' | 'escalated' | 'closed'
+  assigned_to?: string
+  due_date?: string
+}) {
+  const { data, error } = await supabase
+    .from('saved_breaches')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', savedId)
+    .eq('user_id', 'anonymous') // For now, using anonymous user
+    .select()
+
+  return { data, error }
+}
+
+export async function checkIfBreachSaved(breachId: number) {
+  const { data, error } = await supabase
+    .from('saved_breaches')
+    .select('id, collection_name, priority_level, review_status')
+    .eq('breach_id', breachId)
+    .eq('user_id', 'anonymous') // For now, using anonymous user
+    .single()
+
+  return { data, error }
 }

@@ -1,16 +1,17 @@
 import React from 'react'
 import { Button } from '../ui/Button'
 
-export type ViewType = 'breaches' | 'news'
+export type ViewType = 'breaches' | 'news' | 'saved'
 
 interface ViewToggleProps {
   currentView: ViewType
   onViewChange: (view: ViewType) => void
   breachCount?: number
   newsCount?: number
+  savedCount?: number
 }
 
-export function ViewToggle({ currentView, onViewChange, breachCount, newsCount }: ViewToggleProps) {
+export function ViewToggle({ currentView, onViewChange, breachCount, newsCount, savedCount }: ViewToggleProps) {
   return (
     <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
       <Button
@@ -47,6 +48,25 @@ export function ViewToggle({ currentView, onViewChange, breachCount, newsCount }
         {newsCount !== undefined && (
           <span className="ml-1 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
             {newsCount.toLocaleString()}
+          </span>
+        )}
+      </Button>
+
+      <Button
+        variant={currentView === 'saved' ? 'default' : 'ghost'}
+        size="sm"
+        onClick={() => onViewChange('saved')}
+        className={`flex items-center space-x-2 ${
+          currentView === 'saved'
+            ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white'
+            : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+        }`}
+      >
+        <span>🔖</span>
+        <span>Saved Breaches</span>
+        {savedCount !== undefined && (
+          <span className="ml-1 px-2 py-0.5 text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full">
+            {savedCount.toLocaleString()}
           </span>
         )}
       </Button>

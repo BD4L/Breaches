@@ -9,11 +9,12 @@ import {
   type SortingState,
   type ExpandedState,
 } from '@tanstack/react-table'
-import { getBreaches, type BreachRecord } from '../../lib/supabase'
+import { getBreaches, saveBreach, checkIfBreachSaved, removeSavedBreach, type BreachRecord } from '../../lib/supabase'
 import { formatDate, formatAffectedCount, getSourceTypeColor, getSeverityColor, truncateText } from '../../lib/utils'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { BreachDetail } from '../breach/BreachDetail'
+import { SaveBreachButton, type SaveBreachData } from '../saved/SaveBreachButton'
 
 interface BreachTableProps {
   filters: {
@@ -42,6 +43,67 @@ export function BreachTable({ filters }: BreachTableProps) {
   // Add debouncing to prevent excessive API calls
   const [debouncedFilters, setDebouncedFilters] = useState(filters)
   const debounceTimeoutRef = useRef<NodeJS.Timeout>()
+
+  // Track saved breaches
+  const [savedBreaches, setSavedBreaches] = useState<Record<number, any>>({})
+
+  // Load saved breach status for current data
+  useEffect(() => {
+    const loadSavedStatus = async () => {
+      const savedStatus: Record<number, any> = {}
+      for (const breach of data) {
+        try {
+          const result = await checkIfBreachSaved(breach.id)
+          if (result.data && !result.error) {
+            savedStatus[breach.id] = result.data
+          }
+        } catch (error) {
+          // Ignore errors for individual checks
+        }
+      }
+      setSavedBreaches(savedStatus)
+    }
+
+    if (data.length > 0) {
+      loadSavedStatus()
+    }
+  }, [data])
+
+  const handleSaveBreach = async (breachId: number, saveData: SaveBreachData) => {
+    try {
+      await saveBreach(breachId, saveData)
+      // Update local state
+      setSavedBreaches(prev => ({
+        ...prev,
+        [breachId]: {
+          collection_name: saveData.collection_name,
+          priority_level: saveData.priority_level,
+          review_status: saveData.review_status
+        }
+      }))
+    } catch (error) {
+      console.error('Failed to save breach:', error)
+      throw error
+    }
+  }
+
+  const handleRemoveSavedBreach = async (breachId: number) => {
+    try {
+      const savedData = savedBreaches[breachId]
+      if (savedData?.id) {
+        await removeSavedBreach(savedData.id)
+        // Update local state
+        setSavedBreaches(prev => {
+          const newState = { ...prev }
+          delete newState[breachId]
+          return newState
+        })
+      }
+    } catch (error) {
+      console.error('Failed to remove saved breach:', error)
+      throw error
+    }
+  }
 
   const columns = useMemo<ColumnDef<BreachRecord>[]>(
     () => [
@@ -132,28 +194,38 @@ export function BreachTable({ filters }: BreachTableProps) {
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => (
-          <div className="flex space-x-2">
-            {row.original.notice_document_url && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(row.original.notice_document_url!, '_blank')}
-              >
-                📄 Notice
-              </Button>
-            )}
-            {row.original.item_url && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(row.original.item_url!, '_blank')}
-              >
-                🔗 Source
-              </Button>
-            )}
+          <div className="flex flex-col space-y-2">
+            <div className="flex space-x-2">
+              {row.original.notice_document_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(row.original.notice_document_url!, '_blank')}
+                >
+                  📄
+                </Button>
+              )}
+              {row.original.item_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(row.original.item_url!, '_blank')}
+                >
+                  🔗
+                </Button>
+              )}
+            </div>
+            <SaveBreachButton
+              breach={row.original}
+              isSaved={!!savedBreaches[row.original.id]}
+              savedData={savedBreaches[row.original.id]}
+              onSave={handleSaveBreach}
+              onRemove={handleRemoveSavedBreach}
+              className="w-full"
+            />
           </div>
         ),
-        size: 150,
+        size: 200,
       },
     ],
     []

@@ -8,8 +8,9 @@ import { ActiveFilterPills, createFilterPills } from '../filters/ActiveFilterPil
 import { ScraperControl } from './ScraperControl'
 import { SourceSummary } from './SourceSummary'
 import { NonWorkingSites } from './NonWorkingSites'
+import { SavedBreachesView } from '../saved/SavedBreachesView'
 import { Button } from '../ui/Button'
-import { supabase, getDataSources } from '../../lib/supabase'
+import { supabase, getDataSources, getSavedBreaches } from '../../lib/supabase'
 
 interface Filters {
   search: string
@@ -25,6 +26,7 @@ export function DashboardApp() {
   const [currentView, setCurrentView] = useState<ViewType>('breaches')
   const [breachCount, setBreachCount] = useState<number | undefined>(undefined)
   const [newsCount, setNewsCount] = useState<number | undefined>(undefined)
+  const [savedCount, setSavedCount] = useState<number | undefined>(undefined)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [dataSources, setDataSources] = useState<Array<{ id: number; name: string }>>([])
   const [filters, setFilters] = useState<Filters>({
@@ -60,6 +62,10 @@ export function DashboardApp() {
           .select('*', { count: 'exact', head: true })
           .in('source_type', ['News Feed', 'Company IR'])
 
+        // Get saved breaches count
+        const savedResult = await getSavedBreaches()
+        const savedBreachesCount = savedResult.data?.length || 0
+
         // Get data sources for filter pills
         const sourcesResult = await getDataSources()
         if (sourcesResult.data) {
@@ -71,6 +77,7 @@ export function DashboardApp() {
 
         setBreachCount(breaches || 0)
         setNewsCount(news || 0)
+        setSavedCount(savedBreachesCount)
       } catch (error) {
         console.error('Failed to load initial data:', error)
       }
@@ -128,6 +135,7 @@ export function DashboardApp() {
                 onViewChange={setCurrentView}
                 breachCount={breachCount}
                 newsCount={newsCount}
+                savedCount={savedCount}
               />
             </div>
 
@@ -168,7 +176,7 @@ export function DashboardApp() {
               onClearAll={clearAllFilters}
             />
 
-            {/* Main Table */}
+            {/* Main Content */}
             {currentView === 'breaches' ? (
               <BreachTable filters={{
                 ...filters,
@@ -182,7 +190,7 @@ export function DashboardApp() {
                   ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
                   : ''
               }} />
-            ) : (
+            ) : currentView === 'news' ? (
               <NewsTable filters={{
                 search: filters.search,
                 selectedSources: filters.selectedSources,
@@ -193,6 +201,8 @@ export function DashboardApp() {
                   ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
                   : ''
               }} />
+            ) : (
+              <SavedBreachesView />
             )}
           </div>
         </div>
