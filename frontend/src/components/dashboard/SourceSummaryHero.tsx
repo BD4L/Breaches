@@ -74,27 +74,6 @@ export function SourceSummaryHero() {
   if (loading) {
     return (
       <div className="mb-12">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center space-x-3 mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-500/25">
-              <span className="text-white text-2xl">🛡️</span>
-            </div>
-            <div className="text-left">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 dark:from-white dark:via-blue-100 dark:to-indigo-100 bg-clip-text text-transparent">
-                Security Intelligence Hub
-              </h1>
-              <p className="text-lg text-gray-600 dark:text-gray-400 font-medium">
-                Real-time breach monitoring across multiple sources
-              </p>
-            </div>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
-            Comprehensive monitoring of security incidents from government portals, state attorney general offices,
-            cybersecurity news feeds, and specialized breach databases with AI-powered analysis.
-          </p>
-        </div>
-
         {/* Loading Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
@@ -114,27 +93,6 @@ export function SourceSummaryHero() {
 
   return (
     <div className="mb-12">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center space-x-3 mb-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-500/25">
-            <span className="text-white text-2xl">🛡️</span>
-          </div>
-          <div className="text-left">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 dark:from-white dark:via-blue-100 dark:to-indigo-100 bg-clip-text text-transparent">
-              Security Intelligence Hub
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 font-medium">
-              Real-time breach monitoring across {stats?.totalSources}+ sources
-            </p>
-          </div>
-        </div>
-        <p className="text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
-          Comprehensive monitoring of security incidents from government portals, state attorney general offices,
-          cybersecurity news feeds, and specialized breach databases with AI-powered analysis.
-        </p>
-      </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border border-blue-200/50 dark:border-blue-800/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
