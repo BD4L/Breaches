@@ -103,7 +103,7 @@ export function DashboardApp() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-dark-900/80 rounded-xl overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Filter Sidebar */}
       <FilterSidebar
         isOpen={sidebarOpen}
@@ -115,8 +115,8 @@ export function DashboardApp() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-dark-800 border-b border-dark-700/50 px-6 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <FilterToggle
                 onClick={() => setSidebarOpen(true)}
@@ -131,12 +131,12 @@ export function DashboardApp() {
               />
             </div>
 
-            <div className="flex items-center space-x-3 mt-2 sm:mt-0">
+            <div className="flex items-center space-x-3">
               <Button
                 variant="default"
                 size="sm"
                 onClick={() => setShowScraperControl(true)}
-                className="bg-teal hover:bg-teal-light text-dark-900 font-medium"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 🔧 Scraper Control
               </Button>
@@ -144,7 +144,6 @@ export function DashboardApp() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowSourceSummary(true)}
-                className="border-dark-600 text-gray-300 hover:bg-dark-700/50"
               >
                 📊 Source Summary
               </Button>
@@ -152,7 +151,7 @@ export function DashboardApp() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowNonWorkingSites(true)}
-                className="border-yellow-600/30 text-yellow-500 hover:bg-yellow-900/20"
+                className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
               >
                 ⚠️ Issues
               </Button>
@@ -161,7 +160,7 @@ export function DashboardApp() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-auto p-4 sm:p-6">
+        <div className="flex-1 overflow-auto p-6">
           <div className="max-w-full">
             {/* Active Filter Pills */}
             <ActiveFilterPills
@@ -170,33 +169,31 @@ export function DashboardApp() {
             />
 
             {/* Main Table */}
-            <div className="mt-4 bg-dark-800/50 backdrop-blur-sm rounded-xl border border-dark-700/50 overflow-hidden">
-              {currentView === 'breaches' ? (
-                <BreachTable filters={{
-                  ...filters,
-                  scrapedDateRange: filters.scrapedDateRange.start || filters.scrapedDateRange.end
-                    ? `${filters.scrapedDateRange.start || ''}|${filters.scrapedDateRange.end || ''}`
-                    : '',
-                  breachDateRange: filters.breachDateRange.start || filters.breachDateRange.end
-                    ? `${filters.breachDateRange.start || ''}|${filters.breachDateRange.end || ''}`
-                    : '',
-                  publicationDateRange: filters.publicationDateRange.start || filters.publicationDateRange.end
-                    ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
-                    : ''
-                }} />
-              ) : (
-                <NewsTable filters={{
-                  search: filters.search,
-                  selectedSources: filters.selectedSources,
-                  scrapedDateRange: filters.scrapedDateRange.start || filters.scrapedDateRange.end
-                    ? `${filters.scrapedDateRange.start || ''}|${filters.scrapedDateRange.end || ''}`
-                    : '',
-                  publicationDateRange: filters.publicationDateRange.start || filters.publicationDateRange.end
-                    ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
-                    : ''
-                }} />
-              )}
-            </div>
+            {currentView === 'breaches' ? (
+              <BreachTable filters={{
+                ...filters,
+                scrapedDateRange: filters.scrapedDateRange.start || filters.scrapedDateRange.end
+                  ? `${filters.scrapedDateRange.start || ''}|${filters.scrapedDateRange.end || ''}`
+                  : '',
+                breachDateRange: filters.breachDateRange.start || filters.breachDateRange.end
+                  ? `${filters.breachDateRange.start || ''}|${filters.breachDateRange.end || ''}`
+                  : '',
+                publicationDateRange: filters.publicationDateRange.start || filters.publicationDateRange.end
+                  ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
+                  : ''
+              }} />
+            ) : (
+              <NewsTable filters={{
+                search: filters.search,
+                selectedSources: filters.selectedSources,
+                scrapedDateRange: filters.scrapedDateRange.start || filters.scrapedDateRange.end
+                  ? `${filters.scrapedDateRange.start || ''}|${filters.scrapedDateRange.end || ''}`
+                  : '',
+                publicationDateRange: filters.publicationDateRange.start || filters.publicationDateRange.end
+                  ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
+                  : ''
+              }} />
+            )}
           </div>
         </div>
       </div>

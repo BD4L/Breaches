@@ -12,21 +12,21 @@ interface ViewToggleProps {
 
 export function ViewToggle({ currentView, onViewChange, breachCount, newsCount }: ViewToggleProps) {
   return (
-    <div className="flex items-center space-x-1 bg-dark-700/50 p-1 rounded-lg">
+    <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
       <Button
         variant={currentView === 'breaches' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => onViewChange('breaches')}
         className={`flex items-center space-x-2 ${
           currentView === 'breaches'
-            ? 'bg-dark-800 text-white border border-dark-600'
-            : 'hover:bg-dark-700 text-gray-400'
+            ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white'
+            : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
         }`}
       >
         <span>🚨</span>
         <span>Breach Notifications</span>
         {breachCount !== undefined && (
-          <span className="ml-1 px-2 py-0.5 text-xs bg-purple/20 text-purple-light rounded-full">
+          <span className="ml-1 px-2 py-0.5 text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-full">
             {breachCount.toLocaleString()}
           </span>
         )}
@@ -38,14 +38,14 @@ export function ViewToggle({ currentView, onViewChange, breachCount, newsCount }
         onClick={() => onViewChange('news')}
         className={`flex items-center space-x-2 ${
           currentView === 'news'
-            ? 'bg-dark-800 text-white border border-dark-600'
-            : 'hover:bg-dark-700 text-gray-400'
+            ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white'
+            : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
         }`}
       >
         <span>📰</span>
         <span>Cybersecurity News</span>
         {newsCount !== undefined && (
-          <span className="ml-1 px-2 py-0.5 text-xs bg-teal/20 text-teal-light rounded-full">
+          <span className="ml-1 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
             {newsCount.toLocaleString()}
           </span>
         )}
