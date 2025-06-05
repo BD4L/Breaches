@@ -123,10 +123,15 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     })
   }, [onFiltersChange, search, sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
 
-  // Effect for non-search filters
+  // Only update filters when specific filter values change (not on every render)
   useEffect(() => {
-    updateFiltersImmediate()
-  }, [updateFiltersImmediate])
+    // Only call if we have actual filter values to avoid initial empty calls
+    if (sourceTypes.length > 0 || selectedSources.length > 0 || minAffected > 0 ||
+        Object.keys(scrapedDateRange).length > 0 || Object.keys(breachDateRange).length > 0 ||
+        Object.keys(publicationDateRange).length > 0) {
+      updateFiltersImmediate()
+    }
+  }, [sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -182,6 +187,18 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     setScrapedDateRange({})
     setBreachDateRange({})
     setPublicationDateRange({})
+
+    // Clear the search ref and immediately update filters
+    lastSearchRef.current = ''
+    onFiltersChange({
+      search: '',
+      sourceTypes: [],
+      selectedSources: [],
+      minAffected: 0,
+      scrapedDateRange: {},
+      breachDateRange: {},
+      publicationDateRange: {}
+    })
   }
 
 
@@ -316,11 +333,16 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                   <div key={type} className="flex items-center justify-between">
                     <button
                       onClick={() => {
+                        let newSourceTypes: string[]
                         if (isSelected) {
-                          setSourceTypes(prev => prev.filter(t => t !== type))
+                          newSourceTypes = sourceTypes.filter(t => t !== type)
+                          setSourceTypes(newSourceTypes)
                         } else {
-                          setSourceTypes(prev => [...prev, type])
+                          newSourceTypes = [...sourceTypes, type]
+                          setSourceTypes(newSourceTypes)
                         }
+                        // Immediately update filters when source type changes
+                        setTimeout(() => updateFiltersImmediate(), 0)
                       }}
                       className={`flex-1 text-left p-2 rounded-md transition-colors ${
                         isSelected
