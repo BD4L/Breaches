@@ -36,26 +36,26 @@ export function formatAffectedCount(count: number | null): string {
 
 export function getSourceTypeColor(sourceType: string): string {
   const colors: Record<string, string> = {
-    'State AG': 'bg-blue-100 text-blue-800',
-    'Government Portal': 'bg-green-100 text-green-800',
-    'News Feed': 'bg-orange-100 text-orange-800',
-    'Breach Database': 'bg-purple-100 text-purple-800',
-    'Company IR': 'bg-gray-100 text-gray-800',
-    'API': 'bg-indigo-100 text-indigo-800',
-    'State Cybersecurity': 'bg-red-100 text-red-800',
-    'State Agency': 'bg-teal-100 text-teal-800'
+    'State AG': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+    'Government Portal': 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+    'News Feed': 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+    'Breach Database': 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+    'Company IR': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    'API': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',
+    'State Cybersecurity': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    'State Agency': 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300'
   }
   
-  return colors[sourceType] || 'bg-gray-100 text-gray-800'
+  return colors[sourceType] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
 export function getSeverityColor(affectedCount: number | null): string {
-  if (!affectedCount) return 'text-gray-500'
+  if (!affectedCount) return 'text-gray-500 dark:text-gray-400'
   
-  if (affectedCount >= 100000) return 'text-red-600 font-semibold'
-  if (affectedCount >= 10000) return 'text-orange-600 font-medium'
-  if (affectedCount >= 1000) return 'text-yellow-600'
-  return 'text-gray-600'
+  if (affectedCount >= 100000) return 'text-red-600 dark:text-red-400 font-semibold'
+  if (affectedCount >= 10000) return 'text-orange-600 dark:text-orange-400 font-medium'
+  if (affectedCount >= 1000) return 'text-yellow-600 dark:text-yellow-400'
+  return 'text-gray-600 dark:text-gray-400'
 }
 
 export function truncateText(text: string | null, maxLength: number = 100): string {

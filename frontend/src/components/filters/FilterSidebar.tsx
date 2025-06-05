@@ -1,58 +1,19 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Filter, ChevronDown, ChevronRight } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { X } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Input } from '../ui/Input'
-import { Badge } from '../ui/Badge'
 import { DateRangePicker } from './DateRangePicker'
-import { NumericSlider } from './NumericSlider'
-import { SourceSelector } from './SourceSelector'
-import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory, isNewsSource, isBreachSource } from '../../lib/supabase'
-import { getSourceTypeColor } from '../../lib/utils'
-import type { ViewType } from '../dashboard/ViewToggle'
-
-// Move SectionHeader outside to prevent remounting
-const SectionHeader = ({
-  title,
-  section,
-  children,
-  expandedSections,
-  onToggle
-}: {
-  title: string
-  section: string
-  children: React.ReactNode
-  expandedSections: Record<string, boolean>
-  onToggle: (section: string) => void
-}) => (
-  <div className="space-y-3">
-    <button
-      onClick={() => onToggle(section)}
-      className="flex items-center justify-between w-full text-left"
-    >
-      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</h3>
-      {expandedSections[section] ? (
-        <ChevronDown className="w-4 h-4 text-gray-400" />
-      ) : (
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-      )}
-    </button>
-    {expandedSections[section] && <div className="space-y-3">{children}</div>}
-  </div>
-)
+import { SourceTypeFilter } from './SourceTypeFilter'
+import { SourceFilter } from './SourceFilter'
+import { AffectedSlider } from './AffectedSlider'
+import { SearchInput } from './SearchInput'
+import { ViewType } from '../dashboard/ViewToggle'
+import { getDataSources } from '../../lib/supabase'
 
 interface FilterSidebarProps {
   isOpen: boolean
   onClose: () => void
   currentView: ViewType
-  onFiltersChange: (filters: {
-    search: string
-    sourceTypes: string[]
-    selectedSources: number[]
-    minAffected: number
-    scrapedDateRange: { start?: string; end?: string }
-    breachDateRange: { start?: string; end?: string }
-    publicationDateRange: { start?: string; end?: string }
-  }) => void
+  onFiltersChange: (filters: any) => void
 }
 
 export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }: FilterSidebarProps) {
@@ -63,57 +24,32 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
   const [scrapedDateRange, setScrapedDateRange] = useState<{ start?: string; end?: string }>({})
   const [breachDateRange, setBreachDateRange] = useState<{ start?: string; end?: string }>({})
   const [publicationDateRange, setPublicationDateRange] = useState<{ start?: string; end?: string }>({})
+  const [dataSources, setDataSources] = useState<Array<{ id: number; name: string; source_type: string }>>([])
+  const [loading, setLoading] = useState(true)
 
-  // Use refs to prevent re-renders during typing
-  const searchTimeoutRef = useRef<NodeJS.Timeout>()
-  const lastSearchRef = useRef('')
-
-  // Collapsible sections
-  const [expandedSections, setExpandedSections] = useState({
-    search: true,
-    dates: true,
-    sources: true,
-    affected: currentView === 'breaches'
-  })
-
-  // Available source types and counts
-  const [availableSourceTypes, setAvailableSourceTypes] = useState<string[]>([])
-  const [sourceTypeCounts, setSourceTypeCounts] = useState<Record<string, number>>({})
-
+  // Load data sources
   useEffect(() => {
-    loadSourceTypes()
-  }, [currentView])
-
-  // Handle search input with debouncing
-  const handleSearchChange = (value: string) => {
-    setSearch(value)
-
-    // Clear existing timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
+    const loadDataSources = async () => {
+      try {
+        setLoading(true)
+        const result = await getDataSources()
+        if (result.data) {
+          setDataSources(result.data)
+        }
+      } catch (error) {
+        console.error('Failed to load data sources:', error)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    // Set new timeout for search
-    searchTimeoutRef.current = setTimeout(() => {
-      if (lastSearchRef.current !== value) {
-        lastSearchRef.current = value
-        onFiltersChange({
-          search: value,
-          sourceTypes,
-          selectedSources,
-          minAffected,
-          scrapedDateRange,
-          breachDateRange,
-          publicationDateRange
-        })
-      }
-    }, 500) // Increased debounce time
-  }
+    loadDataSources()
+  }, [])
 
-  // Update filters immediately for non-search changes
-  const updateFiltersImmediate = useCallback(() => {
+  // Update parent component with filter changes
+  useEffect(() => {
     onFiltersChange({
-      search: lastSearchRef.current || search,
+      search,
       sourceTypes,
       selectedSources,
       minAffected,
@@ -121,60 +57,19 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       breachDateRange,
       publicationDateRange
     })
-  }, [onFiltersChange, search, sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
+  }, [
+    search,
+    sourceTypes,
+    selectedSources,
+    minAffected,
+    scrapedDateRange,
+    breachDateRange,
+    publicationDateRange,
+    onFiltersChange
+  ])
 
-  // Effect for non-search filters
-  useEffect(() => {
-    updateFiltersImmediate()
-  }, [updateFiltersImmediate])
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  const loadSourceTypes = async () => {
-    try {
-      const [typesResult, countsResult] = await Promise.all([
-        getSourceTypes(),
-        getSourceTypeCounts()
-      ])
-
-      if (typesResult.data && countsResult.data) {
-        // Filter source types based on current view
-        const filteredTypes = typesResult.data.filter(type => {
-          if (currentView === 'breaches') {
-            return !['RSS News Feeds', 'Company IR Sites'].includes(type)
-          } else {
-            return ['RSS News Feeds', 'Company IR Sites'].includes(type)
-          }
-        })
-
-        setAvailableSourceTypes(filteredTypes)
-        
-        const counts: Record<string, number> = {}
-        countsResult.data.forEach(item => {
-          counts[item.type] = item.count
-        })
-        setSourceTypeCounts(counts)
-      }
-    } catch (error) {
-      console.error('Failed to load source types:', error)
-    }
-  }
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }))
-  }
-
-  const clearAllFilters = () => {
+  // Reset filters
+  const handleReset = () => {
     setSearch('')
     setSourceTypes([])
     setSelectedSources([])
@@ -184,177 +79,139 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     setPublicationDateRange({})
   }
 
-
+  if (!isOpen) return null
 
   return (
-    <>
-      {/* Mobile Overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 lg:hidden"
-          onClick={onClose}
-          style={{ zIndex: 40 }}
-        />
-      )}
-
-      {/* Dark Theme Sidebar */}
-      <div
-        className={`
-          fixed lg:static inset-y-0 left-0 w-80 bg-slate-800/50 backdrop-blur-sm border-r border-slate-700/50
-          transform transition-transform duration-300 ease-in-out lg:transform-none
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          flex flex-col h-full shadow-2xl lg:shadow-none
-        `}
-        style={{ zIndex: 45 }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-          <h2 className="text-lg font-semibold text-white flex items-center">
-            <Filter className="w-5 h-5 mr-2" />
-            Filters
-          </h2>
-          <div className="flex items-center space-x-2">
+    <div className="fixed inset-0 z-50 flex">
+      {/* Overlay */}
+      <div 
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
+        onClick={onClose}
+      />
+      
+      {/* Sidebar */}
+      <div className="relative w-full max-w-xs sm:max-w-md h-full bg-dark-800 border-r border-dark-700/50 shadow-xl overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-white">Filters</h2>
             <Button
               variant="ghost"
-              size="sm"
-              onClick={clearAllFilters}
-              className="text-slate-400 hover:text-white hover:bg-slate-700"
-            >
-              Clear All
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
+              size="icon"
               onClick={onClose}
-              className="lg:hidden p-1 text-slate-400 hover:text-white hover:bg-slate-700"
+              className="text-gray-400 hover:text-white hover:bg-dark-700/50"
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </Button>
           </div>
-        </div>
 
-        {/* Filter Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Search */}
-          <SectionHeader
-            title="Search"
-            section="search"
-            expandedSections={expandedSections}
-            onToggle={toggleSection}
-          >
-            <Input
-              type="text"
-              placeholder={currentView === 'breaches'
-                ? "Search organizations, data types..."
-                : "Search articles, content..."
-              }
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-            />
-          </SectionHeader>
-
-          {/* Date Filters */}
-          <SectionHeader
-            title="Date Ranges"
-            section="dates"
-            expandedSections={expandedSections}
-            onToggle={toggleSection}
-          >
-            <DateRangePicker
-              label="Scraped Date"
-              value={scrapedDateRange}
-              onChange={setScrapedDateRange}
-            />
-
-            {currentView === 'breaches' && (
-              <DateRangePicker
-                label="Breach Date"
-                value={breachDateRange}
-                onChange={setBreachDateRange}
+          <div className="space-y-6">
+            {/* Search */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">Search</label>
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search breaches..."
+                className="w-full bg-dark-700 border-dark-600 text-white placeholder-gray-500 focus:border-teal"
               />
-            )}
-
-            <DateRangePicker
-              label="Publication Date"
-              value={publicationDateRange}
-              onChange={setPublicationDateRange}
-            />
-          </SectionHeader>
-
-          {/* Affected Individuals - Only for breach view */}
-          {currentView === 'breaches' && (
-            <SectionHeader
-              title="People Affected"
-              section="affected"
-              expandedSections={expandedSections}
-              onToggle={toggleSection}
-            >
-              <NumericSlider
-                label="Minimum Affected"
-                value={minAffected}
-                onChange={setMinAffected}
-                min={0}
-                max={100000}
-                step={100}
-              />
-            </SectionHeader>
-          )}
-
-          {/* Source Categories */}
-          <SectionHeader
-            title="Source Categories"
-            section="sources"
-            expandedSections={expandedSections}
-            onToggle={toggleSection}
-          >
-            <div className="space-y-3">
-              {availableSourceTypes.map(type => {
-                const count = sourceTypeCounts[type] || 0
-                const isSelected = sourceTypes.includes(type)
-                
-                return (
-                  <div key={type} className="flex items-center justify-between">
-                    <button
-                      onClick={() => {
-                        if (isSelected) {
-                          setSourceTypes(prev => prev.filter(t => t !== type))
-                        } else {
-                          setSourceTypes(prev => [...prev, type])
-                        }
-                      }}
-                      className={`flex-1 text-left p-2 rounded-md transition-colors ${
-                        isSelected
-                          ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {type}
-                        </span>
-                        <Badge className={getSourceTypeColor(type)}>
-                          {count.toLocaleString()}
-                        </Badge>
-                      </div>
-                    </button>
-                  </div>
-                )
-              })}
             </div>
 
-            {/* Individual Source Selection */}
-            {sourceTypes.length > 0 && (
-              <div className="mt-4">
-                <SourceSelector
-                  selectedSourceTypes={sourceTypes}
-                  selectedSources={selectedSources}
-                  onSourcesChange={setSelectedSources}
+            {/* Source Type Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">Source Types</label>
+              <SourceTypeFilter
+                selectedTypes={sourceTypes}
+                onChange={setSourceTypes}
+                className="bg-dark-700 border-dark-600 text-white"
+              />
+            </div>
+
+            {/* Source Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">Data Sources</label>
+              <SourceFilter
+                sources={dataSources}
+                selectedSources={selectedSources}
+                onChange={setSelectedSources}
+                loading={loading}
+                className="bg-dark-700 border-dark-600 text-white"
+              />
+            </div>
+
+            {/* Affected Individuals Slider - only show for breach view */}
+            {currentView === 'breaches' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Minimum Affected Individuals</label>
+                <AffectedSlider
+                  value={minAffected}
+                  onChange={setMinAffected}
+                  className="text-teal"
                 />
+                <div className="text-xs text-gray-400 mt-1">
+                  {minAffected === 0 
+                    ? 'Show all breaches' 
+                    : `Minimum: ${minAffected.toLocaleString()} affected`}
+                </div>
               </div>
             )}
-          </SectionHeader>
+
+            {/* Date Range Filters */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Scraped Date Range</label>
+                <DateRangePicker
+                  startDate={scrapedDateRange.start}
+                  endDate={scrapedDateRange.end}
+                  onChange={(start, end) => setScrapedDateRange({ start, end })}
+                  className="bg-dark-700 border-dark-600 text-white"
+                />
+              </div>
+
+              {currentView === 'breaches' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-300">Breach Date Range</label>
+                  <DateRangePicker
+                    startDate={breachDateRange.start}
+                    endDate={breachDateRange.end}
+                    onChange={(start, end) => setBreachDateRange({ start, end })}
+                    className="bg-dark-700 border-dark-600 text-white"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Publication Date Range</label>
+                <DateRangePicker
+                  startDate={publicationDateRange.start}
+                  endDate={publicationDateRange.end}
+                  onChange={(start, end) => setPublicationDateRange({ start, end })}
+                  className="bg-dark-700 border-dark-600 text-white"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-4 border-t border-dark-700">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReset}
+                className="border-dark-600 text-gray-300 hover:bg-dark-700/50"
+              >
+                Reset All
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onClose}
+                className="bg-teal hover:bg-teal-light text-dark-900 font-medium"
+              >
+                Apply Filters
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }

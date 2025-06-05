@@ -8,7 +8,7 @@ const { title, description = "Comprehensive breach data dashboard tracking secur
 ---
 
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
@@ -17,45 +17,45 @@ const { title, description = "Comprehensive breach data dashboard tracking secur
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
   </head>
-  <body class="h-full bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-    <div class="min-h-full">
-      <!-- Dark Theme Navigation -->
-      <nav class="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/90 border-b border-slate-700/50 shadow-lg shadow-black/20">
+  <body class="h-full bg-dark-800 text-gray-100">
+    <div class="min-h-full flex flex-col">
+      <!-- Modern Navigation with Glassmorphism -->
+      <nav class="sticky top-0 z-50 backdrop-blur-xl bg-dark-900/80 border-b border-dark-700/50 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex justify-between h-20">
+          <div class="flex justify-between h-16">
             <div class="flex items-center">
-              <div class="flex items-center space-x-4">
-                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <span class="text-white text-lg font-bold">🛡️</span>
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-teal-light to-teal rounded-xl flex items-center justify-center shadow-glow-teal">
+                  <span class="text-dark-900 text-lg font-bold">🛡️</span>
                 </div>
                 <div>
-                  <h1 class="text-xl font-bold text-white">
+                  <h1 class="text-xl font-bold bg-gradient-to-r from-teal-light via-teal to-purple-light bg-clip-text text-transparent">
                     Breach Dashboard
                   </h1>
-                  <p class="text-xs text-slate-400 font-medium">Real-time security intelligence</p>
+                  <p class="text-xs text-gray-400 font-medium">Real-time Security Intelligence</p>
                 </div>
               </div>
-              <div class="hidden sm:ml-8 sm:flex sm:space-x-1">
-                <a href="/" class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200">
+              <div class="hidden sm:ml-8 sm:flex sm:space-x-2">
+                <a href="/" class="px-4 py-2 rounded-xl text-sm font-medium bg-teal text-dark-900 shadow-md hover:bg-teal-light transition-all duration-200 hover:shadow-glow-teal">
                   Dashboard
                 </a>
-                <a href="/workflows" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-200">
+                <a href="/workflows" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-300 hover:bg-dark-700/50 transition-all duration-200">
                   Workflows
                 </a>
-                <a href="/settings" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-200">
+                <a href="/settings" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-300 hover:bg-dark-700/50 transition-all duration-200">
                   Settings
                 </a>
               </div>
             </div>
             <div class="flex items-center space-x-3">
               <!-- Theme toggle -->
-              <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200">
+              <button id="theme-toggle" type="button" class="p-2 rounded-xl bg-dark-700/50 text-gray-300 hover:bg-dark-600/80 transition-all duration-200">
                 <span class="sr-only">Toggle theme</span>
                 <span class="text-lg">🌙</span>
               </button>
               <!-- User menu -->
               <div class="relative">
-                <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200">
+                <button type="button" class="p-2 rounded-xl bg-dark-700/50 text-gray-300 hover:bg-dark-600/80 transition-all duration-200">
                   <span class="sr-only">User menu</span>
                   <span class="text-lg">👤</span>
                 </button>
@@ -71,34 +71,34 @@ const { title, description = "Comprehensive breach data dashboard tracking secur
       </main>
 
       <!-- Modern Footer -->
-      <footer class="mt-16 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 border-t border-gray-200/50 dark:border-gray-700/50">
-        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <footer class="mt-16 bg-dark-900 border-t border-dark-700/50">
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div class="flex items-center space-x-3">
-              <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                <span class="text-white text-sm font-bold">🛡️</span>
+              <div class="w-8 h-8 bg-gradient-to-br from-teal to-teal-dark rounded-lg flex items-center justify-center">
+                <span class="text-dark-900 text-sm font-bold">🛡️</span>
               </div>
               <div>
-                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                <p class="text-sm font-semibold text-gray-200">
                   © 2025 Breach Dashboard
                 </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
+                <p class="text-xs text-gray-500">
                   Monitoring {new Date().getFullYear()} security incidents
                 </p>
               </div>
             </div>
-            <div class="flex items-center space-x-6">
-              <div class="flex items-center space-x-2 px-3 py-1 bg-white/50 dark:bg-gray-800/50 rounded-full">
-                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span class="text-xs font-medium text-gray-600 dark:text-gray-300">37+ Sources</span>
+            <div class="flex items-center space-x-4">
+              <div class="flex items-center space-x-2 px-3 py-1 bg-dark-700/50 rounded-full">
+                <div class="w-2 h-2 bg-teal rounded-full animate-pulse"></div>
+                <span class="text-xs font-medium text-gray-300">37+ Sources</span>
               </div>
-              <div class="flex items-center space-x-2 px-3 py-1 bg-white/50 dark:bg-gray-800/50 rounded-full">
-                <div class="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Real-time Updates</span>
+              <div class="flex items-center space-x-2 px-3 py-1 bg-dark-700/50 rounded-full">
+                <div class="w-2 h-2 bg-purple rounded-full animate-pulse"></div>
+                <span class="text-xs font-medium text-gray-300">Real-time Updates</span>
               </div>
-              <div class="flex items-center space-x-2 px-3 py-1 bg-white/50 dark:bg-gray-800/50 rounded-full">
-                <div class="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                <span class="text-xs font-medium text-gray-600 dark:text-gray-300">AI-Powered</span>
+              <div class="flex items-center space-x-2 px-3 py-1 bg-dark-700/50 rounded-full">
+                <div class="w-2 h-2 bg-purple-light rounded-full animate-pulse"></div>
+                <span class="text-xs font-medium text-gray-300">AI-Powered</span>
               </div>
             </div>
           </div>
@@ -109,24 +109,105 @@ const { title, description = "Comprehensive breach data dashboard tracking secur
 </html>
 
 <style is:global>
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 173 100% 40%;
+    --primary-foreground: 222.2 84% 4.9%;
+    
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    
+    --radius: 0.5rem;
+  }
+
   html {
     font-family: system-ui, sans-serif;
   }
   
+  body {
+    background-image: radial-gradient(rgba(0, 207, 187, 0.05) 1px, transparent 1px),
+                      radial-gradient(rgba(156, 106, 222, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: 0 0, 20px 20px;
+  }
+  
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
   }
   
   ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
+    @apply bg-dark-800;
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded;
+    @apply bg-dark-600 rounded;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
+    @apply bg-dark-500;
+  }
+
+  /* Shimmer effect for loading states */
+  .shimmer {
+    background: linear-gradient(90deg, 
+      rgba(255, 255, 255, 0) 0%, 
+      rgba(255, 255, 255, 0.05) 50%, 
+      rgba(255, 255, 255, 0) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
   }
 </style>
+
+<script>
+  // Theme toggle functionality
+  const themeToggle = document.getElementById('theme-toggle');
+  
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      
+      const isDark = document.documentElement.classList.contains('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      
+      // Update the icon
+      const toggleIcon = themeToggle.querySelector('span:not(.sr-only)');
+      if (toggleIcon) {
+        toggleIcon.textContent = isDark ? '🌙' : '☀️';
+      }
+    });
+  }
+  
+  // Check for saved theme preference
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+    
+    // Update the icon on initial load
+    const toggleIcon = themeToggle?.querySelector('span:not(.sr-only)');
+    if (toggleIcon) {
+      toggleIcon.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+    }
+  }
+</script>
