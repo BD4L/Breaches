@@ -4,103 +4,8 @@ import Layout from '../layouts/Layout.astro'
 
 <Layout title="Breach Dashboard - Real-time Security Incident Monitoring">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Modern Dashboard Header -->
-    <div class="mb-12 text-center">
-      <div class="inline-flex items-center space-x-3 mb-4">
-        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-500/25">
-          <span class="text-white text-2xl">🛡️</span>
-        </div>
-        <div class="text-left">
-          <h1 class="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 dark:from-white dark:via-blue-100 dark:to-indigo-100 bg-clip-text text-transparent">
-            Security Intelligence Hub
-          </h1>
-          <p class="text-lg text-gray-600 dark:text-gray-400 font-medium">
-            Real-time breach monitoring across 37+ sources
-          </p>
-        </div>
-      </div>
-      <p class="text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
-        Comprehensive monitoring of security incidents from government portals, state attorney general offices,
-        cybersecurity news feeds, and specialized breach databases with AI-powered analysis.
-      </p>
-    </div>
-
-    <!-- Modern Stats Overview -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-      <div class="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border border-blue-200/50 dark:border-blue-800/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div class="relative">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <span class="text-white text-xl">📊</span>
-            </div>
-            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Breach Notifications</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="total-breaches">
-              <span class="animate-pulse bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 bg-clip-text text-transparent">Loading...</span>
-            </p>
-            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1" id="news-count">
-              <span class="animate-pulse">+ Loading news...</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="group relative overflow-hidden bg-gradient-to-br from-red-50 to-pink-100 dark:from-red-900/20 dark:to-pink-900/20 p-6 rounded-2xl border border-red-200/50 dark:border-red-800/50 hover:shadow-xl hover:shadow-red-500/10 transition-all duration-300 hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-br from-red-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div class="relative">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/25">
-              <span class="text-white text-xl">👥</span>
-            </div>
-            <div class="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">People Affected</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="total-affected">
-              <span class="animate-pulse bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 bg-clip-text text-transparent">Loading...</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-2xl border border-green-200/50 dark:border-green-800/50 hover:shadow-xl hover:shadow-green-500/10 transition-all duration-300 hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div class="relative">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/25">
-              <span class="text-white text-xl">🔄</span>
-            </div>
-            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">Active Sources</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2">37+</p>
-            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Government & News</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="group relative overflow-hidden bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 p-6 rounded-2xl border border-orange-200/50 dark:border-orange-800/50 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300 hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div class="relative">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/25">
-              <span class="text-white text-xl">📅</span>
-            </div>
-            <div class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-          </div>
-          <div>
-            <p class="text-sm font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide">Last Updated</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="last-updated">
-              <span class="animate-pulse bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 bg-clip-text text-transparent">Loading...</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Source Summary Hero Section -->
+    <div id="source-summary-hero"></div>
 
     <!-- Main Dashboard Content -->
     <div id="dashboard-root"></div>
@@ -109,123 +14,22 @@ import Layout from '../layouts/Layout.astro'
 
 <script>
   import { DashboardApp } from '../components/dashboard/DashboardApp'
+  import { SourceSummaryHero } from '../components/dashboard/SourceSummaryHero'
   import { createRoot } from 'react-dom/client'
   import React from 'react'
-  import { supabase } from '../lib/supabase'
-  import { formatAffectedCount } from '../lib/utils'
 
-  // Mount React app
-  const container = document.getElementById('dashboard-root')
-  if (container) {
-    const root = createRoot(container)
+  // Mount React components
+  const dashboardContainer = document.getElementById('dashboard-root')
+  if (dashboardContainer) {
+    const root = createRoot(dashboardContainer)
     root.render(React.createElement(DashboardApp))
   }
 
-  // Load dashboard stats
-  async function loadStats() {
-    try {
-      console.log('Loading dashboard statistics...')
-
-      // Get breach count (excluding news feeds)
-      const { count: totalBreaches, error: countError } = await supabase
-        .from('v_breach_dashboard')
-        .select('*', { count: 'exact', head: true })
-        .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
-
-      if (countError) {
-        console.error('Error getting breach count:', countError)
-        throw countError
-      }
-
-      // Get news count
-      const { count: totalNews, error: newsError } = await supabase
-        .from('v_breach_dashboard')
-        .select('*', { count: 'exact', head: true })
-        .in('source_type', ['News Feed', 'Company IR'])
-
-      if (newsError) {
-        console.error('Error getting news count:', newsError)
-        throw newsError
-      }
-
-      // Get total affected individuals (sum of all non-null affected_individuals)
-      const { data: affectedData, error: affectedError } = await supabase
-        .from('v_breach_dashboard')
-        .select('affected_individuals')
-        .not('affected_individuals', 'is', null)
-
-      if (affectedError) {
-        console.error('Error getting affected individuals:', affectedError)
-        throw affectedError
-      }
-
-      const totalAffected = affectedData?.reduce((sum, item) => sum + (item.affected_individuals || 0), 0) || 0
-
-      // Get latest scraped date
-      const { data: latestData, error: latestError } = await supabase
-        .from('v_breach_dashboard')
-        .select('scraped_at')
-        .not('scraped_at', 'is', null)
-        .order('scraped_at', { ascending: false })
-        .limit(1)
-
-      if (latestError) {
-        console.error('Error getting latest scraped date:', latestError)
-        throw latestError
-      }
-
-      const lastUpdated = latestData?.[0]?.scraped_at || new Date().toISOString()
-
-      // Update the UI
-      const totalBreachesEl = document.getElementById('total-breaches')
-      const newsCountEl = document.getElementById('news-count')
-      const totalAffectedEl = document.getElementById('total-affected')
-      const lastUpdatedEl = document.getElementById('last-updated')
-
-      if (totalBreachesEl) {
-        totalBreachesEl.innerHTML = (totalBreaches || 0).toLocaleString()
-      }
-
-      if (newsCountEl) {
-        newsCountEl.innerHTML = `+ ${(totalNews || 0).toLocaleString()} news articles`
-      }
-
-      if (totalAffectedEl) {
-        totalAffectedEl.innerHTML = formatAffectedCount(totalAffected)
-      }
-
-      if (lastUpdatedEl) {
-        lastUpdatedEl.innerHTML = new Date(lastUpdated).toLocaleDateString()
-      }
-
-      console.log('Dashboard stats loaded:', {
-        totalBreaches,
-        totalNews,
-        totalAffected,
-        lastUpdated
-      })
-
-    } catch (error) {
-      console.error('Failed to load stats:', error)
-
-      // Show error state
-      const errorMessages = {
-        'total-breaches': 'Error loading',
-        'news-count': 'Error loading',
-        'total-affected': 'Error loading',
-        'last-updated': 'Error loading'
-      }
-
-      Object.entries(errorMessages).forEach(([id, message]) => {
-        const el = document.getElementById(id)
-        if (el) {
-          el.innerHTML = message
-          el.className = el.className.replace('text-gray-900 dark:text-white', 'text-red-500 dark:text-red-400')
-        }
-      })
-    }
+  const heroContainer = document.getElementById('source-summary-hero')
+  if (heroContainer) {
+    const root = createRoot(heroContainer)
+    root.render(React.createElement(SourceSummaryHero))
   }
 
-  // Load stats after a short delay to ensure Supabase is initialized
-  setTimeout(loadStats, 100)
+
 </script>

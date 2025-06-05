@@ -5,11 +5,8 @@ import { ViewToggle, type ViewType } from './ViewToggle'
 import { FilterSidebar } from '../filters/FilterSidebar'
 import { FilterToggle } from '../filters/FilterToggle'
 import { ActiveFilterPills, createFilterPills } from '../filters/ActiveFilterPills'
-import { ScraperControl } from './ScraperControl'
-import { SourceSummary } from './SourceSummary'
-import { NonWorkingSites } from './NonWorkingSites'
+import { AdminControls } from './AdminControls'
 import { SavedBreachesView } from '../saved/SavedBreachesView'
-import { Button } from '../ui/Button'
 import { supabase, getDataSources, getSavedBreaches } from '../../lib/supabase'
 
 interface Filters {
@@ -43,9 +40,7 @@ export function DashboardApp() {
     breachDateRange: {},
     publicationDateRange: {}
   })
-  const [showScraperControl, setShowScraperControl] = useState(false)
-  const [showSourceSummary, setShowSourceSummary] = useState(false)
-  const [showNonWorkingSites, setShowNonWorkingSites] = useState(false)
+
 
   const handleFiltersChange = useCallback((newFilters: Filters) => {
     setFilters(newFilters)
@@ -144,37 +139,16 @@ export function DashboardApp() {
               />
             </div>
 
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setShowScraperControl(true)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                🔧 Scraper Control
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSourceSummary(true)}
-              >
-                📊 Source Summary
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowNonWorkingSites(true)}
-                className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
-              >
-                ⚠️ Issues
-              </Button>
-            </div>
+
           </div>
         </div>
 
         {/* Content Area */}
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-full">
+            {/* Admin Controls */}
+            <AdminControls />
+
             {/* Active Filter Pills */}
             <ActiveFilterPills
               filters={filterPills}
@@ -216,18 +190,7 @@ export function DashboardApp() {
         </div>
       </div>
 
-      {/* Modals */}
-      {showScraperControl && (
-        <ScraperControl onClose={() => setShowScraperControl(false)} />
-      )}
 
-      {showSourceSummary && (
-        <SourceSummary onClose={() => setShowSourceSummary(false)} />
-      )}
-
-      {showNonWorkingSites && (
-        <NonWorkingSites onClose={() => setShowNonWorkingSites(false)} />
-      )}
     </div>
   )
 }
