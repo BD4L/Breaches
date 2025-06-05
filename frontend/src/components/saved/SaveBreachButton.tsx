@@ -37,9 +37,6 @@ export function SaveBreachButton({
 }: SaveBreachButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
-  // Debug logging
-  console.log(`SaveBreachButton for breach ${breach.id}: isSaved=${isSaved}, savedData=`, savedData)
-
   const handleToggleSave = async () => {
     if (isSaved && onRemove) {
       setIsLoading(true)
@@ -82,7 +79,7 @@ export function SaveBreachButton({
         ${className}
         transition-all duration-200 ease-in-out
         ${isSaved
-          ? 'bg-green-600 hover:bg-green-700 text-white shadow-md border-green-600'
+          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md border-blue-600'
           : 'hover:bg-blue-50 text-blue-600 border-blue-200 hover:border-blue-300'
         }
         ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}

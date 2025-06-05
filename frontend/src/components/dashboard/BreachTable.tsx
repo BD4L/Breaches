@@ -88,6 +88,12 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
 
   const handleSaveBreach = async (breachId: number, saveData: SaveBreachData) => {
     try {
+      // Check if already saved to prevent duplicates
+      if (savedBreaches[breachId]) {
+        console.warn('⚠️ Breach already saved:', breachId)
+        return
+      }
+
       console.log('💾 Handling save breach:', breachId, saveData)
       const result = await saveBreach(breachId, saveData)
       if (result.data && result.data[0]) {
@@ -266,7 +272,7 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
         size: 200,
       },
     ],
-    []
+    [savedBreaches, handleSaveBreach, handleRemoveSavedBreach]
   )
 
   const table = useReactTable({
@@ -437,37 +443,28 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
             ))}
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {table.getRowModel().rows.map(row => {
-              const isSaved = !!savedBreaches[row.original.id]
-              return (
-                <React.Fragment key={row.id}>
-                  <tr className={`
-                    transition-colors duration-200
-                    ${isSaved
-                      ? 'bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 border-l-4 border-green-500'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }
-                  `}>
-                    {row.getVisibleCells().map(cell => (
-                      <td
-                        key={cell.id}
-                        className="px-6 py-4 whitespace-nowrap"
-                        style={{ width: cell.column.getSize() }}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
+            {table.getRowModel().rows.map(row => (
+              <React.Fragment key={row.id}>
+                <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  {row.getVisibleCells().map(cell => (
+                    <td
+                      key={cell.id}
+                      className="px-6 py-4 whitespace-nowrap"
+                      style={{ width: cell.column.getSize() }}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+                {row.getIsExpanded() && (
+                  <tr>
+                    <td colSpan={columns.length} className="px-6 py-4 bg-gray-50 dark:bg-gray-700">
+                      <BreachDetail breach={row.original} />
+                    </td>
                   </tr>
-                  {row.getIsExpanded() && (
-                    <tr>
-                      <td colSpan={columns.length} className={`px-6 py-4 ${isSaved ? 'bg-green-50 dark:bg-green-900/10' : 'bg-gray-50 dark:bg-gray-700'}`}>
-                        <BreachDetail breach={row.original} />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              )
-            })}
+                )}
+              </React.Fragment>
+            ))}
           </tbody>
         </table>
       </div>
