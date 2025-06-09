@@ -412,10 +412,22 @@ jobs:
 
           echo ""
           echo "📊 DATABASE CHANGES SUMMARY:"
-          echo "   New Items: ${{ steps.database-report.outputs.new_items }}"
-          echo "   New Breaches: ${{ steps.database-report.outputs.new_breaches }}"
-          echo "   New News: ${{ steps.database-report.outputs.new_news }}"
-          echo "   New People Affected: ${{ steps.database-report.outputs.new_affected }}"
+          echo "   Items Change: ${{ steps.database-report.outputs.new_items }}"
+          echo "   Breaches Change: ${{ steps.database-report.outputs.new_breaches }}"
+          echo "   News Change: ${{ steps.database-report.outputs.new_news }}"
+          echo "   People Affected Change: ${{ steps.database-report.outputs.new_affected }}"
+
+          # Interpret the results
+          NEW_ITEMS="${{ steps.database-report.outputs.new_items }}"
+          NEW_BREACHES="${{ steps.database-report.outputs.new_breaches }}"
+
+          if [ "$NEW_ITEMS" -lt 0 ]; then
+            echo "ℹ️  Note: Negative values indicate database cleanup (duplicate removal)"
+          elif [ "$NEW_ITEMS" -eq 0 ]; then
+            echo "ℹ️  No new items discovered in this run"
+          else
+            echo "✅ $NEW_ITEMS new items discovered!"
+          fi
 
   # ============================================================================
   # NOTIFICATION JOB - Send alerts if significant changes detected
@@ -425,7 +437,7 @@ jobs:
     name: "🔔 Breach Alert Notification"
     runs-on: ubuntu-latest
     needs: summary
-    if: ${{ always() && needs.summary.outputs.new_breaches > 0 }}
+    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' }}
     steps:
       - name: Send breach alert
         run: |

@@ -222,6 +222,15 @@ def generate_report():
             print(f"   📰 {changes['news_count']:,} new news articles")
         if changes['total_affected'] > 0:
             print(f"   👥 {changes['total_affected']:,} additional people affected")
+    elif changes['total_items'] < 0:
+        print("🧹 DATABASE CLEANUP DETECTED")
+        print(f"   📉 {abs(changes['total_items']):,} items removed (likely duplicates)")
+        if changes['breach_count'] < 0:
+            print(f"   🗑️ {abs(changes['breach_count']):,} duplicate breaches removed")
+        if changes['news_count'] > 0:
+            print(f"   📰 {changes['news_count']:,} new news articles added")
+        if changes['total_affected'] > 0:
+            print(f"   👥 {changes['total_affected']:,} people affected (from new items)")
     else:
         print("ℹ️  NO NEW ITEMS FOUND")
         print("   All sources appear to be up-to-date")
