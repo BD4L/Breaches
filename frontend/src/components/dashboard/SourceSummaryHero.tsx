@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatNumber, formatAffectedCount } from '../../lib/utils'
+import { TrendingUp, Users, Database, Clock, AlertTriangle } from 'lucide-react'
 
 interface OverallStats {
   totalSources: number
@@ -8,6 +9,13 @@ interface OverallStats {
   totalAffected: number
   totalNews: number
   lastUpdated: string
+  todayBreaches: number
+  yesterdayBreaches: number
+  stateAGSources: number
+  governmentPortals: number
+  specializedSites: number
+  newsFeeds: number
+  companyIR: number
 }
 
 export function SourceSummaryHero() {
@@ -16,11 +24,18 @@ export function SourceSummaryHero() {
 
   useEffect(() => {
     loadStats()
+    // Refresh every 5 minutes
+    const interval = setInterval(loadStats, 5 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [])
 
   const loadStats = async () => {
     try {
       setLoading(true)
+
+      const today = new Date()
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000)
 
       // Get breach count (excluding news feeds)
       const { count: totalBreaches } = await supabase
@@ -34,6 +49,21 @@ export function SourceSummaryHero() {
         .select('*', { count: 'exact', head: true })
         .in('source_type', ['News Feed', 'Company IR'])
 
+      // Get today's breaches
+      const { count: todayBreaches } = await supabase
+        .from('v_breach_dashboard')
+        .select('*', { count: 'exact', head: true })
+        .gte('scraped_at', todayStart.toISOString())
+        .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency'])
+
+      // Get yesterday's breaches for comparison
+      const { count: yesterdayBreaches } = await supabase
+        .from('v_breach_dashboard')
+        .select('*', { count: 'exact', head: true })
+        .gte('scraped_at', yesterdayStart.toISOString())
+        .lt('scraped_at', todayStart.toISOString())
+        .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency'])
+
       // Get total affected individuals
       const { data: affectedData } = await supabase
         .from('v_breach_dashboard')
@@ -46,6 +76,25 @@ export function SourceSummaryHero() {
       const { data: sourcesData } = await supabase
         .from('data_sources')
         .select('id')
+
+      // Get updated source type counts
+      const { data: sourceTypeData } = await supabase
+        .from('v_breach_dashboard')
+        .select('source_type')
+
+      const sourceTypeCounts = sourceTypeData?.reduce((acc, item) => {
+        acc[item.source_type] = (acc[item.source_type] || 0) + 1
+        return acc
+      }, {} as Record<string, number>) || {}
+
+      // Map to display categories with updated counts
+      const stateAGSources = (sourceTypeCounts['State AG'] || 0) + 
+                            (sourceTypeCounts['State Cybersecurity'] || 0) + 
+                            (sourceTypeCounts['State Agency'] || 0)
+      const governmentPortals = sourceTypeCounts['Government Portal'] || 0
+      const specializedSites = sourceTypeCounts['Breach Database'] || 0
+      const newsFeeds = sourceTypeCounts['News Feed'] || 0
+      const companyIR = sourceTypeCounts['Company IR'] || 0
 
       // Get latest scraped date
       const { data: latestData } = await supabase
@@ -62,7 +111,14 @@ export function SourceSummaryHero() {
         totalBreaches: totalBreaches || 0,
         totalAffected,
         totalNews: totalNews || 0,
-        lastUpdated
+        lastUpdated,
+        todayBreaches: todayBreaches || 0,
+        yesterdayBreaches: yesterdayBreaches || 0,
+        stateAGSources,
+        governmentPortals,
+        specializedSites,
+        newsFeeds,
+        companyIR
       })
     } catch (error) {
       console.error('Failed to load stats:', error)
@@ -73,99 +129,119 @@ export function SourceSummaryHero() {
 
   if (loading) {
     return (
-      <div className="mb-12">
-        {/* Loading Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl border border-gray-200 dark:border-gray-700">
-              <div className="animate-pulse">
-                <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-2xl mb-4"></div>
-                <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-2"></div>
-                <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-1/2 mb-2"></div>
-                <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-2/3"></div>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-8 text-white mb-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-white/20 rounded w-1/3"></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-6 bg-white/20 rounded"></div>
+                <div className="h-8 bg-white/20 rounded"></div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
+  if (!stats) return null
+
+  const changeFromYesterday = stats.todayBreaches - stats.yesterdayBreaches
+  const changePercentage = stats.yesterdayBreaches > 0 
+    ? ((changeFromYesterday / stats.yesterdayBreaches) * 100).toFixed(1)
+    : '0'
+
   return (
-    <div className="mb-12">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border border-blue-200/50 dark:border-blue-800/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <span className="text-white text-xl">📊</span>
-              </div>
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Breach Notifications</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                {formatNumber(stats?.totalBreaches || 0)}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                + {formatNumber(stats?.totalNews || 0)} news articles
-              </p>
-            </div>
+    <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-8 text-white mb-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Breach Intelligence Dashboard</h1>
+          <p className="text-blue-100">
+            Real-time monitoring of data breaches and security incidents
+          </p>
+        </div>
+        <div className="text-right text-blue-100">
+          <div className="flex items-center space-x-2">
+            <Clock className="w-4 h-4" />
+            <span className="text-sm">Last updated: {new Date(stats.lastUpdated).toLocaleTimeString()}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+          <div className="flex items-center justify-between mb-2">
+            <Database className="w-6 h-6 text-blue-200" />
+            <span className="text-xs text-blue-200">Total</span>
+          </div>
+          <div className="text-2xl font-bold">{formatNumber(stats.totalBreaches)}</div>
+          <div className="text-sm text-blue-200">Breach Records</div>
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+          <div className="flex items-center justify-between mb-2">
+            <Users className="w-6 h-6 text-red-200" />
+            <span className="text-xs text-red-200">Affected</span>
+          </div>
+          <div className="text-2xl font-bold">{formatAffectedCount(stats.totalAffected)}</div>
+          <div className="text-sm text-red-200">People Impacted</div>
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+          <div className="flex items-center justify-between mb-2">
+            <TrendingUp className="w-6 h-6 text-green-200" />
+            <span className="text-xs text-green-200">Today</span>
+          </div>
+          <div className="text-2xl font-bold">{formatNumber(stats.todayBreaches)}</div>
+          <div className="text-sm text-green-200 flex items-center">
+            New Discoveries
+            {changeFromYesterday !== 0 && (
+              <span className={`ml-2 text-xs px-2 py-1 rounded-full ${
+                changeFromYesterday > 0 
+                  ? 'bg-yellow-500/20 text-yellow-200' 
+                  : 'bg-green-500/20 text-green-200'
+              }`}>
+                {changeFromYesterday > 0 ? '+' : ''}{changeFromYesterday} ({changePercentage}%)
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="group relative overflow-hidden bg-gradient-to-br from-red-50 to-pink-100 dark:from-red-900/20 dark:to-pink-900/20 p-6 rounded-2xl border border-red-200/50 dark:border-red-800/50 hover:shadow-xl hover:shadow-red-500/10 transition-all duration-300 hover:scale-105">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/25">
-                <span className="text-white text-xl">👥</span>
-              </div>
-              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">People Affected</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                {formatAffectedCount(stats?.totalAffected || 0)}
-              </p>
-            </div>
+        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+          <div className="flex items-center justify-between mb-2">
+            <AlertTriangle className="w-6 h-6 text-yellow-200" />
+            <span className="text-xs text-yellow-200">Sources</span>
           </div>
+          <div className="text-2xl font-bold">{formatNumber(stats.totalSources)}</div>
+          <div className="text-sm text-yellow-200">Active Monitors</div>
         </div>
+      </div>
 
-        <div className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-2xl border border-green-200/50 dark:border-green-800/50 hover:shadow-xl hover:shadow-green-500/10 transition-all duration-300 hover:scale-105">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/25">
-                <span className="text-white text-xl">🔄</span>
-              </div>
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">Active Sources</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{stats?.totalSources}+</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Government & News</p>
-            </div>
+      {/* Source Type Breakdown */}
+      <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+        <h3 className="text-lg font-semibold mb-4 text-white">Source Categories (Live Counts)</h3>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="text-center">
+            <div className="text-xl font-bold text-purple-200">{formatNumber(stats.stateAGSources)}</div>
+            <div className="text-xs text-purple-300">State AG Sites</div>
           </div>
-        </div>
-
-        <div className="group relative overflow-hidden bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 p-6 rounded-2xl border border-orange-200/50 dark:border-orange-800/50 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300 hover:scale-105">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/25">
-                <span className="text-white text-xl">📅</span>
-              </div>
-              <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide">Last Updated</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                {stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleDateString() : 'Today'}
-              </p>
-            </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-blue-200">{formatNumber(stats.governmentPortals)}</div>
+            <div className="text-xs text-blue-300">Government Portals</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-green-200">{formatNumber(stats.specializedSites)}</div>
+            <div className="text-xs text-green-300">Specialized Sites</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-orange-200">{formatNumber(stats.newsFeeds)}</div>
+            <div className="text-xs text-orange-300">RSS News Feeds</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-pink-200">{formatNumber(stats.companyIR)}</div>
+            <div className="text-xs text-pink-300">Company IR Sites</div>
           </div>
         </div>
       </div>

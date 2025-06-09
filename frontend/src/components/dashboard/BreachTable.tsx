@@ -244,6 +244,83 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
         size: 200,
       },
       {
+        accessorKey: 'incident_discovery_date',
+        header: 'Discovery Date',
+        cell: ({ getValue }) => {
+          const date = getValue() as string
+          return date ? (
+            <span className="text-sm text-orange-600 dark:text-orange-400">
+              {formatDate(date)}
+            </span>
+          ) : (
+            <span className="text-sm text-gray-400">-</span>
+          )
+        },
+        size: 120,
+      },
+      {
+        accessorKey: 'data_types_compromised',
+        header: 'Data Types',
+        cell: ({ getValue }) => {
+          const types = getValue() as string[] | null
+          if (!types || types.length === 0) {
+            return <span className="text-sm text-gray-400">-</span>
+          }
+          return (
+            <div className="flex flex-wrap gap-1">
+              {types.slice(0, 3).map((type, index) => (
+                <Badge 
+                  key={index} 
+                  variant="secondary" 
+                  className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                >
+                  {type}
+                </Badge>
+              ))}
+              {types.length > 3 && (
+                <Badge variant="secondary" className="text-xs">
+                  +{types.length - 3}
+                </Badge>
+              )}
+            </div>
+          )
+        },
+        size: 150,
+      },
+      {
+        accessorKey: 'estimated_cost_min',
+        header: 'Est. Cost',
+        cell: ({ getValue, row }) => {
+          const minCost = getValue() as number | null
+          const maxCost = row.original.estimated_cost_max as number | null
+          
+          if (!minCost && !maxCost) {
+            return <span className="text-sm text-gray-400">-</span>
+          }
+          
+          const formatCost = (cost: number) => {
+            if (cost >= 1000000) return `$${(cost / 1000000).toFixed(1)}M`
+            if (cost >= 1000) return `$${(cost / 1000).toFixed(0)}K`
+            return `$${cost.toLocaleString()}`
+          }
+          
+          if (minCost && maxCost && minCost !== maxCost) {
+            return (
+              <span className="text-sm text-red-600 dark:text-red-400">
+                {formatCost(minCost)} - {formatCost(maxCost)}
+              </span>
+            )
+          }
+          
+          return (
+            <span className="text-sm text-red-600 dark:text-red-400">
+              {formatCost(minCost || maxCost || 0)}
+            </span>
+          )
+        },
+        size: 100,
+      },
+      {
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => (
