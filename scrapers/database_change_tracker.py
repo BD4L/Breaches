@@ -53,31 +53,43 @@ def get_database_stats():
         stats['total_items'] = response.count or 0
         
         # Counts by source type
-        response = supabase.table("v_breach_dashboard").select("source_type", count="exact").execute()
+        response = supabase.table("v_breach_dashboard").select("source_type").execute()
         source_type_counts = {}
         for item in response.data or []:
             source_type = item.get('source_type', 'Unknown')
             source_type_counts[source_type] = source_type_counts.get(source_type, 0) + 1
         stats['by_source_type'] = source_type_counts
-        
+
         # Counts by individual source
-        response = supabase.table("v_breach_dashboard").select("source_name", count="exact").execute()
+        response = supabase.table("v_breach_dashboard").select("source_name").execute()
         source_counts = {}
         for item in response.data or []:
             source_name = item.get('source_name', 'Unknown')
             source_counts[source_name] = source_counts.get(source_name, 0) + 1
         stats['by_source'] = source_counts
         
-        # Breach vs News counts
-        breach_response = supabase.table("v_breach_dashboard").select("*", count="exact", head=True).in_('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API']).execute()
-        news_response = supabase.table("v_breach_dashboard").select("*", count="exact", head=True).in_('source_type', ['News Feed', 'Company IR']).execute()
-        
-        stats['breach_count'] = breach_response.count or 0
-        stats['news_count'] = news_response.count or 0
-        
-        # Affected individuals total
-        response = supabase.table("v_breach_dashboard").select("affected_individuals").not_('affected_individuals', 'is', None).execute()
-        total_affected = sum(item.get('affected_individuals', 0) for item in response.data or [])
+        # Get all data and categorize in Python to avoid complex Supabase queries
+        all_response = supabase.table("v_breach_dashboard").select("source_type, affected_individuals").execute()
+
+        breach_count = 0
+        news_count = 0
+        total_affected = 0
+
+        breach_types = ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API']
+        news_types = ['News Feed', 'Company IR']
+
+        for item in all_response.data or []:
+            source_type = item.get('source_type', '')
+            affected = item.get('affected_individuals', 0) or 0
+
+            if source_type in breach_types:
+                breach_count += 1
+                total_affected += affected
+            elif source_type in news_types:
+                news_count += 1
+
+        stats['breach_count'] = breach_count
+        stats['news_count'] = news_count
         stats['total_affected'] = total_affected
         
         # Recent items (last 24 hours)

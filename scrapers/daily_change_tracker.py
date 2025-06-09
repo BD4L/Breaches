@@ -93,15 +93,20 @@ def get_daily_stats(start_time: datetime, end_time: datetime):
         stats['new_affected'] = total_affected
         
         # Get top affected breaches for this period
-        response = supabase.table("v_breach_dashboard").select("organization_name, affected_individuals, source_name").gte('scraped_at', start_iso).lt('scraped_at', end_iso).not_('affected_individuals', 'is', None).order('affected_individuals', desc=True).limit(5).execute()
+        response = supabase.table("v_breach_dashboard").select("organization_name, affected_individuals, source_name").gte('scraped_at', start_iso).lt('scraped_at', end_iso).order('affected_individuals', desc=True).limit(10).execute()
         
         stats['top_breaches'] = []
         for item in response.data or []:
-            stats['top_breaches'].append({
-                'organization': item.get('organization_name', 'Unknown'),
-                'affected': item.get('affected_individuals', 0),
-                'source': item.get('source_name', 'Unknown')
-            })
+            affected = item.get('affected_individuals', 0)
+            if affected and affected > 0:  # Only include breaches with affected individuals
+                stats['top_breaches'].append({
+                    'organization': item.get('organization_name', 'Unknown'),
+                    'affected': affected,
+                    'source': item.get('source_name', 'Unknown')
+                })
+
+        # Limit to top 5
+        stats['top_breaches'] = stats['top_breaches'][:5]
         
         return stats
         
