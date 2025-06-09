@@ -224,6 +224,16 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
         size: 120,
       },
       {
+        accessorKey: 'scraped_at',
+        header: 'Discovered',
+        cell: ({ getValue }) => (
+          <span className="text-sm text-blue-600 dark:text-blue-400">
+            {formatDate(getValue() as string)}
+          </span>
+        ),
+        size: 120,
+      },
+      {
         accessorKey: 'what_was_leaked',
         header: 'Data Compromised',
         cell: ({ getValue }) => (

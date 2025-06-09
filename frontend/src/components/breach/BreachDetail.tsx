@@ -10,10 +10,11 @@ interface BreachDetailProps {
 
 export function BreachDetail({ breach }: BreachDetailProps) {
   const timelineEvents = [
-    { label: 'Discovered', date: breach.incident_discovery_date, icon: '🔍' },
+    { label: 'Incident Discovered', date: breach.incident_discovery_date, icon: '🔍' },
     { label: 'Breach Occurred', date: breach.breach_date, icon: '⚠️' },
     { label: 'Reported', date: breach.reported_date, icon: '📢' },
     { label: 'Published', date: breach.publication_date, icon: '📰' },
+    { label: 'Found by Scraper', date: breach.scraped_at, icon: '🤖' },
   ].filter(event => event.date)
 
   return (
