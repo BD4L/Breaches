@@ -7,6 +7,7 @@ import { FilterToggle } from '../filters/FilterToggle'
 import { ActiveFilterPills, createFilterPills } from '../filters/ActiveFilterPills'
 import { AdminControls } from './AdminControls'
 import { SavedBreachesView } from '../saved/SavedBreachesView'
+import { TodaysSummary } from './TodaysSummary'
 import { supabase, getDataSources, getSavedBreaches } from '../../lib/supabase'
 
 interface Filters {
@@ -148,6 +149,9 @@ export function DashboardApp() {
           <div className="max-w-full">
             {/* Admin Controls */}
             <AdminControls />
+
+            {/* Today's Summary - Only show for breaches view */}
+            {currentView === 'breaches' && <TodaysSummary />}
 
             {/* Active Filter Pills */}
             <ActiveFilterPills

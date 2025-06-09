@@ -29,7 +29,25 @@ if (import.meta.env.MODE === 'development') {
   })
 }
 
-export const supabase = createClient(finalUrl, finalKey)
+export const supabase = createClient(finalUrl, finalKey, {
+  auth: {
+    persistSession: false, // Disable session persistence for public dashboard
+    autoRefreshToken: false, // Disable auto refresh for anonymous access
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'breach-dashboard@1.0.0',
+    },
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10, // Limit realtime events for performance
+    },
+  },
+})
 
 // Helper functions to distinguish between news and breach sources
 export const isNewsSource = (sourceType: string): boolean => {

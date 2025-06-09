@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Filter, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, Filter, ChevronDown, ChevronRight, Mail } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
 import { DateRangePicker } from './DateRangePicker'
 import { NumericSlider } from './NumericSlider'
 import { SourceSelector } from './SourceSelector'
+import { AdvancedSearchInput } from './AdvancedSearchInput'
+import { PredefinedFilters } from './PredefinedFilters'
+import { EmailNotificationSetup } from '../notifications/EmailNotificationSetup'
 import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory, isNewsSource, isBreachSource } from '../../lib/supabase'
 import { getSourceTypeColor } from '../../lib/utils'
 import type { ViewType } from '../dashboard/ViewToggle'
@@ -63,6 +66,8 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
   const [scrapedDateRange, setScrapedDateRange] = useState<{ start?: string; end?: string }>({})
   const [breachDateRange, setBreachDateRange] = useState<{ start?: string; end?: string }>({})
   const [publicationDateRange, setPublicationDateRange] = useState<{ start?: string; end?: string }>({})
+  const [showEmailSetup, setShowEmailSetup] = useState(false)
+  const [searchFilters, setSearchFilters] = useState<any[]>([])
 
   // Use refs to prevent re-renders during typing
   const searchTimeoutRef = useRef<NodeJS.Timeout>()
@@ -70,10 +75,12 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
 
   // Collapsible sections
   const [expandedSections, setExpandedSections] = useState({
+    quickFilters: true,
     search: true,
     dates: true,
     sources: true,
-    affected: currentView === 'breaches'
+    affected: currentView === 'breaches',
+    notifications: false
   })
 
   // Available source types and counts
@@ -87,9 +94,54 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     loadSourcesByCategory()
   }, [currentView])
 
-  // Handle search input with debouncing
-  const handleSearchChange = (value: string) => {
+  // Handle predefined filter selection
+  const handlePredefinedFilter = (filter: any) => {
+    // Apply the predefined filter
+    if (filter.query.search) {
+      setSearch(filter.query.search)
+    }
+    if (filter.query.sourceTypes) {
+      setSourceTypes(filter.query.sourceTypes)
+    }
+    if (filter.query.minAffected) {
+      setMinAffected(filter.query.minAffected)
+    }
+    if (filter.query.scrapedDateRange) {
+      // Convert predefined date ranges to actual dates
+      const today = new Date()
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      
+      switch (filter.query.scrapedDateRange) {
+        case 'today':
+          setScrapedDateRange({ start: todayStart.toISOString() })
+          break
+        case 'yesterday':
+          const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000)
+          const yesterdayEnd = new Date(todayStart.getTime() - 1)
+          setScrapedDateRange({ 
+            start: yesterdayStart.toISOString(), 
+            end: yesterdayEnd.toISOString() 
+          })
+          break
+        case 'last-week':
+          const weekAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000)
+          setScrapedDateRange({ start: weekAgo.toISOString() })
+          break
+        case 'last-month':
+          const monthAgo = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000)
+          setScrapedDateRange({ start: monthAgo.toISOString() })
+          break
+      }
+    }
+    
+    // Trigger immediate filter update
+    updateFilters()
+  }
+
+  // Handle advanced search input with filters
+  const handleAdvancedSearchChange = (value: string, filters: any[]) => {
     setSearch(value)
+    setSearchFilters(filters)
 
     // Clear existing timeout
     if (searchTimeoutRef.current) {
@@ -317,21 +369,33 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
 
         {/* Filter Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Search */}
+          {/* Quick Filters */}
           <SectionHeader
-            title="Search"
+            title="Quick Filters"
+            section="quickFilters"
+            expandedSections={expandedSections}
+            onToggle={toggleSection}
+          >
+            <PredefinedFilters 
+              onFilterSelect={handlePredefinedFilter}
+              currentView={currentView}
+            />
+          </SectionHeader>
+
+          {/* Advanced Search */}
+          <SectionHeader
+            title="Search & Filters"
             section="search"
             expandedSections={expandedSections}
             onToggle={toggleSection}
           >
-            <Input
-              type="text"
-              placeholder={currentView === 'breaches'
-                ? "Search organizations, data types..."
-                : "Search articles, content..."
-              }
+            <AdvancedSearchInput
               value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
+              onChange={handleAdvancedSearchChange}
+              placeholder={currentView === 'breaches'
+                ? "Search organizations, data types, keywords..."
+                : "Search articles, content, keywords..."
+              }
             />
           </SectionHeader>
 
@@ -479,8 +543,36 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
               })}
             </div>
           </SectionHeader>
+
+          {/* Email Notifications */}
+          <SectionHeader
+            title="Email Notifications"
+            section="notifications"
+            expandedSections={expandedSections}
+            onToggle={toggleSection}
+          >
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Get notified when breaches match your criteria
+              </p>
+              <Button
+                onClick={() => setShowEmailSetup(true)}
+                className="w-full flex items-center justify-center space-x-2"
+                variant="outline"
+              >
+                <Mail className="w-4 h-4" />
+                <span>Setup Email Alerts</span>
+              </Button>
+            </div>
+          </SectionHeader>
         </div>
       </div>
+
+      {/* Email Notification Setup Modal */}
+      <EmailNotificationSetup
+        isOpen={showEmailSetup}
+        onClose={() => setShowEmailSetup(false)}
+      />
     </>
   )
 }

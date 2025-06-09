@@ -5,31 +5,56 @@ import Layout from '../layouts/Layout.astro'
 <Layout title="Breach Dashboard - Real-time Security Incident Monitoring">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Source Summary Hero Section -->
-    <div id="source-summary-hero"></div>
+    <div id="source-summary-hero">
+      <!-- Loading fallback -->
+      <div class="animate-pulse bg-gray-200 dark:bg-gray-700 rounded-xl h-32 mb-8"></div>
+    </div>
 
     <!-- Main Dashboard Content -->
-    <div id="dashboard-root"></div>
+    <div id="dashboard-root">
+      <!-- Loading fallback -->
+      <div class="animate-pulse space-y-4">
+        <div class="bg-gray-200 dark:bg-gray-700 rounded-xl h-16"></div>
+        <div class="bg-gray-200 dark:bg-gray-700 rounded-xl h-96"></div>
+      </div>
+    </div>
   </div>
 </Layout>
 
 <script>
   import { DashboardApp } from '../components/dashboard/DashboardApp'
   import { SourceSummaryHero } from '../components/dashboard/SourceSummaryHero'
+  import { ErrorBoundary } from '../components/ui/ErrorBoundary'
   import { createRoot } from 'react-dom/client'
   import React from 'react'
 
-  // Mount React components
-  const dashboardContainer = document.getElementById('dashboard-root')
-  if (dashboardContainer) {
-    const root = createRoot(dashboardContainer)
-    root.render(React.createElement(DashboardApp))
+  // Enhanced error handling for component mounting
+  function mountComponent(containerId: string, Component: React.ComponentType, componentName: string) {
+    const container = document.getElementById(containerId)
+    if (!container) {
+      console.warn(`Container ${containerId} not found for ${componentName}`)
+      return
+    }
+
+    try {
+      const root = createRoot(container)
+      root.render(
+        React.createElement(ErrorBoundary, {}, React.createElement(Component))
+      )
+      console.log(`✅ ${componentName} mounted successfully`)
+    } catch (error) {
+      console.error(`❌ Failed to mount ${componentName}:`, error)
+      container.innerHTML = `
+        <div class="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+          <p class="text-red-800 dark:text-red-200">Failed to load ${componentName}</p>
+        </div>
+      `
+    }
   }
 
-  const heroContainer = document.getElementById('source-summary-hero')
-  if (heroContainer) {
-    const root = createRoot(heroContainer)
-    root.render(React.createElement(SourceSummaryHero))
-  }
-
-
+  // Mount components with error handling
+  document.addEventListener('DOMContentLoaded', () => {
+    mountComponent('dashboard-root', DashboardApp, 'DashboardApp')
+    mountComponent('source-summary-hero', SourceSummaryHero, 'SourceSummaryHero')
+  })
 </script>
