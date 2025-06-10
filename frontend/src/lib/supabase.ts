@@ -118,6 +118,7 @@ export async function getBreaches(params: {
   sourceTypes?: string[]
   selectedSources?: number[]
   minAffected?: number
+  affectedKnown?: boolean
   search?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
@@ -131,6 +132,7 @@ export async function getBreaches(params: {
     sourceTypes = [],
     selectedSources = [],
     minAffected = 0,
+    affectedKnown,
     search = '',
     sortBy = 'publication_date',
     sortOrder = 'desc',
@@ -180,6 +182,15 @@ export async function getBreaches(params: {
 
   if (minAffected > 0) {
     query = query.gte('affected_individuals', minAffected)
+  }
+
+  // Filter for records where affected individuals count is known/unknown
+  if (affectedKnown !== undefined) {
+    if (affectedKnown) {
+      query = query.not('affected_individuals', 'is', null)
+    } else {
+      query = query.is('affected_individuals', null)
+    }
   }
 
   if (search) {

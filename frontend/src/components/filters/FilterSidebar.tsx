@@ -49,6 +49,7 @@ interface FilterSidebarProps {
     sourceTypes: string[]
     selectedSources: number[]
     minAffected: number
+    affectedKnown?: boolean
     scrapedDateRange: { start?: string; end?: string }
     breachDateRange: { start?: string; end?: string }
     publicationDateRange: { start?: string; end?: string }
@@ -60,6 +61,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
   const [sourceTypes, setSourceTypes] = useState<string[]>([])
   const [selectedSources, setSelectedSources] = useState<number[]>([])
   const [minAffected, setMinAffected] = useState(0)
+  const [affectedKnown, setAffectedKnown] = useState<boolean | undefined>(undefined)
   const [scrapedDateRange, setScrapedDateRange] = useState<{ start?: string; end?: string }>({})
   const [breachDateRange, setBreachDateRange] = useState<{ start?: string; end?: string }>({})
   const [publicationDateRange, setPublicationDateRange] = useState<{ start?: string; end?: string }>({})
@@ -105,6 +107,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
           sourceTypes,
           selectedSources,
           minAffected,
+          affectedKnown,
           scrapedDateRange,
           breachDateRange,
           publicationDateRange
@@ -120,21 +123,22 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       sourceTypes,
       selectedSources,
       minAffected,
+      affectedKnown,
       scrapedDateRange,
       breachDateRange,
       publicationDateRange
     })
-  }, [onFiltersChange, search, sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
+  }, [onFiltersChange, search, sourceTypes, selectedSources, minAffected, affectedKnown, scrapedDateRange, breachDateRange, publicationDateRange])
 
   // Only update filters when specific filter values change (not on every render)
   useEffect(() => {
     // Only call if we have actual filter values to avoid initial empty calls
-    if (sourceTypes.length > 0 || selectedSources.length > 0 || minAffected > 0 ||
+    if (sourceTypes.length > 0 || selectedSources.length > 0 || minAffected > 0 || affectedKnown !== undefined ||
         Object.keys(scrapedDateRange).length > 0 || Object.keys(breachDateRange).length > 0 ||
         Object.keys(publicationDateRange).length > 0) {
       updateFiltersImmediate()
     }
-  }, [sourceTypes, selectedSources, minAffected, scrapedDateRange, breachDateRange, publicationDateRange])
+  }, [sourceTypes, selectedSources, minAffected, affectedKnown, scrapedDateRange, breachDateRange, publicationDateRange])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -210,6 +214,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     setSourceTypes([])
     setSelectedSources([])
     setMinAffected(0)
+    setAffectedKnown(undefined)
     setScrapedDateRange({})
     setBreachDateRange({})
     setPublicationDateRange({})
@@ -221,6 +226,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       sourceTypes: [],
       selectedSources: [],
       minAffected: 0,
+      affectedKnown: undefined,
       scrapedDateRange: {},
       breachDateRange: {},
       publicationDateRange: {}
@@ -379,6 +385,45 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                 max={100000}
                 step={100}
               />
+
+              {/* Affected Count Known Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Affected Count Status
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="affectedKnown"
+                      checked={affectedKnown === undefined}
+                      onChange={() => setAffectedKnown(undefined)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">All records</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="affectedKnown"
+                      checked={affectedKnown === true}
+                      onChange={() => setAffectedKnown(true)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Count known</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="affectedKnown"
+                      checked={affectedKnown === false}
+                      onChange={() => setAffectedKnown(false)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Count unknown</span>
+                  </label>
+                </div>
+              </div>
             </SectionHeader>
           )}
 

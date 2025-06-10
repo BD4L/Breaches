@@ -22,6 +22,7 @@ interface BreachTableProps {
     sourceTypes: string[]
     selectedSources: number[]
     minAffected: number
+    affectedKnown?: boolean
     scrapedDateRange: string
     breachDateRange: string
     publicationDateRange: string
@@ -339,6 +340,7 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
           sourceTypes: debouncedFilters.sourceTypes,
           selectedSources: debouncedFilters.selectedSources,
           minAffected: debouncedFilters.minAffected,
+          affectedKnown: debouncedFilters.affectedKnown,
           search: debouncedFilters.search,
           sortBy,
           sortOrder,

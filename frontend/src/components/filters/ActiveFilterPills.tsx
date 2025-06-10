@@ -101,6 +101,7 @@ export function createFilterPills(
     sourceTypes: string[]
     selectedSources: number[]
     minAffected: number
+    affectedKnown?: boolean
     scrapedDateRange: { start?: string; end?: string }
     breachDateRange: { start?: string; end?: string }
     publicationDateRange: { start?: string; end?: string }
@@ -111,6 +112,7 @@ export function createFilterPills(
     onSourceTypesChange: (types: string[]) => void
     onSelectedSourcesChange: (sources: number[]) => void
     onMinAffectedChange: (min: number) => void
+    onAffectedKnownChange: (known?: boolean) => void
     onScrapedDateRangeChange: (range: { start?: string; end?: string }) => void
     onBreachDateRangeChange: (range: { start?: string; end?: string }) => void
     onPublicationDateRangeChange: (range: { start?: string; end?: string }) => void
@@ -162,6 +164,17 @@ export function createFilterPills(
       value: `${filters.minAffected.toLocaleString()}+ people`,
       type: 'numeric',
       onRemove: () => onFilterChange.onMinAffectedChange(0)
+    })
+  }
+
+  // Affected count known filter
+  if (filters.affectedKnown !== undefined) {
+    pills.push({
+      id: 'affected-known',
+      label: 'Affected Count',
+      value: filters.affectedKnown ? 'Known' : 'Unknown',
+      type: 'numeric',
+      onRemove: () => onFilterChange.onAffectedKnownChange(undefined)
     })
   }
 
