@@ -158,6 +158,14 @@ export async function getBreaches(params: {
     search, sortBy, sortOrder, scrapedDateRange, breachDateRange, publicationDateRange
   })
 
+  console.log('🎯 affectedKnown parameter details:', {
+    value: affectedKnown,
+    type: typeof affectedKnown,
+    isUndefined: affectedKnown === undefined,
+    isTrue: affectedKnown === true,
+    isFalse: affectedKnown === false
+  })
+
   let query = supabase
     .from('v_breach_dashboard')
     .select('*', { count: 'exact' })
@@ -207,10 +215,14 @@ export async function getBreaches(params: {
     if (affectedKnown) {
       console.log('📊 Filtering for records WITH affected_individuals count')
       query = query.not('affected_individuals', 'is', null)
+      console.log('✅ Applied NOT NULL filter to affected_individuals')
     } else {
       console.log('📊 Filtering for records WITHOUT affected_individuals count')
       query = query.is('affected_individuals', null)
+      console.log('✅ Applied IS NULL filter to affected_individuals')
     }
+  } else {
+    console.log('⚠️ affectedKnown is undefined, no affected filter applied')
   }
 
   if (search) {

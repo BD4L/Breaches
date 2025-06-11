@@ -329,11 +329,21 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
       filters.sourceTypes.includes('Government Portals') &&
       (filters.scrapedDateRange.start && filters.scrapedDateRange.end)
 
+    console.log('🎯 Checking for Breaches Of The Day auto-sort:', {
+      affectedKnown: filters.affectedKnown,
+      hasStateAG: filters.sourceTypes.includes('State AG Sites'),
+      hasGovPortals: filters.sourceTypes.includes('Government Portals'),
+      hasDateRange: !!(filters.scrapedDateRange.start && filters.scrapedDateRange.end),
+      isBreachesOfTheDayFilter,
+      currentSorting: sorting
+    })
+
     if (isBreachesOfTheDayFilter) {
+      console.log('✅ Applying auto-sort by affected_individuals (descending)')
       // Auto-sort by affected individuals (descending) to show most impactful breaches first
       setSorting([{ id: 'affected_individuals', desc: true }])
     }
-  }, [filters.affectedKnown, filters.sourceTypes, filters.scrapedDateRange])
+  }, [filters.affectedKnown, filters.sourceTypes, filters.scrapedDateRange, sorting])
 
   useEffect(() => {
     async function loadData() {
