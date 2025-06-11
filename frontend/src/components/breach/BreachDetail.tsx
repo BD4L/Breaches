@@ -87,8 +87,8 @@ export function BreachDetail({ breach }: BreachDetailProps) {
           <div className="flex space-x-4 overflow-x-auto pb-2">
             {timelineEvents.map((event, index) => (
               <div key={index} className="flex-shrink-0 text-center">
-                <div className="w-10 h-10 bg-gradient-to-br from-teal-100 to-purple-100 dark:from-teal-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center text-sm shadow-sm border border-gray-100 dark:border-gray-700/50">
-                  {event.icon}
+                <div className="w-10 h-10 bg-gradient-to-br from-teal-100 to-purple-100 dark:from-teal-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center shadow-sm border border-gray-100 dark:border-gray-700/50">
+                  <span className="text-base leading-none">{event.icon}</span>
                 </div>
                 <div className="mt-2 text-xs font-medium text-gray-900 dark:text-white">
                   {event.label}
