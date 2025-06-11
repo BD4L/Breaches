@@ -6,7 +6,7 @@ import { Badge } from '../ui/Badge'
 import { DateRangePicker } from './DateRangePicker'
 import { NumericSlider } from './NumericSlider'
 import { SourceSelector } from './SourceSelector'
-import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory, isNewsSource, isBreachSource } from '../../lib/supabase'
+import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory, isNewsSource, isBreachSource, supabase } from '../../lib/supabase'
 import { getSourceTypeColor } from '../../lib/utils'
 import type { ViewType } from '../dashboard/ViewToggle'
 
@@ -233,6 +233,43 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     })
   }
 
+  const applyBreachesOfTheDayFilter = async () => {
+    try {
+      // Get all State AG and HHS OCR sources
+      const { data: sources } = await supabase
+        .from('data_sources')
+        .select('id, name, type')
+        .or('type.eq.State AG,type.eq.State Cybersecurity,type.eq.State Agency,name.eq.HHS OCR')
+
+      const sourceIds = sources?.map(s => s.id) || []
+
+      // Set the predefined filter
+      setSourceTypes(['State AG Sites', 'Government Portals'])
+      setSelectedSources(sourceIds)
+      setAffectedKnown(true) // Only known affected counts
+      setScrapedDateRange({ start: 'today', end: 'today' }) // Today only
+      setBreachDateRange({})
+      setPublicationDateRange({})
+      setMinAffected(0)
+      setSearch('')
+
+      // Clear search ref and apply filters immediately
+      lastSearchRef.current = ''
+      onFiltersChange({
+        search: '',
+        sourceTypes: ['State AG Sites', 'Government Portals'],
+        selectedSources: sourceIds,
+        minAffected: 0,
+        affectedKnown: true,
+        scrapedDateRange: { start: 'today', end: 'today' },
+        breachDateRange: {},
+        publicationDateRange: {}
+      })
+    } catch (error) {
+      console.error('Failed to apply Breaches of the Day filter:', error)
+    }
+  }
+
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => ({
       ...prev,
@@ -320,6 +357,23 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
             </Button>
           </div>
         </div>
+
+        {/* Predefined Filters - Only for breach view */}
+        {currentView === 'breaches' && (
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quick Filters</h3>
+            <Button
+              onClick={applyBreachesOfTheDayFilter}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex items-center justify-center space-x-2"
+            >
+              <span className="text-lg">⚡</span>
+              <span>Breaches Of The Day</span>
+            </Button>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+              Today's breaches from State AGs + HHS OCR with known affected counts
+            </p>
+          </div>
+        )}
 
         {/* Filter Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
