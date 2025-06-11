@@ -15,12 +15,20 @@ interface SourceStats {
   avg_affected_per_breach: number
 }
 
+interface WorkflowGroup {
+  name: string
+  sources: SourceStats[]
+  total_breaches: number
+  total_affected: number
+}
+
 interface CategoryStats {
   category: string
   total_sources: number
   total_breaches: number
   total_affected: number
   sources: SourceStats[]
+  workflowGroups?: WorkflowGroup[]
 }
 
 interface SourceSummaryProps {
@@ -36,6 +44,39 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
   useEffect(() => {
     loadSourceStats()
   }, [])
+
+  const groupStateAGSources = (sources: SourceStats[]): WorkflowGroup[] => {
+    // Group State AG sources according to paralell.yml workflow structure
+    const groups: Record<string, string[]> = {
+      'State AG Group 1 (DE, CA, WA, HI)': ['Delaware AG', 'California AG', 'Washington AG', 'Hawaii AG'],
+      'State AG Group 2 (IN, IA, ME)': ['Indiana AG', 'Iowa AG', 'Maine AG'],
+      'State AG Group 3 (MA, MT, NH, NJ)': ['Massachusetts AG', 'Montana AG', 'New Hampshire AG', 'New Jersey AG', 'New Jersey Cybersecurity'],
+      'State AG Group 4 (ND, OK, VT, WI, TX)': ['North Dakota AG', 'Oklahoma Cybersecurity', 'Vermont AG', 'Wisconsin DATCP', 'Texas AG'],
+      'Problematic (MD)': ['Maryland AG']
+    }
+
+    const workflowGroups: WorkflowGroup[] = []
+
+    Object.entries(groups).forEach(([groupName, sourceNames]) => {
+      const groupSources = sources.filter(source =>
+        sourceNames.some(name => source.source_name.includes(name.replace(' AG', '').replace(' Cybersecurity', '')))
+      )
+
+      if (groupSources.length > 0) {
+        const totalBreaches = groupSources.reduce((sum, source) => sum + source.total_breaches, 0)
+        const totalAffected = groupSources.reduce((sum, source) => sum + source.total_affected, 0)
+
+        workflowGroups.push({
+          name: groupName,
+          sources: groupSources,
+          total_breaches: totalBreaches,
+          total_affected: totalAffected
+        })
+      }
+    })
+
+    return workflowGroups.sort((a, b) => b.total_breaches - a.total_breaches)
+  }
 
   const loadSourceStats = async () => {
     try {
@@ -59,10 +100,10 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
       // Process the data to create category statistics
       const sourceMap = new Map<number, SourceStats>()
-      
+
       data.forEach(record => {
         const sourceId = record.source_id
-        
+
         if (!sourceMap.has(sourceId)) {
           sourceMap.set(sourceId, {
             source_id: sourceId,
@@ -78,7 +119,7 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
         const sourceStats = sourceMap.get(sourceId)!
         sourceStats.total_breaches++
-        
+
         if (record.affected_individuals) {
           sourceStats.total_affected += record.affected_individuals
         }
@@ -93,14 +134,14 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
         }
       })
 
-      // Calculate averages and group by category
+      // Calculate averages and group by category with workflow group details
       const categoryMap = new Map<string, CategoryStats>()
-      
+
       sourceMap.forEach(sourceStats => {
         sourceStats.avg_affected_per_breach = sourceStats.total_affected / sourceStats.total_breaches
 
         const category = mapSourceTypeToCategory(sourceStats.source_type)
-        
+
         if (!categoryMap.has(category)) {
           categoryMap.set(category, {
             category,
@@ -117,6 +158,14 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
         categoryStats.total_affected += sourceStats.total_affected
         categoryStats.sources.push(sourceStats)
       })
+
+      // Add workflow group information for State AG Sites
+      const stateAGCategory = categoryMap.get('State AG Sites')
+      if (stateAGCategory) {
+        // Group State AG sources by workflow groups
+        const stateAGGroups = groupStateAGSources(stateAGCategory.sources)
+        stateAGCategory.workflowGroups = stateAGGroups
+      }
 
       // Sort sources within each category by total breaches
       categoryMap.forEach(category => {
@@ -136,18 +185,20 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
   }
 
   const mapSourceTypeToCategory = (sourceType: string): string => {
-    // Map the current source types to the new categorization
+    // Map the current source types to match paralell.yml workflow groups
     switch (sourceType) {
       case 'State AG':
-        return 'State Attorney General Portals'
+      case 'State Cybersecurity':
+      case 'State Agency':
+        return 'State AG Sites'
       case 'Government Portal':
-        return 'Government Portals'
+        return 'Government & Federal Scrapers'
       case 'News Feed':
         return 'RSS News Feeds'
       case 'Breach Database':
         return 'Specialized Breach Sites'
       case 'Company IR':
-        return 'Company Investor Relations'
+        return 'Company IR Sites'
       case 'API':
         return 'API Services'
       default:
@@ -157,11 +208,11 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
   const getCategoryIcon = (category: string): string => {
     switch (category) {
-      case 'State Attorney General Portals': return '🏛️'
-      case 'Government Portals': return '🏢'
+      case 'State AG Sites': return '🏛️'
+      case 'Government & Federal Scrapers': return '🏢'
       case 'RSS News Feeds': return '📰'
       case 'Specialized Breach Sites': return '🔍'
-      case 'Company Investor Relations': return '💼'
+      case 'Company IR Sites': return '💼'
       case 'API Services': return '🔌'
       default: return '📊'
     }
@@ -169,11 +220,11 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
   const getCategoryColor = (category: string): string => {
     switch (category) {
-      case 'State Attorney General Portals': return 'bg-blue-100 text-blue-800'
-      case 'Government Portals': return 'bg-green-100 text-green-800'
+      case 'State AG Sites': return 'bg-blue-100 text-blue-800'
+      case 'Government & Federal Scrapers': return 'bg-green-100 text-green-800'
       case 'RSS News Feeds': return 'bg-orange-100 text-orange-800'
       case 'Specialized Breach Sites': return 'bg-purple-100 text-purple-800'
-      case 'Company Investor Relations': return 'bg-gray-100 text-gray-800'
+      case 'Company IR Sites': return 'bg-gray-100 text-gray-800'
       case 'API Services': return 'bg-indigo-100 text-indigo-800'
       default: return 'bg-gray-100 text-gray-800'
     }
@@ -223,7 +274,7 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
               📊 Source Summary Dashboard
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Comprehensive statistics across all breach data sources
+              Statistics across 37+ sources organized by paralell.yml workflow groups
             </p>
           </div>
           <Button variant="outline" onClick={onClose}>
@@ -298,38 +349,79 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
               {expandedCategory === category.category && (
                 <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {category.sources.map(source => (
-                      <div key={source.source_id} className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
-                        <div className="flex justify-between items-start mb-2">
-                          <h5 className="font-medium text-gray-900 dark:text-white text-sm">
-                            {source.source_name}
-                          </h5>
-                          <Badge variant="secondary" className="text-xs">
-                            ID: {source.source_id}
-                          </Badge>
+                  {/* Show workflow groups for State AG Sites */}
+                  {category.category === 'State AG Sites' && category.workflowGroups ? (
+                    <div className="space-y-4">
+                      <h5 className="font-medium text-gray-900 dark:text-white mb-3">
+                        📋 Workflow Groups (as in paralell.yml)
+                      </h5>
+                      {category.workflowGroups.map(group => (
+                        <div key={group.name} className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                          <div className="flex justify-between items-center mb-2">
+                            <h6 className="font-medium text-blue-900 dark:text-blue-100 text-sm">
+                              {group.name}
+                            </h6>
+                            <div className="flex space-x-2">
+                              <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                {formatNumber(group.total_breaches)} breaches
+                              </Badge>
+                              <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                {formatAffectedCount(group.total_affected)} affected
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                            {group.sources.map(source => (
+                              <div key={source.source_id} className="bg-white dark:bg-gray-800 p-2 rounded text-xs">
+                                <div className="flex justify-between items-start">
+                                  <span className="font-medium text-gray-900 dark:text-white">
+                                    {source.source_name}
+                                  </span>
+                                  <span className="text-gray-500">
+                                    {formatNumber(source.total_breaches)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
-                          <div>
-                            <span className="font-medium">Breaches:</span> {formatNumber(source.total_breaches)}
+                      ))}
+                    </div>
+                  ) : (
+                    /* Regular source display for other categories */
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {category.sources.map(source => (
+                        <div key={source.source_id} className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                          <div className="flex justify-between items-start mb-2">
+                            <h5 className="font-medium text-gray-900 dark:text-white text-sm">
+                              {source.source_name}
+                            </h5>
+                            <Badge variant="secondary" className="text-xs">
+                              ID: {source.source_id}
+                            </Badge>
                           </div>
-                          <div>
-                            <span className="font-medium">Affected:</span> {formatAffectedCount(source.total_affected)}
-                          </div>
-                          <div>
-                            <span className="font-medium">Avg/Breach:</span> {formatAffectedCount(Math.round(source.avg_affected_per_breach))}
-                          </div>
-                          <div>
-                            <span className="font-medium">Last Scraped:</span> {
-                              source.latest_scraped 
-                                ? new Date(source.latest_scraped).toLocaleDateString()
-                                : 'Never'
-                            }
+                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
+                            <div>
+                              <span className="font-medium">Breaches:</span> {formatNumber(source.total_breaches)}
+                            </div>
+                            <div>
+                              <span className="font-medium">Affected:</span> {formatAffectedCount(source.total_affected)}
+                            </div>
+                            <div>
+                              <span className="font-medium">Avg/Breach:</span> {formatAffectedCount(Math.round(source.avg_affected_per_breach))}
+                            </div>
+                            <div>
+                              <span className="font-medium">Last Scraped:</span> {
+                                source.latest_scraped
+                                  ? new Date(source.latest_scraped).toLocaleDateString()
+                                  : 'Never'
+                              }
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
