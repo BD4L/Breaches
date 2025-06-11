@@ -246,8 +246,16 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       // Get last 24 hours range (more accurate for frequent scraping)
       const now = new Date()
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-      const last24HoursStart = last24Hours.toISOString()
-      const nowEnd = now.toISOString()
+
+      // Format dates for date picker (YYYY-MM-DD format)
+      const last24HoursStart = last24Hours.toISOString().split('T')[0]
+      const nowEnd = now.toISOString().split('T')[0]
+
+      console.log('🎯 Setting Breaches Of The Day filter with dates:', {
+        last24HoursStart,
+        nowEnd,
+        affectedKnown: true
+      })
 
       // Set the predefined filter
       setSourceTypes(['State AG Sites', 'Government Portals'])
@@ -261,7 +269,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
 
       // Clear search ref and apply filters immediately
       lastSearchRef.current = ''
-      onFiltersChange({
+      const filterConfig = {
         search: '',
         sourceTypes: ['State AG Sites', 'Government Portals'],
         selectedSources: sourceIds,
@@ -270,7 +278,10 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         scrapedDateRange: { start: last24HoursStart, end: nowEnd },
         breachDateRange: {},
         publicationDateRange: {}
-      })
+      }
+
+      console.log('🚀 Applying Breaches Of The Day filter:', filterConfig)
+      onFiltersChange(filterConfig)
     } catch (error) {
       console.error('Failed to apply Breaches of the Day filter:', error)
     }
