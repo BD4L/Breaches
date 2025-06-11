@@ -164,104 +164,104 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
         case 'all':
           // Trigger the main parallel workflow with all groups enabled
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'true',
-            run_state_ag_1: 'true',
-            run_state_ag_2: 'true',
-            run_state_ag_3: 'true',
-            run_state_ag_4: 'true',
-            run_news_api: 'true',
-            run_problematic: 'true'
+            run_government: true,
+            run_state_ag_1: true,
+            run_state_ag_2: true,
+            run_state_ag_3: true,
+            run_state_ag_4: true,
+            run_news_api: true,
+            run_problematic: true
           })
           break
         case 'government-portals':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'true',
-            run_state_ag_1: 'false',
-            run_state_ag_2: 'false',
-            run_state_ag_3: 'false',
-            run_state_ag_4: 'false',
-            run_news_api: 'false',
-            run_problematic: 'false'
+            run_government: true,
+            run_state_ag_1: false,
+            run_state_ag_2: false,
+            run_state_ag_3: false,
+            run_state_ag_4: false,
+            run_news_api: false,
+            run_problematic: false
           })
           break
         case 'state-ag-group-1':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'false',
-            run_state_ag_1: 'true',
-            run_state_ag_2: 'false',
-            run_state_ag_3: 'false',
-            run_state_ag_4: 'false',
-            run_news_api: 'false',
-            run_problematic: 'false'
+            run_government: false,
+            run_state_ag_1: true,
+            run_state_ag_2: false,
+            run_state_ag_3: false,
+            run_state_ag_4: false,
+            run_news_api: false,
+            run_problematic: false
           })
           break
         case 'state-ag-group-2':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'false',
-            run_state_ag_1: 'false',
-            run_state_ag_2: 'true',
-            run_state_ag_3: 'false',
-            run_state_ag_4: 'false',
-            run_news_api: 'false',
-            run_problematic: 'false'
+            run_government: false,
+            run_state_ag_1: false,
+            run_state_ag_2: true,
+            run_state_ag_3: false,
+            run_state_ag_4: false,
+            run_news_api: false,
+            run_problematic: false
           })
           break
         case 'state-ag-group-3':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'false',
-            run_state_ag_1: 'false',
-            run_state_ag_2: 'false',
-            run_state_ag_3: 'true',
-            run_state_ag_4: 'false',
-            run_news_api: 'false',
-            run_problematic: 'false'
+            run_government: false,
+            run_state_ag_1: false,
+            run_state_ag_2: false,
+            run_state_ag_3: true,
+            run_state_ag_4: false,
+            run_news_api: false,
+            run_problematic: false
           })
           break
         case 'state-ag-group-4':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'false',
-            run_state_ag_1: 'false',
-            run_state_ag_2: 'false',
-            run_state_ag_3: 'false',
-            run_state_ag_4: 'true',
-            run_news_api: 'false',
-            run_problematic: 'false'
+            run_government: false,
+            run_state_ag_1: false,
+            run_state_ag_2: false,
+            run_state_ag_3: false,
+            run_state_ag_4: true,
+            run_news_api: false,
+            run_problematic: false
           })
           break
         case 'rss-news-feeds':
         case 'news-and-api-scrapers':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'false',
-            run_state_ag_1: 'false',
-            run_state_ag_2: 'false',
-            run_state_ag_3: 'false',
-            run_state_ag_4: 'false',
-            run_news_api: 'true',
-            run_problematic: 'false'
+            run_government: false,
+            run_state_ag_1: false,
+            run_state_ag_2: false,
+            run_state_ag_3: false,
+            run_state_ag_4: false,
+            run_news_api: true,
+            run_problematic: false
           })
           break
         case 'problematic-scrapers':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'false',
-            run_state_ag_1: 'false',
-            run_state_ag_2: 'false',
-            run_state_ag_3: 'false',
-            run_state_ag_4: 'false',
-            run_news_api: 'false',
-            run_problematic: 'true'
+            run_government: false,
+            run_state_ag_1: false,
+            run_state_ag_2: false,
+            run_state_ag_3: false,
+            run_state_ag_4: false,
+            run_news_api: false,
+            run_problematic: true
           })
           break
 
         case 'state-ag-all':
           // Run all state AG groups
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: 'false',
-            run_state_ag_1: 'true',
-            run_state_ag_2: 'true',
-            run_state_ag_3: 'true',
-            run_state_ag_4: 'true',
-            run_news_api: 'false',
-            run_problematic: 'false'
+            run_government: false,
+            run_state_ag_1: true,
+            run_state_ag_2: true,
+            run_state_ag_3: true,
+            run_state_ag_4: true,
+            run_news_api: false,
+            run_problematic: false
           })
           break
         default:

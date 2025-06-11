@@ -85,6 +85,16 @@ class GitHubActionsAPI {
 
   async triggerWorkflow(workflowId: number, ref = 'main', inputs?: Record<string, any>): Promise<boolean> {
     try {
+      // Convert boolean inputs to strings as required by GitHub Actions API
+      const stringInputs: Record<string, string> = {}
+      if (inputs) {
+        Object.entries(inputs).forEach(([key, value]) => {
+          stringInputs[key] = String(value)
+        })
+      }
+
+      console.log('Triggering workflow with inputs:', stringInputs)
+
       const response = await fetch(
         `${this.baseUrl}/repos/${this.owner}/${this.repo}/actions/workflows/${workflowId}/dispatches`,
         {
@@ -92,7 +102,7 @@ class GitHubActionsAPI {
           headers: this.getHeaders(),
           body: JSON.stringify({
             ref,
-            inputs: inputs || {}
+            inputs: stringInputs
           })
         }
       )
