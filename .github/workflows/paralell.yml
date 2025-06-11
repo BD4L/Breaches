@@ -430,11 +430,54 @@ jobs:
           fi
 
   # ============================================================================
-  # NOTIFICATION JOB - Send alerts if significant changes detected
+  # EMAIL ALERTS JOB - Send email notifications to subscribers
+  # ============================================================================
+
+  email-alerts:
+    name: "📧 Email Alert Notifications"
+    runs-on: ubuntu-latest
+    needs: summary
+    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' }}
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      ALERT_FROM_EMAIL: ${{ secrets.ALERT_FROM_EMAIL }}
+      DASHBOARD_URL: "https://bd4l.github.io/Breaches/"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install requests  # Add requests for Resend API
+      - name: Send email alerts
+        run: |
+          echo "📧 Processing email alerts for new breaches..."
+          python scrapers/email_alerts.py --since-minutes 35
+          echo ""
+          echo "✅ Email alert processing complete"
+      - name: Log alert summary
+        run: |
+          echo "🚨 BREACH ALERT SUMMARY:"
+          echo "📊 New breaches detected: ${{ needs.summary.outputs.new_breaches }}"
+          echo "📊 Total new items: ${{ needs.summary.outputs.new_items }}"
+          echo "👥 Additional people affected: ${{ needs.summary.outputs.new_affected }}"
+          echo ""
+          echo "🔗 View dashboard: https://bd4l.github.io/Breaches/"
+          echo "📧 Email alerts have been sent to subscribers"
+
+  # ============================================================================
+  # NOTIFICATION JOB - Send alerts if significant changes detected (Legacy)
   # ============================================================================
 
   notification:
-    name: "🔔 Breach Alert Notification"
+    name: "🔔 Breach Alert Notification (Legacy)"
     runs-on: ubuntu-latest
     needs: summary
     if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' }}
@@ -447,6 +490,6 @@ jobs:
           echo ""
           echo "🔗 View dashboard: https://hackermanmarlin.github.io/Breaches/"
           echo ""
-          echo "This notification can be extended to send emails, Slack messages, or webhook calls."
+          echo "📧 Email alerts are now handled by the email-alerts job above."
 
 

@@ -3,13 +3,18 @@ import { Button } from '../ui/Button'
 import { ScraperControl } from './ScraperControl'
 import { SourceSummary } from './SourceSummary'
 import { NonWorkingSites } from './NonWorkingSites'
-import { Settings, Database, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { EmailPreferences } from '../preferences/EmailPreferences'
+import { AlertThresholdCard } from '../alerts/AlertThresholdCard'
+import { GitHubTokenDebug } from '../debug/GitHubTokenDebug'
+import { Settings, Database, AlertTriangle, Mail, Bug, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function AdminControls() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showScraperControl, setShowScraperControl] = useState(false)
   const [showSourceSummary, setShowSourceSummary] = useState(false)
   const [showNonWorkingSites, setShowNonWorkingSites] = useState(false)
+  const [showEmailPreferences, setShowEmailPreferences] = useState(false)
+  const [showGitHubDebug, setShowGitHubDebug] = useState(false)
 
   return (
     <>
@@ -34,36 +39,62 @@ export function AdminControls() {
           </Button>
           
           {isExpanded && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowScraperControl(true)}
-                className="flex items-center space-x-2"
-              >
-                <Settings className="w-4 h-4" />
-                <span>Scraper Control</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSourceSummary(true)}
-                className="flex items-center space-x-2"
-              >
-                <Database className="w-4 h-4" />
-                <span>Source Summary</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowNonWorkingSites(true)}
-                className="flex items-center space-x-2"
-              >
-                <AlertTriangle className="w-4 h-4" />
-                <span>Non-Working Sites</span>
-              </Button>
+            <div className="mt-4 space-y-4">
+              {/* Email Alert Threshold Card */}
+              <AlertThresholdCard className="max-w-md" />
+
+              {/* Admin Control Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowScraperControl(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Scraper Control</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSourceSummary(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <Database className="w-4 h-4" />
+                  <span>Source Summary</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNonWorkingSites(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Non-Working Sites</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowEmailPreferences(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>Advanced Email Settings</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowGitHubDebug(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <Bug className="w-4 h-4" />
+                  <span>GitHub Token Debug</span>
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -80,6 +111,14 @@ export function AdminControls() {
 
       {showNonWorkingSites && (
         <NonWorkingSites onClose={() => setShowNonWorkingSites(false)} />
+      )}
+
+      {showEmailPreferences && (
+        <EmailPreferences onClose={() => setShowEmailPreferences(false)} />
+      )}
+
+      {showGitHubDebug && (
+        <GitHubTokenDebug onClose={() => setShowGitHubDebug(false)} />
       )}
     </>
   )

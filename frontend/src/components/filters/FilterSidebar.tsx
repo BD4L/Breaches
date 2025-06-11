@@ -455,51 +455,146 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
               expandedSections={expandedSections}
               onToggle={toggleSection}
             >
-              <NumericSlider
-                label="Minimum Affected"
-                value={minAffected}
-                onChange={setMinAffected}
-                min={0}
-                max={100000}
-                step={100}
-              />
+              {/* Enhanced Affected People Filter */}
+              <div className="space-y-4">
+                {/* Alert Threshold Info */}
+                {minAffected > 0 && (
+                  <div className="p-3 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">🚨</span>
+                      <div>
+                        <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                          Alert Threshold Set
+                        </p>
+                        <p className="text-xs text-orange-600 dark:text-orange-300">
+                          Showing breaches affecting {minAffected.toLocaleString()}+ people
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-              {/* Affected Count Known Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Affected Count Status
-                </label>
+                {/* Numeric Slider */}
+                <NumericSlider
+                  label="Minimum Affected People"
+                  value={minAffected}
+                  onChange={setMinAffected}
+                  min={0}
+                  max={1000000}
+                  step={100}
+                  formatValue={(val) => {
+                    if (val === 0) return 'Any'
+                    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`
+                    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`
+                    return val.toLocaleString()
+                  }}
+                />
+
+                {/* Impact Level Indicators */}
                 <div className="space-y-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="affectedKnown"
-                      checked={affectedKnown === undefined}
-                      onChange={() => setAffectedKnown(undefined)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">All records</span>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Impact Level Quick Select
                   </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="affectedKnown"
-                      checked={affectedKnown === true}
-                      onChange={() => setAffectedKnown(true)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Count known</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setMinAffected(1000)}
+                      className={`p-2 text-xs rounded-lg border transition-all ${
+                        minAffected === 1000
+                          ? 'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-200'
+                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className="font-medium">Medium</div>
+                      <div className="text-xs opacity-75">1K+ people</div>
+                    </button>
+                    <button
+                      onClick={() => setMinAffected(10000)}
+                      className={`p-2 text-xs rounded-lg border transition-all ${
+                        minAffected === 10000
+                          ? 'bg-orange-100 border-orange-300 text-orange-800 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-200'
+                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className="font-medium">High</div>
+                      <div className="text-xs opacity-75">10K+ people</div>
+                    </button>
+                    <button
+                      onClick={() => setMinAffected(100000)}
+                      className={`p-2 text-xs rounded-lg border transition-all ${
+                        minAffected === 100000
+                          ? 'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200'
+                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className="font-medium">Critical</div>
+                      <div className="text-xs opacity-75">100K+ people</div>
+                    </button>
+                    <button
+                      onClick={() => setMinAffected(1000000)}
+                      className={`p-2 text-xs rounded-lg border transition-all ${
+                        minAffected === 1000000
+                          ? 'bg-purple-100 border-purple-300 text-purple-800 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-200'
+                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className="font-medium">Massive</div>
+                      <div className="text-xs opacity-75">1M+ people</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Affected Count Known Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Data Availability
                   </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="affectedKnown"
-                      checked={affectedKnown === false}
-                      onChange={() => setAffectedKnown(false)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Count unknown</span>
-                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="affectedKnown"
+                        checked={affectedKnown === undefined}
+                        onChange={() => setAffectedKnown(undefined)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                        All records
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        (includes unknown counts)
+                      </span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="affectedKnown"
+                        checked={affectedKnown === true}
+                        onChange={() => setAffectedKnown(true)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                        Count known
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        (specific numbers only)
+                      </span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="affectedKnown"
+                        checked={affectedKnown === false}
+                        onChange={() => setAffectedKnown(false)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                        Count unknown
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        (TBD, under investigation)
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </SectionHeader>

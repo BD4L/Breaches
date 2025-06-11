@@ -220,16 +220,57 @@ SELECT
 FROM scraped_items si
 JOIN data_sources ds ON si.source_id = ds.id;
 
--- User alert preferences table
+-- Enhanced user alert preferences table
 CREATE TABLE user_prefs (
     user_id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    email TEXT NOT NULL,                -- user email for alerts
+    email_verified BOOLEAN DEFAULT FALSE, -- email verification status
     threshold INTEGER DEFAULT 0,        -- alert if affected_individuals > threshold
     sources UUID[] DEFAULT '{}',        -- restrict to these source_id values
     source_types TEXT[] DEFAULT '{}',   -- filter by source type (State AG, News Feed, etc.)
     data_types TEXT[] DEFAULT '{}',     -- filter by data types compromised
     keywords TEXT[] DEFAULT '{}',       -- optional org keywords (ILIKE %keyword%)
+
+    -- Email preferences
+    alert_frequency TEXT DEFAULT 'immediate' CHECK (alert_frequency IN ('immediate', 'daily', 'weekly')),
+    email_format TEXT DEFAULT 'html' CHECK (email_format IN ('html', 'text')),
+    include_summary BOOLEAN DEFAULT TRUE, -- include breach summary in email
+    include_links BOOLEAN DEFAULT TRUE,   -- include links to documents
+    max_alerts_per_day INTEGER DEFAULT 10, -- rate limiting
+
+    -- Notification preferences
+    notify_high_impact BOOLEAN DEFAULT TRUE,  -- breaches > 10k people
+    notify_critical_sectors BOOLEAN DEFAULT TRUE, -- healthcare, finance, etc.
+    notify_local_breaches BOOLEAN DEFAULT FALSE, -- based on user location
+
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Email alert history to prevent duplicates and track delivery
+CREATE TABLE alert_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users ON DELETE CASCADE,
+    breach_id BIGINT REFERENCES scraped_items(id) ON DELETE CASCADE,
+    alert_type TEXT NOT NULL, -- 'immediate', 'daily_digest', 'weekly_digest'
+    email_sent_at TIMESTAMPTZ DEFAULT NOW(),
+    email_status TEXT DEFAULT 'sent' CHECK (email_status IN ('sent', 'delivered', 'bounced', 'failed')),
+    resend_message_id TEXT, -- Resend's message ID for tracking
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Prevent duplicate alerts for same breach to same user
+    UNIQUE(user_id, breach_id, alert_type)
+);
+
+-- Email verification tokens
+CREATE TABLE email_verification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    verified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- AI research jobs table

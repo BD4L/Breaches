@@ -32,10 +32,16 @@ class GitHubActionsAPI {
       throw new Error('GitHub token not configured. Please add PUBLIC_GITHUB_TOKEN to repository secrets and redeploy.')
     }
 
+    // Validate token format
+    if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+      throw new Error('Invalid GitHub token format. Token should start with "ghp_" or "github_pat_".')
+    }
+
     return {
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-GitHub-Api-Version': '2022-11-28'
     }
   }
 
@@ -77,7 +83,7 @@ class GitHubActionsAPI {
     }
   }
 
-  async triggerWorkflow(workflowId: number, ref = 'frontend', inputs?: Record<string, any>): Promise<boolean> {
+  async triggerWorkflow(workflowId: number, ref = 'main', inputs?: Record<string, any>): Promise<boolean> {
     try {
       const response = await fetch(
         `${this.baseUrl}/repos/${this.owner}/${this.repo}/actions/workflows/${workflowId}/dispatches`,
@@ -90,27 +96,75 @@ class GitHubActionsAPI {
           })
         }
       )
-      
-      return response.ok
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`GitHub API error: ${response.status} - ${errorText}`)
+      }
+
+      return true
     } catch (error) {
       console.error('Failed to trigger workflow:', error)
-      return false
+      throw error
     }
   }
 
   async triggerWorkflowByName(workflowName: string, inputs?: Record<string, any>): Promise<boolean> {
     try {
       const workflows = await this.getWorkflows()
-      const workflow = workflows.find(w => w.name === workflowName || w.path.includes(workflowName))
-      
+      const workflow = workflows.find(w =>
+        w.name === workflowName ||
+        w.path.includes(workflowName) ||
+        w.name.toLowerCase().includes(workflowName.toLowerCase())
+      )
+
       if (!workflow) {
-        throw new Error(`Workflow not found: ${workflowName}`)
+        console.error('Available workflows:', workflows.map(w => ({ name: w.name, path: w.path })))
+        throw new Error(`Workflow not found: ${workflowName}. Available workflows: ${workflows.map(w => w.name).join(', ')}`)
       }
-      
-      return this.triggerWorkflow(workflow.id, 'frontend', inputs)
+
+      console.log(`Triggering workflow: ${workflow.name} (ID: ${workflow.id})`)
+      return this.triggerWorkflow(workflow.id, 'main', inputs)
     } catch (error) {
       console.error('Failed to trigger workflow by name:', error)
-      return false
+      throw error
+    }
+  }
+
+  // Validate GitHub token and permissions
+  async validateSetup(): Promise<{ valid: boolean; error?: string; workflows?: string[] }> {
+    try {
+      // Test basic API access
+      const response = await fetch(
+        `${this.baseUrl}/repos/${this.owner}/${this.repo}`,
+        { headers: this.getHeaders() }
+      )
+
+      if (!response.ok) {
+        return {
+          valid: false,
+          error: `GitHub API access failed: ${response.status} - ${response.statusText}`
+        }
+      }
+
+      // Test workflow access
+      const workflows = await this.getWorkflows()
+      if (workflows.length === 0) {
+        return {
+          valid: false,
+          error: 'No workflows found. Check if token has workflow permissions.'
+        }
+      }
+
+      return {
+        valid: true,
+        workflows: workflows.map(w => w.name)
+      }
+    } catch (error) {
+      return {
+        valid: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     }
   }
 
