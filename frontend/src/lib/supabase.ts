@@ -722,3 +722,177 @@ export async function checkIfBreachSaved(breachId: number) {
   console.log('📊 Check result:', { data, error, breachId })
   return { data, error }
 }
+
+// Helper function to get today's 1am timestamp (or yesterday's 1am if before 1am)
+function getToday1am(): Date {
+  const now = new Date()
+  const today1am = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 1, 0, 0, 0)
+
+  // If it's currently before 1am, use yesterday's 1am
+  if (now.getHours() < 1) {
+    today1am.setDate(today1am.getDate() - 1)
+  }
+
+  return today1am
+}
+
+export interface DailyStats {
+  totalNewItems: number
+  newBreaches: number
+  newNews: number
+  newAffectedTotal: number
+  sourceBreakdown: Array<{
+    sourceType: string
+    sourceName: string
+    newItems: number
+    newAffected: number
+    isBreachSource: boolean
+  }>
+  timeRange: {
+    start: string
+    end: string
+  }
+}
+
+export async function getSourceSummary() {
+  try {
+    const { data, error } = await supabase
+      .from('v_breach_dashboard')
+      .select('source_type, source_name, affected_individuals, publication_date')
+
+    if (error) throw error
+
+    // Map to display categories
+    const typeMapping: Record<string, string> = {
+      'State AG': 'State AG Sites',
+      'Government Portal': 'Government Portals',
+      'News Feed': 'RSS News Feeds',
+      'Breach Database': 'Specialized Breach Sites',
+      'Company IR': 'Company IR Sites',
+      'State Cybersecurity': 'State AG Sites',
+      'State Agency': 'State AG Sites'
+    }
+
+    const summary = data.reduce((acc, item) => {
+      const mappedType = typeMapping[item.source_type] || item.source_type
+
+      if (!acc[mappedType]) {
+        acc[mappedType] = {
+          count: 0,
+          affectedTotal: 0,
+          sources: new Set()
+        }
+      }
+
+      acc[mappedType].count++
+      acc[mappedType].sources.add(item.source_name)
+
+      if (item.affected_individuals) {
+        acc[mappedType].affectedTotal += item.affected_individuals
+      }
+
+      return acc
+    }, {} as Record<string, { count: number; affectedTotal: number; sources: Set<string> }>)
+
+    // Convert sets to arrays and add source counts
+    const result = Object.entries(summary).map(([type, data]) => ({
+      type,
+      count: data.count,
+      affectedTotal: data.affectedTotal,
+      sourceCount: data.sources.size
+    }))
+
+    return { data: result, error: null }
+  } catch (error) {
+    console.error('Error fetching source summary:', error)
+    return { data: [], error: error as Error }
+  }
+}
+
+export async function getDailyStats(): Promise<{ data: DailyStats | null; error: Error | null }> {
+  try {
+    const startTime = getToday1am()
+    const endTime = new Date()
+
+    const startIso = startTime.toISOString()
+    const endIso = endTime.toISOString()
+
+    console.log('📅 Getting daily stats from:', startIso, 'to:', endIso)
+
+    const { data, error } = await supabase
+      .from('v_breach_dashboard')
+      .select('source_type, source_name, affected_individuals')
+      .gte('scraped_at', startIso)
+      .lt('scraped_at', endIso)
+
+    if (error) throw error
+
+    console.log('📊 Daily stats raw data:', data?.length || 0, 'items')
+
+    // Categorize sources as breach vs news (same logic as daily_change_tracker.py)
+    const breachSourceTypes = new Set(['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
+
+    let newBreaches = 0
+    let newNews = 0
+    let newAffectedTotal = 0
+    const sourceStats = new Map<string, { newItems: number; newAffected: number; isBreachSource: boolean; sourceType: string }>()
+
+    data.forEach(item => {
+      const isBreachSource = breachSourceTypes.has(item.source_type)
+      const key = item.source_name
+
+      if (isBreachSource) {
+        newBreaches++
+      } else {
+        newNews++
+      }
+
+      if (item.affected_individuals) {
+        newAffectedTotal += item.affected_individuals
+      }
+
+      if (!sourceStats.has(key)) {
+        sourceStats.set(key, {
+          newItems: 0,
+          newAffected: 0,
+          isBreachSource,
+          sourceType: item.source_type
+        })
+      }
+
+      const stats = sourceStats.get(key)!
+      stats.newItems++
+      if (item.affected_individuals) {
+        stats.newAffected += item.affected_individuals
+      }
+    })
+
+    const sourceBreakdown = Array.from(sourceStats.entries())
+      .map(([sourceName, stats]) => ({
+        sourceName,
+        sourceType: stats.sourceType,
+        newItems: stats.newItems,
+        newAffected: stats.newAffected,
+        isBreachSource: stats.isBreachSource
+      }))
+      .sort((a, b) => b.newItems - a.newItems) // Sort by most new items
+
+    const dailyStats: DailyStats = {
+      totalNewItems: data.length,
+      newBreaches,
+      newNews,
+      newAffectedTotal,
+      sourceBreakdown,
+      timeRange: {
+        start: startIso,
+        end: endIso
+      }
+    }
+
+    console.log('📈 Daily stats computed:', dailyStats)
+    return { data: dailyStats, error: null }
+  } catch (error) {
+    console.error('❌ Error fetching daily stats:', error)
+    return { data: null, error: error as Error }
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { ChevronDown, ChevronUp, TrendingUp, Calendar } from 'lucide-react'
+import { supabase, getDailyStats, type DailyStats } from '../../lib/supabase'
 import { formatNumber, formatAffectedCount } from '../../lib/utils'
 
 interface OverallStats {
@@ -12,7 +13,9 @@ interface OverallStats {
 
 export function SourceSummaryHero() {
   const [stats, setStats] = useState<OverallStats | null>(null)
+  const [dailyStats, setDailyStats] = useState<DailyStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [dailyExpanded, setDailyExpanded] = useState(false)
 
   useEffect(() => {
     loadStats()
@@ -22,52 +25,66 @@ export function SourceSummaryHero() {
     try {
       setLoading(true)
 
-      // Get breach count (excluding news feeds)
-      const { count: totalBreaches } = await supabase
-        .from('v_breach_dashboard')
-        .select('*', { count: 'exact', head: true })
-        .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
+      // Load overall stats and daily stats in parallel
+      const [overallStatsResult, dailyStatsResult] = await Promise.all([
+        loadOverallStats(),
+        getDailyStats()
+      ])
 
-      // Get news count
-      const { count: totalNews } = await supabase
-        .from('v_breach_dashboard')
-        .select('*', { count: 'exact', head: true })
-        .in('source_type', ['News Feed', 'Company IR'])
+      if (dailyStatsResult.data) {
+        setDailyStats(dailyStatsResult.data)
+      }
 
-      // Get total affected individuals
-      const { data: affectedData } = await supabase
-        .from('v_breach_dashboard')
-        .select('affected_individuals')
-        .not('affected_individuals', 'is', null)
-
-      const totalAffected = affectedData?.reduce((sum, item) => sum + (item.affected_individuals || 0), 0) || 0
-
-      // Get source count
-      const { data: sourcesData } = await supabase
-        .from('data_sources')
-        .select('id')
-
-      // Get latest scraped date
-      const { data: latestData } = await supabase
-        .from('v_breach_dashboard')
-        .select('scraped_at')
-        .not('scraped_at', 'is', null)
-        .order('scraped_at', { ascending: false })
-        .limit(1)
-
-      const lastUpdated = latestData?.[0]?.scraped_at || new Date().toISOString()
-
-      setStats({
-        totalSources: sourcesData?.length || 0,
-        totalBreaches: totalBreaches || 0,
-        totalAffected,
-        totalNews: totalNews || 0,
-        lastUpdated
-      })
+      setStats(overallStatsResult)
     } catch (error) {
       console.error('Failed to load stats:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadOverallStats = async (): Promise<OverallStats> => {
+    // Get breach count (excluding news feeds)
+    const { count: totalBreaches } = await supabase
+      .from('v_breach_dashboard')
+      .select('*', { count: 'exact', head: true })
+      .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
+
+    // Get news count
+    const { count: totalNews } = await supabase
+      .from('v_breach_dashboard')
+      .select('*', { count: 'exact', head: true })
+      .in('source_type', ['News Feed', 'Company IR'])
+
+    // Get total affected individuals
+    const { data: affectedData } = await supabase
+      .from('v_breach_dashboard')
+      .select('affected_individuals')
+      .not('affected_individuals', 'is', null)
+
+    const totalAffected = affectedData?.reduce((sum, item) => sum + (item.affected_individuals || 0), 0) || 0
+
+    // Get source count
+    const { data: sourcesData } = await supabase
+      .from('data_sources')
+      .select('id')
+
+    // Get latest scraped date
+    const { data: latestData } = await supabase
+      .from('v_breach_dashboard')
+      .select('scraped_at')
+      .not('scraped_at', 'is', null)
+      .order('scraped_at', { ascending: false })
+      .limit(1)
+
+    const lastUpdated = latestData?.[0]?.scraped_at || new Date().toISOString()
+
+    return {
+      totalSources: sourcesData?.length || 0,
+      totalBreaches: totalBreaches || 0,
+      totalAffected,
+      totalNews: totalNews || 0,
+      lastUpdated
     }
   }
 
@@ -93,6 +110,115 @@ export function SourceSummaryHero() {
 
   return (
     <div className="mb-12">
+      {/* Daily Activity Banner */}
+      {dailyStats && (
+        <div className="mb-8">
+          <div
+            className="group relative overflow-hidden bg-gradient-to-br from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-900/20 p-6 rounded-2xl border border-purple-200/50 dark:border-purple-800/50 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 cursor-pointer"
+            onClick={() => setDailyExpanded(!dailyExpanded)}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/25">
+                    <TrendingUp className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">Today's Activity</h3>
+                      <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-semibold rounded-full">
+                        LIVE
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Since 1:00 AM • {formatNumber(dailyStats.totalNewItems)} total items
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-6">
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {formatNumber(dailyStats.newBreaches)}
+                    </p>
+                    <p className="text-sm text-purple-600 dark:text-purple-400 font-semibold">
+                      New Breaches
+                    </p>
+                  </div>
+                  {dailyStats.newNews > 0 && (
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatNumber(dailyStats.newNews)}
+                      </p>
+                      <p className="text-sm text-purple-600 dark:text-purple-400 font-semibold">
+                        News Articles
+                      </p>
+                    </div>
+                  )}
+                  {dailyStats.newAffectedTotal > 0 && (
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatAffectedCount(dailyStats.newAffectedTotal)}
+                      </p>
+                      <p className="text-sm text-purple-600 dark:text-purple-400 font-semibold">
+                        People Affected
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex items-center">
+                    {dailyExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-gray-400" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Expandable Details */}
+              {dailyExpanded && (
+                <div className="mt-6 pt-6 border-t border-purple-200/50 dark:border-purple-800/50">
+                  <h4 className="text-sm font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-4">
+                    Source Breakdown
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {dailyStats.sourceBreakdown.slice(0, 6).map((source, index) => (
+                      <div key={index} className="bg-white/50 dark:bg-gray-800/50 p-4 rounded-xl border border-purple-200/30 dark:border-purple-800/30">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white text-sm">
+                              {source.sourceName}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {source.isBreachSource ? 'Breach Source' : 'News Source'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                              {formatNumber(source.newItems)}
+                            </p>
+                            {source.newAffected > 0 && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {formatAffectedCount(source.newAffected)} affected
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {dailyStats.sourceBreakdown.length > 6 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">
+                      + {dailyStats.sourceBreakdown.length - 6} more sources with activity
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border border-blue-200/50 dark:border-blue-800/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
