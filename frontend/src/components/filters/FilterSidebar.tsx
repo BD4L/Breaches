@@ -243,11 +243,17 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
 
       const sourceIds = sources?.map(s => s.id) || []
 
+      // Get today's date range (same logic as parseDateRange for 'today')
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const todayStart = today.toISOString()
+      const todayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString()
+
       // Set the predefined filter
       setSourceTypes(['State AG Sites', 'Government Portals'])
       setSelectedSources(sourceIds)
       setAffectedKnown(true) // Only known affected counts
-      setScrapedDateRange({ start: 'today', end: 'today' }) // Today only
+      setScrapedDateRange({ start: todayStart, end: todayEnd }) // Today only
       setBreachDateRange({})
       setPublicationDateRange({})
       setMinAffected(0)
@@ -261,7 +267,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         selectedSources: sourceIds,
         minAffected: 0,
         affectedKnown: true,
-        scrapedDateRange: { start: 'today', end: 'today' },
+        scrapedDateRange: { start: todayStart, end: todayEnd },
         breachDateRange: {},
         publicationDateRange: {}
       })

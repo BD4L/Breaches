@@ -179,7 +179,22 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
             </div>
           </div>
         ),
-        size: 250,
+        size: 220,
+      },
+      {
+        accessorKey: 'affected_individuals',
+        header: 'People Affected',
+        cell: ({ getValue }) => {
+          const count = getValue() as number | null
+          return (
+            <div className="text-right">
+              <span className={`font-semibold ${getSeverityColor(count)}`}>
+                {formatAffectedCount(count)}
+              </span>
+            </div>
+          )
+        },
+        size: 140,
       },
       {
         accessorKey: 'source_type',
@@ -190,19 +205,6 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
           </Badge>
         ),
         size: 120,
-      },
-      {
-        accessorKey: 'affected_individuals',
-        header: 'Affected',
-        cell: ({ getValue }) => {
-          const count = getValue() as number | null
-          return (
-            <span className={getSeverityColor(count)}>
-              {formatAffectedCount(count)}
-            </span>
-          )
-        },
-        size: 100,
       },
       {
         accessorKey: 'breach_date',
@@ -317,6 +319,21 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
       }
     }
   }, [filters])
+
+  // Auto-sort by affected individuals when "Breaches Of The Day" filter is active
+  useEffect(() => {
+    // Check if this looks like the "Breaches Of The Day" filter
+    const isBreachesOfTheDayFilter =
+      filters.affectedKnown === true &&
+      filters.sourceTypes.includes('State AG Sites') &&
+      filters.sourceTypes.includes('Government Portals') &&
+      (filters.scrapedDateRange.start && filters.scrapedDateRange.end)
+
+    if (isBreachesOfTheDayFilter) {
+      // Auto-sort by affected individuals (descending) to show most impactful breaches first
+      setSorting([{ id: 'affected_individuals', desc: true }])
+    }
+  }, [filters.affectedKnown, filters.sourceTypes, filters.scrapedDateRange])
 
   useEffect(() => {
     async function loadData() {
