@@ -243,17 +243,17 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
 
       const sourceIds = sources?.map(s => s.id) || []
 
-      // Get today's date range (same logic as parseDateRange for 'today')
+      // Get last 24 hours range (more accurate for frequent scraping)
       const now = new Date()
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const todayStart = today.toISOString()
-      const todayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString()
+      const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      const last24HoursStart = last24Hours.toISOString()
+      const nowEnd = now.toISOString()
 
       // Set the predefined filter
       setSourceTypes(['State AG Sites', 'Government Portals'])
       setSelectedSources(sourceIds)
       setAffectedKnown(true) // Only known affected counts
-      setScrapedDateRange({ start: todayStart, end: todayEnd }) // Today only
+      setScrapedDateRange({ start: last24HoursStart, end: nowEnd }) // Last 24 hours
       setBreachDateRange({})
       setPublicationDateRange({})
       setMinAffected(0)
@@ -267,7 +267,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         selectedSources: sourceIds,
         minAffected: 0,
         affectedKnown: true,
-        scrapedDateRange: { start: todayStart, end: todayEnd },
+        scrapedDateRange: { start: last24HoursStart, end: nowEnd },
         breachDateRange: {},
         publicationDateRange: {}
       })
@@ -376,7 +376,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
               <span>Breaches Of The Day</span>
             </Button>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-              Today's breaches from State AGs + HHS OCR with known affected counts
+              Last 24 hours: State AGs + HHS OCR breaches with known affected counts
             </p>
           </div>
         )}
