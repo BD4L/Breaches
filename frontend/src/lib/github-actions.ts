@@ -197,49 +197,56 @@ class GitHubActionsAPI {
 
 export const githubActions = new GitHubActionsAPI()
 
-// Workflow mapping for the UI
+// Workflow mapping for the UI - matches paralell.yml structure exactly
 export const WORKFLOW_GROUPS = {
   'government-scrapers': {
     name: 'Government & Federal Scrapers',
     workflow: 'Run All Scrapers (Parallel)',
     description: 'SEC EDGAR 8-K, HHS OCR',
-    scrapers: ['SEC EDGAR 8-K', 'HHS OCR']
+    scrapers: ['SEC EDGAR 8-K', 'HHS OCR'],
+    workflowFile: 'paralell.yml'
   },
   'state-ag-group-1': {
-    name: 'State AG Group 1',
+    name: 'State AG Group 1 (DE, CA, WA, HI)',
     workflow: 'Run All Scrapers (Parallel)',
     description: 'Delaware, California, Washington, Hawaii',
-    scrapers: ['Delaware AG', 'California AG', 'Washington AG', 'Hawaii AG']
+    scrapers: ['Delaware AG', 'California AG', 'Washington AG', 'Hawaii AG'],
+    workflowFile: 'paralell.yml'
   },
   'state-ag-group-2': {
-    name: 'State AG Group 2',
+    name: 'State AG Group 2 (IN, IA, ME)',
     workflow: 'Run All Scrapers (Parallel)',
     description: 'Indiana, Iowa, Maine',
-    scrapers: ['Indiana AG', 'Iowa AG', 'Maine AG']
+    scrapers: ['Indiana AG', 'Iowa AG', 'Maine AG'],
+    workflowFile: 'paralell.yml'
   },
   'state-ag-group-3': {
-    name: 'State AG Group 3',
+    name: 'State AG Group 3 (MA, MT, NH, NJ)',
     workflow: 'Run All Scrapers (Parallel)',
     description: 'Massachusetts, Montana, New Hampshire, New Jersey',
-    scrapers: ['Massachusetts AG', 'Montana AG', 'New Hampshire AG', 'New Jersey AG']
+    scrapers: ['Massachusetts AG', 'Montana AG', 'New Hampshire AG', 'New Jersey AG'],
+    workflowFile: 'paralell.yml'
   },
   'state-ag-group-4': {
-    name: 'State AG Group 4',
+    name: 'State AG Group 4 (ND, OK, VT, WI, TX)',
     workflow: 'Run All Scrapers (Parallel)',
     description: 'North Dakota, Oklahoma, Vermont, Wisconsin, Texas',
-    scrapers: ['North Dakota AG', 'Oklahoma Cyber', 'Vermont AG', 'Wisconsin DATCP', 'Texas AG']
+    scrapers: ['North Dakota AG', 'Oklahoma Cyber', 'Vermont AG', 'Wisconsin DATCP', 'Texas AG'],
+    workflowFile: 'paralell.yml'
   },
   'news-and-api-scrapers': {
     name: 'News & API Scrapers',
     workflow: 'Run All Scrapers (Parallel)',
     description: 'BreachSense, Cybersecurity News, Company IR, HIBP API',
-    scrapers: ['BreachSense', 'Cybersecurity News RSS', 'Company IR', 'HIBP API']
+    scrapers: ['BreachSense', 'Cybersecurity News RSS', 'Company IR', 'HIBP API'],
+    workflowFile: 'paralell.yml'
   },
   'problematic-scrapers': {
-    name: 'Problematic Scrapers',
+    name: 'Problematic Scrapers (MD)',
     workflow: 'Run All Scrapers (Parallel)',
-    description: 'Maryland AG (known issues)',
-    scrapers: ['Maryland AG']
+    description: 'Maryland AG (known website issues)',
+    scrapers: ['Maryland AG'],
+    workflowFile: 'paralell.yml'
   }
 } as const
 

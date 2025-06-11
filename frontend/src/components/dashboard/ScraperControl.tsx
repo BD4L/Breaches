@@ -25,86 +25,68 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
   const [triggering, setTriggering] = useState<string | null>(null)
   const [showScheduleManager, setShowScheduleManager] = useState(false)
 
-  // Define scraper groups based on new categorization (Government Portals, AG Sites, RSS News Feeds)
+  // Define scraper groups based on paralell.yml workflow structure
   const defaultScraperGroups: ScraperGroup[] = [
     {
-      id: 'government-portals',
-      name: '🏢 Government Portals',
-      description: 'Federal agencies and government breach reporting',
-      scrapers: ['SEC EDGAR 8-K', 'HHS OCR Breach Portal'],
-      schedule: 'Daily at 3 AM UTC',
+      id: 'government-scrapers',
+      name: '🏢 Government & Federal Scrapers',
+      description: 'SEC EDGAR 8-K, HHS OCR Breach Portal',
+      scrapers: ['SEC EDGAR 8-K', 'HHS OCR'],
+      schedule: 'Every 30 minutes',
       status: 'idle',
       canTrigger: true
     },
     {
       id: 'state-ag-group-1',
-      name: '🏛️ State AG Group 1',
+      name: '🏛️ State AG Group 1 (DE, CA, WA, HI)',
       description: 'Delaware, California, Washington, Hawaii',
       scrapers: ['Delaware AG', 'California AG', 'Washington AG', 'Hawaii AG'],
-      schedule: 'Daily at 3 AM UTC',
+      schedule: 'Every 30 minutes',
       status: 'idle',
       canTrigger: true
     },
     {
       id: 'state-ag-group-2',
-      name: '🏛️ State AG Group 2',
+      name: '🏛️ State AG Group 2 (IN, IA, ME)',
       description: 'Indiana, Iowa, Maine',
       scrapers: ['Indiana AG', 'Iowa AG', 'Maine AG'],
-      schedule: 'Daily at 3 AM UTC',
+      schedule: 'Every 30 minutes',
       status: 'idle',
       canTrigger: true
     },
     {
       id: 'state-ag-group-3',
-      name: '🏛️ State AG Group 3',
+      name: '🏛️ State AG Group 3 (MA, MT, NH, NJ)',
       description: 'Massachusetts, Montana, New Hampshire, New Jersey',
       scrapers: ['Massachusetts AG', 'Montana AG', 'New Hampshire AG', 'New Jersey AG'],
-      schedule: 'Daily at 3 AM UTC',
+      schedule: 'Every 30 minutes',
       status: 'idle',
       canTrigger: true
     },
     {
       id: 'state-ag-group-4',
-      name: '🏛️ State AG Group 4',
+      name: '🏛️ State AG Group 4 (ND, OK, VT, WI, TX)',
       description: 'North Dakota, Oklahoma, Vermont, Wisconsin, Texas',
       scrapers: ['North Dakota AG', 'Oklahoma Cyber', 'Vermont AG', 'Wisconsin DATCP', 'Texas AG'],
-      schedule: 'Daily at 3 AM UTC',
+      schedule: 'Every 30 minutes',
       status: 'idle',
       canTrigger: true
     },
     {
-      id: 'rss-news-feeds',
-      name: '📰 RSS News Feeds',
-      description: 'Cybersecurity news, breach databases, and HIBP RSS',
-      scrapers: ['KrebsOnSecurity', 'BleepingComputer', 'The Hacker News', 'SecurityWeek', 'Dark Reading', 'DataBreaches.net', 'HIBP RSS', 'CISA News', 'Security Magazine'],
-      schedule: 'Daily at 3 AM UTC',
-      status: 'idle',
-      canTrigger: true
-    },
-    {
-      id: 'specialized-sites',
-      name: '🔍 Specialized Breach Sites',
-      description: 'Dedicated breach tracking platforms',
-      scrapers: ['BreachSense'],
-      schedule: 'Daily at 3 AM UTC',
-      status: 'idle',
-      canTrigger: true
-    },
-    {
-      id: 'company-ir-sites',
-      name: '💼 Company IR Sites',
-      description: 'Major tech company investor relations',
-      scrapers: ['Microsoft IR', 'Apple IR', 'Amazon IR', 'Alphabet IR', 'Meta IR'],
-      schedule: 'Daily at 3 AM UTC',
+      id: 'news-and-api-scrapers',
+      name: '📰 News & API Scrapers',
+      description: 'BreachSense, Cybersecurity News, Company IR, HIBP API',
+      scrapers: ['BreachSense', 'Cybersecurity News RSS', 'Company IR', 'HIBP API'],
+      schedule: 'Every 30 minutes',
       status: 'idle',
       canTrigger: true
     },
     {
       id: 'problematic-scrapers',
-      name: '⚠️ Problematic Scrapers',
-      description: 'Sources with known technical issues',
+      name: '⚠️ Problematic Scrapers (MD)',
+      description: 'Maryland AG (known website issues)',
       scrapers: ['Maryland AG'],
-      schedule: 'Daily at 3 AM UTC (Continue on Error)',
+      schedule: 'Every 30 minutes (Continue on Error)',
       status: 'idle',
       canTrigger: true
     }
@@ -173,7 +155,7 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
             run_problematic: true
           })
           break
-        case 'government-portals':
+        case 'government-scrapers':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
             run_government: true,
             run_state_ag_1: false,
@@ -228,7 +210,6 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
             run_problematic: false
           })
           break
-        case 'rss-news-feeds':
         case 'news-and-api-scrapers':
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
             run_government: false,
@@ -252,21 +233,17 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
           })
           break
 
-        case 'state-ag-all':
-          // Run all state AG groups
+        default:
+          // Default to running all groups
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
-            run_government: false,
+            run_government: true,
             run_state_ag_1: true,
             run_state_ag_2: true,
             run_state_ag_3: true,
             run_state_ag_4: true,
-            run_news_api: false,
-            run_problematic: false
+            run_news_api: true,
+            run_problematic: true
           })
-          break
-        default:
-          // Fallback to running all groups
-          success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)')
           break
       }
 
@@ -385,34 +362,26 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => triggerWorkflow('government-portals')}
+              onClick={() => triggerWorkflow('government-scrapers')}
               disabled={!!triggering}
             >
-              🏢 Government Portals
+              🏢 Government & Federal
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => triggerWorkflow('state-ag-all')}
+              onClick={() => triggerWorkflow('news-and-api-scrapers')}
               disabled={!!triggering}
             >
-              🏛️ All State AG Sites
+              📰 News & API
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => triggerWorkflow('rss-news-feeds')}
+              onClick={() => triggerWorkflow('problematic-scrapers')}
               disabled={!!triggering}
             >
-              📰 RSS News Feeds
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => triggerWorkflow('specialized-sites')}
-              disabled={!!triggering}
-            >
-              🔍 Specialized Sites
+              ⚠️ Problematic (MD)
             </Button>
           </div>
         </div>
@@ -473,15 +442,19 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
           <div className="space-y-2 text-sm mb-4">
             <div className="flex items-center space-x-2">
               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-              <span><strong>Main workflow:</strong> Daily at 3 AM UTC (all scraper groups)</span>
+              <span><strong>Parallel workflow:</strong> Every 30 minutes (all scraper groups)</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              <span><strong>Massachusetts AG:</strong> Every 6 hours (high frequency)</span>
+              <span><strong>Daily tracking:</strong> 1am to 1am change detection</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-              <span><strong>Manual triggers:</strong> Available for all groups with selective execution</span>
+              <span><strong>Manual triggers:</strong> Available for individual groups or all groups</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+              <span><strong>Email alerts:</strong> Automatic notifications for new breaches</span>
             </div>
           </div>
 
