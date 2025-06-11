@@ -177,41 +177,96 @@ export function SourceSummaryHero() {
 
               {/* Expandable Details */}
               {dailyExpanded && (
-                <div className="mt-6 pt-6 border-t border-purple-200/50 dark:border-purple-800/50">
-                  <h4 className="text-sm font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-4">
-                    Source Breakdown
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {dailyStats.sourceBreakdown.slice(0, 6).map((source, index) => (
-                      <div key={index} className="bg-white/50 dark:bg-gray-800/50 p-4 rounded-xl border border-purple-200/30 dark:border-purple-800/30">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white text-sm">
-                              {source.sourceName}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {source.isBreachSource ? 'Breach Source' : 'News Source'}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                              {formatNumber(source.newItems)}
-                            </p>
-                            {source.newAffected > 0 && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {formatAffectedCount(source.newAffected)} affected
-                              </p>
+                <div className="mt-6 pt-6 border-t border-purple-200/50 dark:border-purple-800/50 space-y-8">
+
+                  {/* Top 3 Breaches Today */}
+                  {dailyStats.topBreaches && dailyStats.topBreaches.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-4">
+                        Top Breaches Today
+                      </h4>
+                      <div className="space-y-3">
+                        {dailyStats.topBreaches.map((breach, index) => (
+                          <div key={breach.id} className="bg-white/70 dark:bg-gray-800/70 p-4 rounded-xl border border-purple-200/40 dark:border-purple-800/40 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-colors">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                                  {index + 1}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-gray-900 dark:text-white">
+                                    {breach.organizationName}
+                                  </p>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    via {breach.sourceName}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                                  {breach.affectedIndividuals ? formatAffectedCount(breach.affectedIndividuals) : 'Unknown'}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  people affected
+                                </p>
+                              </div>
+                            </div>
+                            {(breach.breachDate || breach.reportedDate) && (
+                              <div className="mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {breach.breachDate && (
+                                    <span>Breach: {new Date(breach.breachDate).toLocaleDateString()}</span>
+                                  )}
+                                  {breach.breachDate && breach.reportedDate && <span> • </span>}
+                                  {breach.reportedDate && (
+                                    <span>Reported: {new Date(breach.reportedDate).toLocaleDateString()}</span>
+                                  )}
+                                </p>
+                              </div>
                             )}
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  {dailyStats.sourceBreakdown.length > 6 && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">
-                      + {dailyStats.sourceBreakdown.length - 6} more sources with activity
-                    </p>
+                    </div>
                   )}
+
+                  {/* Source Breakdown */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-4">
+                      Source Activity
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {dailyStats.sourceBreakdown.slice(0, 6).map((source, index) => (
+                        <div key={index} className="bg-white/50 dark:bg-gray-800/50 p-4 rounded-xl border border-purple-200/30 dark:border-purple-800/30">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white text-sm">
+                                {source.sourceName}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {source.isBreachSource ? 'Breach Source' : 'News Source'}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                                {formatNumber(source.newItems)}
+                              </p>
+                              {source.newAffected > 0 && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatAffectedCount(source.newAffected)} affected
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {dailyStats.sourceBreakdown.length > 6 && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">
+                        + {dailyStats.sourceBreakdown.length - 6} more sources with activity
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

@@ -748,6 +748,14 @@ export interface DailyStats {
     newAffected: number
     isBreachSource: boolean
   }>
+  topBreaches: Array<{
+    id: number
+    organizationName: string
+    affectedIndividuals: number | null
+    sourceName: string
+    breachDate: string | null
+    reportedDate: string | null
+  }>
   timeRange: {
     start: string
     end: string
@@ -819,6 +827,7 @@ export async function getDailyStats(): Promise<{ data: DailyStats | null; error:
 
     console.log('📅 Getting daily stats from:', startIso, 'to:', endIso)
 
+    // Get all daily items for general stats
     const { data, error } = await supabase
       .from('v_breach_dashboard')
       .select('source_type, source_name, affected_individuals')
@@ -827,7 +836,23 @@ export async function getDailyStats(): Promise<{ data: DailyStats | null; error:
 
     if (error) throw error
 
+    // Get top breaches for today (only breach sources with affected individuals data)
+    const { data: topBreachesData, error: topBreachesError } = await supabase
+      .from('v_breach_dashboard')
+      .select('id, organization_name, affected_individuals, source_name, breach_date, reported_date')
+      .gte('scraped_at', startIso)
+      .lt('scraped_at', endIso)
+      .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
+      .not('affected_individuals', 'is', null)
+      .order('affected_individuals', { ascending: false })
+      .limit(3)
+
+    if (topBreachesError) {
+      console.warn('⚠️ Error fetching top breaches:', topBreachesError)
+    }
+
     console.log('📊 Daily stats raw data:', data?.length || 0, 'items')
+    console.log('🏆 Top breaches data:', topBreachesData?.length || 0, 'breaches')
 
     // Categorize sources as breach vs news (same logic as daily_change_tracker.py)
     const breachSourceTypes = new Set(['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
@@ -877,12 +902,23 @@ export async function getDailyStats(): Promise<{ data: DailyStats | null; error:
       }))
       .sort((a, b) => b.newItems - a.newItems) // Sort by most new items
 
+    // Format top breaches data
+    const topBreaches = (topBreachesData || []).map(breach => ({
+      id: breach.id,
+      organizationName: breach.organization_name,
+      affectedIndividuals: breach.affected_individuals,
+      sourceName: breach.source_name,
+      breachDate: breach.breach_date,
+      reportedDate: breach.reported_date
+    }))
+
     const dailyStats: DailyStats = {
       totalNewItems: data.length,
       newBreaches,
       newNews,
       newAffectedTotal,
       sourceBreakdown,
+      topBreaches,
       timeRange: {
         start: startIso,
         end: endIso
