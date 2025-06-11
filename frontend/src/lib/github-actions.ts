@@ -120,7 +120,7 @@ class GitHubActionsAPI {
 
       if (!workflow) {
         console.error('Available workflows:', workflows.map(w => ({ name: w.name, path: w.path })))
-        throw new Error(`Workflow not found: ${workflowName}. Available workflows: ${workflows.map(w => w.name).join(', ')}`)
+        throw new Error(`Workflow "${workflowName}" not found. Available: ${workflows.map(w => w.name).join(', ')}`)
       }
 
       console.log(`Triggering workflow: ${workflow.name} (ID: ${workflow.id})`)
@@ -131,62 +131,15 @@ class GitHubActionsAPI {
     }
   }
 
-  // Validate GitHub token and permissions
-  async validateSetup(): Promise<{ valid: boolean; error?: string; workflows?: string[] }> {
-    try {
-      // Test basic API access
-      const response = await fetch(
-        `${this.baseUrl}/repos/${this.owner}/${this.repo}`,
-        { headers: this.getHeaders() }
-      )
 
-      if (!response.ok) {
-        return {
-          valid: false,
-          error: `GitHub API access failed: ${response.status} - ${response.statusText}`
-        }
-      }
-
-      // Test workflow access
-      const workflows = await this.getWorkflows()
-      if (workflows.length === 0) {
-        return {
-          valid: false,
-          error: 'No workflows found. Check if token has workflow permissions.'
-        }
-      }
-
-      return {
-        valid: true,
-        workflows: workflows.map(w => w.name)
-      }
-    } catch (error) {
-      return {
-        valid: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    }
-  }
 
   // Predefined workflow triggers for your scraper groups
   async triggerMainScraperWorkflow(): Promise<boolean> {
-    return this.triggerWorkflowByName('main_scraper_workflow.yml')
+    return this.triggerWorkflowByName('Run All Scrapers (Parallel)')
   }
 
-  async triggerMassachusettsAG(options?: {
-    filterDaysBack?: string
-    processingMode?: 'BASIC' | 'ENHANCED' | 'FULL'
-    forceProcess?: boolean
-  }): Promise<boolean> {
-    return this.triggerWorkflowByName('massachusetts_ag.yml', {
-      filter_days_back: options?.filterDaysBack || '7',
-      processing_mode: options?.processingMode || 'ENHANCED',
-      force_process: options?.forceProcess?.toString() || 'true'
-    })
-  }
-
-  async triggerCaliforniaAG(): Promise<boolean> {
-    return this.triggerWorkflowByName('cali.yml')
+  async triggerParallelScrapers(inputs?: Record<string, any>): Promise<boolean> {
+    return this.triggerWorkflowByName('Run All Scrapers (Parallel)', inputs)
   }
 
   // Get status of all scraper-related workflows
@@ -231,52 +184,45 @@ export const githubActions = new GitHubActionsAPI()
 export const WORKFLOW_GROUPS = {
   'government-scrapers': {
     name: 'Government & Federal Scrapers',
-    workflow: 'main_scraper_workflow.yml',
+    workflow: 'Run All Scrapers (Parallel)',
     description: 'SEC EDGAR 8-K, HHS OCR',
     scrapers: ['SEC EDGAR 8-K', 'HHS OCR']
   },
   'state-ag-group-1': {
     name: 'State AG Group 1',
-    workflow: 'main_scraper_workflow.yml',
+    workflow: 'Run All Scrapers (Parallel)',
     description: 'Delaware, California, Washington, Hawaii',
     scrapers: ['Delaware AG', 'California AG', 'Washington AG', 'Hawaii AG']
   },
   'state-ag-group-2': {
     name: 'State AG Group 2',
-    workflow: 'main_scraper_workflow.yml',
+    workflow: 'Run All Scrapers (Parallel)',
     description: 'Indiana, Iowa, Maine',
     scrapers: ['Indiana AG', 'Iowa AG', 'Maine AG']
   },
   'state-ag-group-3': {
     name: 'State AG Group 3',
-    workflow: 'main_scraper_workflow.yml',
-    description: 'Massachusetts, Montana',
-    scrapers: ['Massachusetts AG', 'Montana AG']
+    workflow: 'Run All Scrapers (Parallel)',
+    description: 'Massachusetts, Montana, New Hampshire, New Jersey',
+    scrapers: ['Massachusetts AG', 'Montana AG', 'New Hampshire AG', 'New Jersey AG']
   },
   'state-ag-group-4': {
     name: 'State AG Group 4',
-    workflow: 'main_scraper_workflow.yml',
+    workflow: 'Run All Scrapers (Parallel)',
     description: 'North Dakota, Oklahoma, Vermont, Wisconsin, Texas',
     scrapers: ['North Dakota AG', 'Oklahoma Cyber', 'Vermont AG', 'Wisconsin DATCP', 'Texas AG']
   },
   'news-and-api-scrapers': {
     name: 'News & API Scrapers',
-    workflow: 'main_scraper_workflow.yml',
+    workflow: 'Run All Scrapers (Parallel)',
     description: 'BreachSense, Cybersecurity News, Company IR, HIBP API',
     scrapers: ['BreachSense', 'Cybersecurity News RSS', 'Company IR', 'HIBP API']
   },
-  'massachusetts-ag-frequent': {
-    name: 'Massachusetts AG (Frequent)',
-    workflow: 'massachusetts_ag.yml',
-    description: 'High-frequency Massachusetts AG scraper',
-    scrapers: ['Massachusetts AG'],
-    schedule: 'Every 6 hours'
-  },
-  'california-ag-special': {
-    name: 'California AG (Special)',
-    workflow: 'cali.yml',
-    description: 'California AG with enhanced PDF processing',
-    scrapers: ['California AG']
+  'problematic-scrapers': {
+    name: 'Problematic Scrapers',
+    workflow: 'Run All Scrapers (Parallel)',
+    description: 'Maryland AG (known issues)',
+    scrapers: ['Maryland AG']
   }
 } as const
 

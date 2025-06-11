@@ -98,16 +98,7 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
       schedule: 'Daily at 3 AM UTC',
       status: 'idle',
       canTrigger: true
-    },
-    {
-      id: 'massachusetts-ag-frequent',
-      name: '🏛️ Massachusetts AG (High Frequency)',
-      description: 'High-priority state with 6-hour monitoring',
-      scrapers: ['Massachusetts AG'],
-      schedule: 'Every 6 hours',
-      status: 'idle',
-      canTrigger: true
-    },
+
     {
       id: 'problematic-scrapers',
       name: '⚠️ Problematic Scrapers',
@@ -260,12 +251,7 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
             run_problematic: 'true'
           })
           break
-        case 'massachusetts-ag-frequent':
-          success = await githubActions.triggerMassachusettsAG()
-          break
-        case 'california-ag-special':
-          success = await githubActions.triggerCaliforniaAG()
-          break
+
         case 'state-ag-all':
           // Run all state AG groups
           success = await githubActions.triggerWorkflowByName('Run All Scrapers (Parallel)', {
@@ -314,7 +300,18 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
       ))
 
       // Show user-friendly error message
-      alert(`Failed to trigger workflow: ${error instanceof Error ? error.message : 'Unknown error'}. Please check if GitHub token is configured.`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('Workflow trigger error details:', error)
+
+      if (errorMessage.includes('GitHub token not configured')) {
+        alert('❌ GitHub token not configured. Please add PUBLIC_GITHUB_TOKEN to repository secrets and redeploy.')
+      } else if (errorMessage.includes('Workflow') && errorMessage.includes('not found')) {
+        alert(`❌ Workflow not found: ${errorMessage}`)
+      } else if (errorMessage.includes('403')) {
+        alert('❌ Permission denied. Check if GitHub token has workflow permissions.')
+      } else {
+        alert(`❌ Failed to trigger workflow: ${errorMessage}`)
+      }
     } finally {
       setTriggering(null)
     }

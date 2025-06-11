@@ -5,8 +5,7 @@ import { SourceSummary } from './SourceSummary'
 import { NonWorkingSites } from './NonWorkingSites'
 import { EmailPreferences } from '../preferences/EmailPreferences'
 import { AlertThresholdCard } from '../alerts/AlertThresholdCard'
-import { GitHubTokenDebug } from '../debug/GitHubTokenDebug'
-import { Settings, Database, AlertTriangle, Mail, Bug, ChevronDown, ChevronUp } from 'lucide-react'
+import { Settings, Database, AlertTriangle, Mail, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function AdminControls() {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -14,7 +13,6 @@ export function AdminControls() {
   const [showSourceSummary, setShowSourceSummary] = useState(false)
   const [showNonWorkingSites, setShowNonWorkingSites] = useState(false)
   const [showEmailPreferences, setShowEmailPreferences] = useState(false)
-  const [showGitHubDebug, setShowGitHubDebug] = useState(false)
 
   return (
     <>
@@ -84,16 +82,6 @@ export function AdminControls() {
                   <Mail className="w-4 h-4" />
                   <span>Advanced Email Settings</span>
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowGitHubDebug(true)}
-                  className="flex items-center space-x-2"
-                >
-                  <Bug className="w-4 h-4" />
-                  <span>GitHub Token Debug</span>
-                </Button>
               </div>
             </div>
           )}
@@ -115,10 +103,6 @@ export function AdminControls() {
 
       {showEmailPreferences && (
         <EmailPreferences onClose={() => setShowEmailPreferences(false)} />
-      )}
-
-      {showGitHubDebug && (
-        <GitHubTokenDebug onClose={() => setShowGitHubDebug(false)} />
       )}
     </>
   )
