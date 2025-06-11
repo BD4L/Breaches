@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, TrendingUp, Calendar } from 'lucide-react'
 import { supabase, getDailyStats, type DailyStats } from '../../lib/supabase'
 import { formatNumber, formatAffectedCount } from '../../lib/utils'
+import { LastScraperRun } from './LastScraperRun'
 
 interface OverallStats {
   totalSources: number
@@ -110,6 +111,9 @@ export function SourceSummaryHero() {
 
   return (
     <div className="mb-12">
+      {/* Last Scraper Run Status */}
+      <LastScraperRun className="mb-6" />
+
       {/* Daily Activity Banner */}
       {dailyStats && (
         <div className="mb-8">
