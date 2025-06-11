@@ -323,17 +323,24 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
   // Auto-sort by affected individuals when "Breaches Of The Day" filter is active
   useEffect(() => {
     // Check if this looks like the "Breaches Of The Day" filter
+    // Note: scrapedDateRange comes as a string in pipe format "start|end" at this point
+    const hasDateRange = typeof filters.scrapedDateRange === 'string' &&
+                         filters.scrapedDateRange.includes('|') &&
+                         filters.scrapedDateRange.length > 0
+
     const isBreachesOfTheDayFilter =
       filters.affectedKnown === true &&
       filters.sourceTypes.includes('State AG Sites') &&
       filters.sourceTypes.includes('Government Portals') &&
-      (filters.scrapedDateRange.start && filters.scrapedDateRange.end)
+      hasDateRange
 
     console.log('🎯 Checking for Breaches Of The Day auto-sort:', {
       affectedKnown: filters.affectedKnown,
       hasStateAG: filters.sourceTypes.includes('State AG Sites'),
       hasGovPortals: filters.sourceTypes.includes('Government Portals'),
-      hasDateRange: !!(filters.scrapedDateRange.start && filters.scrapedDateRange.end),
+      hasDateRange,
+      scrapedDateRangeValue: filters.scrapedDateRange,
+      scrapedDateRangeType: typeof filters.scrapedDateRange,
       isBreachesOfTheDayFilter,
       currentSorting: sorting
     })
