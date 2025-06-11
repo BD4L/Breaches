@@ -404,6 +404,24 @@ function parseDateRange(range: string): { start?: string; end?: string } {
       return {}
 
     default:
+      // Handle pipe-separated date ranges (format: "YYYY-MM-DD|YYYY-MM-DD")
+      if (range.includes('|')) {
+        const [startDate, endDate] = range.split('|')
+        console.log('🔍 Parsing pipe-separated date range:', { startDate, endDate, originalRange: range })
+
+        try {
+          const result = {
+            start: startDate ? new Date(startDate + 'T00:00:00.000Z').toISOString() : undefined,
+            end: endDate ? new Date(endDate + 'T23:59:59.999Z').toISOString() : undefined
+          }
+          console.log('📅 Parsed date range result:', result)
+          return result
+        } catch (error) {
+          console.error('❌ Error parsing date range:', error)
+          return {}
+        }
+      }
+
       // Handle custom date ranges (format: custom-type-YYYY-MM-DD)
       if (range.startsWith('custom-')) {
         const parts = range.split('-')

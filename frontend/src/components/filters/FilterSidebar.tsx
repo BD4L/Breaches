@@ -247,9 +247,16 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       const now = new Date()
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
-      // Format dates for date picker (YYYY-MM-DD format)
-      const last24HoursStart = last24Hours.toISOString().split('T')[0]
-      const nowEnd = now.toISOString().split('T')[0]
+      // Format dates for date picker (YYYY-MM-DD format) - use local timezone
+      const formatDateForPicker = (date: Date) => {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
+
+      const last24HoursStart = formatDateForPicker(last24Hours)
+      const nowEnd = formatDateForPicker(now)
 
       console.log('🎯 Setting Breaches Of The Day filter with dates:', {
         last24HoursStart,
