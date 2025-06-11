@@ -122,18 +122,25 @@ class GitHubActionsAPI {
   async triggerWorkflowByName(workflowName: string, inputs?: Record<string, any>): Promise<boolean> {
     try {
       const workflows = await this.getWorkflows()
-      const workflow = workflows.find(w =>
-        w.name === workflowName ||
-        w.path.includes(workflowName) ||
-        w.name.toLowerCase().includes(workflowName.toLowerCase())
-      )
+
+      // Specifically target the paralell.yml workflow for scraper operations
+      let workflow = workflows.find(w => w.path.includes('paralell.yml'))
+
+      // Fallback to name matching if paralell.yml not found
+      if (!workflow) {
+        workflow = workflows.find(w =>
+          w.name === workflowName ||
+          w.path.includes(workflowName) ||
+          w.name.toLowerCase().includes(workflowName.toLowerCase())
+        )
+      }
 
       if (!workflow) {
         console.error('Available workflows:', workflows.map(w => ({ name: w.name, path: w.path })))
         throw new Error(`Workflow "${workflowName}" not found. Available: ${workflows.map(w => w.name).join(', ')}`)
       }
 
-      console.log(`Triggering workflow: ${workflow.name} (ID: ${workflow.id})`)
+      console.log(`Triggering workflow: ${workflow.name} (ID: ${workflow.id}, Path: ${workflow.path})`)
       return this.triggerWorkflow(workflow.id, 'main', inputs)
     } catch (error) {
       console.error('Failed to trigger workflow by name:', error)

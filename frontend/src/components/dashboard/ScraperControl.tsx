@@ -57,8 +57,8 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
     {
       id: 'state-ag-group-3',
       name: '🏛️ State AG Group 3',
-      description: 'Massachusetts, Montana',
-      scrapers: ['Massachusetts AG', 'Montana AG'],
+      description: 'Massachusetts, Montana, New Hampshire, New Jersey',
+      scrapers: ['Massachusetts AG', 'Montana AG', 'New Hampshire AG', 'New Jersey AG'],
       schedule: 'Daily at 3 AM UTC',
       status: 'idle',
       canTrigger: true
@@ -103,7 +103,7 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
       id: 'problematic-scrapers',
       name: '⚠️ Problematic Scrapers',
       description: 'Sources with known technical issues',
-      scrapers: ['Maryland AG', 'New Hampshire AG', 'New Jersey AG'],
+      scrapers: ['Maryland AG'],
       schedule: 'Daily at 3 AM UTC (Continue on Error)',
       status: 'idle',
       canTrigger: true
@@ -305,6 +305,8 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
 
       if (errorMessage.includes('GitHub token not configured')) {
         alert('❌ GitHub token not configured. Please add PUBLIC_GITHUB_TOKEN to repository secrets and redeploy.')
+      } else if (errorMessage.includes('422')) {
+        alert('❌ Cannot run workflow: The workflow may be disabled or have invalid inputs. Check that paralell.yml is enabled and has proper workflow_dispatch configuration.')
       } else if (errorMessage.includes('Workflow') && errorMessage.includes('not found')) {
         alert(`❌ Workflow not found: ${errorMessage}`)
       } else if (errorMessage.includes('403')) {

@@ -32,11 +32,12 @@ export function LastScraperRun({ className = '' }: LastScraperRunProps) {
     try {
       setRefreshing(true)
       
-      // Get the parallel scrapers workflow
+      // Get the parallel scrapers workflow - specifically target paralell.yml
       const workflows = await githubActions.getWorkflows()
-      const parallelWorkflow = workflows.find(w => 
-        w.name === 'Run All Scrapers (Parallel)' || 
+      const parallelWorkflow = workflows.find(w =>
         w.path.includes('paralell.yml')
+      ) || workflows.find(w =>
+        w.name === 'Run All Scrapers (Parallel)' && w.path.includes('paralell')
       )
 
       if (parallelWorkflow) {
