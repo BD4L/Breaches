@@ -98,7 +98,7 @@ export function ScraperControl({ onClose }: ScraperControlProps) {
       schedule: 'Daily at 3 AM UTC',
       status: 'idle',
       canTrigger: true
-
+    },
     {
       id: 'problematic-scrapers',
       name: '⚠️ Problematic Scrapers',
