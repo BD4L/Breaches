@@ -65,10 +65,11 @@ export function SourceSummaryHero() {
 
     const totalAffected = affectedData?.reduce((sum, item) => sum + (item.affected_individuals || 0), 0) || 0
 
-    // Get source count
+    // Get source count (exclude API sources)
     const { data: sourcesData } = await supabase
       .from('data_sources')
       .select('id')
+      .neq('type', 'API')
 
     // Get latest scraped date
     const { data: latestData } = await supabase
@@ -330,7 +331,7 @@ export function SourceSummaryHero() {
             </div>
             <div>
               <p className="text-sm font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">Active Sources</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{stats?.totalSources}+</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{stats?.totalSources}</p>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Government & News</p>
             </div>
           </div>
