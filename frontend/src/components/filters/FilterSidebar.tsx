@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Filter, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, Filter, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
@@ -202,7 +202,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     }
   }
 
-  const toggleSection = (section: keyof typeof expandedSections) => {
+  const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]

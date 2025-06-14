@@ -521,7 +521,7 @@ export async function getSourceTypes() {
   return uniqueTypes.filter(Boolean)
 }
 
-// Get sources by category for hierarchical filtering with proper item counts
+// Get sources by category for hierarchical filtering with proper item counts (fixed v2)
 export async function getSourcesByCategory() {
   const { data: sourcesData, error: sourcesError } = await supabase
     .from('data_sources')
@@ -556,6 +556,8 @@ export async function getSourcesByCategory() {
 
     return acc
   }, {} as Record<number, { breaches: number; news: number; total: number }>)
+
+  console.log('🔍 getSourcesByCategory - sourceItemCounts sample:', Object.entries(sourceItemCounts).slice(0, 5))
 
   // Group sources by new categorization
   const categories: Record<string, Array<{id: number, name: string, originalType: string, itemCount: number, itemType: string}>> = {
