@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, SOURCE_TYPE_CONFIG } from '../../lib/supabase'
 import { formatNumber, formatAffectedCount, getSourceTypeColor } from '../../lib/utils'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -78,9 +78,9 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
         const sourceStats = sourceMap.get(sourceId)!
 
-        // Count items based on source type (match hero section logic)
-        const isBreachSource = ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'].includes(record.source_type)
-        const isNewsSource = ['News Feed', 'Company IR'].includes(record.source_type)
+        // Count items based on source type using centralized config
+        const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(record.source_type)
+        const isNewsSource = SOURCE_TYPE_CONFIG.isNewsSource(record.source_type)
 
         if (isBreachSource || isNewsSource) {
           sourceStats.total_breaches++
@@ -106,7 +106,7 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
       sourceMap.forEach(sourceStats => {
         sourceStats.avg_affected_per_breach = sourceStats.total_affected / sourceStats.total_breaches
 
-        const category = mapSourceTypeToCategory(sourceStats.source_type)
+        const category = SOURCE_TYPE_CONFIG.getDisplayCategory(sourceStats.source_type)
         
         if (!categoryMap.has(category)) {
           categoryMap.set(category, {
@@ -142,51 +142,30 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
     }
   }
 
-  const mapSourceTypeToCategory = (sourceType: string): string => {
-    // Map the current source types to match hero section categorization
-    switch (sourceType) {
-      case 'State AG':
-      case 'State Cybersecurity':
-      case 'State Agency':
-        return 'State Attorney General Portals'
-      case 'Government Portal':
-        return 'Government Portals'
-      case 'News Feed':
-        return 'RSS News Feeds'
-      case 'Breach Database':
-        return 'Specialized Breach Sites'
-      case 'Company IR':
-        return 'Company Investor Relations'
-      case 'API':
-        return 'API Services'
-      default:
-        return 'Other Sources'
-    }
-  }
-
+  // Category display functions updated to match centralized config
   const getCategoryIcon = (category: string): string => {
     switch (category) {
-      case 'State Attorney General Portals': return '🏛️'
+      case 'State AG Sites': return '🏛️'
       case 'Government Portals': return '🏢'
       case 'RSS News Feeds': return '📰'
       case 'Specialized Breach Sites': return '🔍'
-      case 'Company Investor Relations': return '💼'
-      case 'API Services': return '🔌'
+      case 'Company IR Sites': return '💼'
       default: return '📊'
     }
   }
 
   const getCategoryColor = (category: string): string => {
     switch (category) {
-      case 'State Attorney General Portals': return 'bg-blue-100 text-blue-800'
+      case 'State AG Sites': return 'bg-blue-100 text-blue-800'
       case 'Government Portals': return 'bg-green-100 text-green-800'
       case 'RSS News Feeds': return 'bg-orange-100 text-orange-800'
       case 'Specialized Breach Sites': return 'bg-purple-100 text-purple-800'
-      case 'Company Investor Relations': return 'bg-gray-100 text-gray-800'
-      case 'API Services': return 'bg-indigo-100 text-indigo-800'
+      case 'Company IR Sites': return 'bg-gray-100 text-gray-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
+
+
 
   if (loading) {
     return (

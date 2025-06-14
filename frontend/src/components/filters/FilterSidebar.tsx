@@ -490,58 +490,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                   }}
                 />
 
-                {/* Impact Level Indicators */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Impact Level Quick Select
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setMinAffected(1000)}
-                      className={`p-2 text-xs rounded-lg border transition-all ${
-                        minAffected === 1000
-                          ? 'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-200'
-                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      <div className="font-medium">Medium</div>
-                      <div className="text-xs opacity-75">1K+ people</div>
-                    </button>
-                    <button
-                      onClick={() => setMinAffected(10000)}
-                      className={`p-2 text-xs rounded-lg border transition-all ${
-                        minAffected === 10000
-                          ? 'bg-orange-100 border-orange-300 text-orange-800 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-200'
-                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      <div className="font-medium">High</div>
-                      <div className="text-xs opacity-75">10K+ people</div>
-                    </button>
-                    <button
-                      onClick={() => setMinAffected(100000)}
-                      className={`p-2 text-xs rounded-lg border transition-all ${
-                        minAffected === 100000
-                          ? 'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200'
-                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      <div className="font-medium">Critical</div>
-                      <div className="text-xs opacity-75">100K+ people</div>
-                    </button>
-                    <button
-                      onClick={() => setMinAffected(1000000)}
-                      className={`p-2 text-xs rounded-lg border transition-all ${
-                        minAffected === 1000000
-                          ? 'bg-purple-100 border-purple-300 text-purple-800 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-200'
-                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      <div className="font-medium">Massive</div>
-                      <div className="text-xs opacity-75">1M+ people</div>
-                    </button>
-                  </div>
-                </div>
+
 
                 {/* Affected Count Known Filter */}
                 <div className="space-y-2">
