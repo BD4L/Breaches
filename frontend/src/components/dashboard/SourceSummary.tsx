@@ -56,22 +56,21 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
       if (sourcesError) throw sourcesError
 
-      // Then get all breach data
-      const { data: breachData, error: breachError } = await supabase
-        .from('v_breach_dashboard')
+      // Then get all scraped items data directly from scraped_items table
+      const { data: scrapedData, error: scrapedError } = await supabase
+        .from('scraped_items')
         .select(`
+          id,
           source_id,
-          source_name,
-          source_type,
+          title,
           affected_individuals,
           breach_date,
           scraped_at,
           publication_date
         `)
-        .neq('source_type', 'API') // Exclude API sources
         .limit(10000) // Ensure we get all records, not just first 1000
 
-      if (breachError) throw breachError
+      if (scrapedError) throw scrapedError
 
       // Initialize sourceMap with ALL sources (including those with zero data)
       const sourceMap = new Map<number, SourceStats>()
@@ -115,22 +114,25 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
         })
       })
 
-      // Then, process breach data to update statistics
-      breachData.forEach(record => {
+      // Then, process scraped items data to update statistics
+      scrapedData.forEach(record => {
         const sourceId = Number(record.source_id) // Ensure consistent number type
 
         // Skip if source not in our map (shouldn't happen, but safety check)
         if (!sourceMap.has(sourceId)) {
-          console.warn(`Found breach data for unknown source ID: ${sourceId} (type: ${typeof sourceId})`)
+          console.warn(`Found scraped data for unknown source ID: ${sourceId} (type: ${typeof sourceId})`)
           console.warn('Available source IDs:', Array.from(sourceMap.keys()))
           return
         }
 
         const sourceStats = sourceMap.get(sourceId)!
 
+        // Get source type from our sourceMap (since scraped_items doesn't have source_type)
+        const sourceType = sourceStats.source_type
+
         // Count items based on source type using centralized config
-        const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(record.source_type)
-        const isNewsSource = SOURCE_TYPE_CONFIG.isNewsSource(record.source_type)
+        const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(sourceType)
+        const isNewsSource = SOURCE_TYPE_CONFIG.isNewsSource(sourceType)
 
         // Increment total items
         sourceStats.total_items++
