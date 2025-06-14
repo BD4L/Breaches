@@ -544,6 +544,8 @@ export async function getSourcesByCategory() {
   }, {} as Record<number, number>)
 
   console.log('📊 Source breach counts:', sourceBreachCounts)
+  console.log('🔍 North Dakota AG (ID 15) count:', sourceBreachCounts[15] || 0)
+  console.log('📊 Total breach records fetched:', breachCounts.length)
 
   // Group sources by new categorization
   const categories: Record<string, Array<{id: number, name: string, originalType: string, itemCount: number, itemType: string}>> = {
@@ -586,11 +588,25 @@ export async function getSourcesByCategory() {
     }
 
     if (categories[category]) {
+      const itemCount = sourceBreachCounts[source.id] || 0
+
+      // Debug North Dakota AG specifically
+      if (source.name.includes('North Dakota')) {
+        console.log('🔍 North Dakota AG processing:', {
+          id: source.id,
+          name: source.name,
+          type: source.type,
+          category,
+          itemCount,
+          rawCount: sourceBreachCounts[source.id]
+        })
+      }
+
       categories[category].push({
         id: source.id,
         name: source.name,
         originalType: source.type,
-        itemCount: sourceBreachCounts[source.id] || 0,
+        itemCount: itemCount,
         itemType: itemType
       })
     }
