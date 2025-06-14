@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Filter, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { X, Filter, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
 import { DateRangePicker } from './DateRangePicker'
 import { NumericSlider } from './NumericSlider'
-import { SourceSelector } from './SourceSelector'
-import { getSourceTypes, getSourceTypeCounts, getSourcesByCategory, isNewsSource, isBreachSource, supabase } from '../../lib/supabase'
-import { getSourceTypeColor } from '../../lib/utils'
+import { getSourcesByCategory, supabase } from '../../lib/supabase'
 import type { ViewType } from '../dashboard/ViewToggle'
 
 // Move SectionHeader outside to prevent remounting
@@ -78,14 +76,11 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     affected: currentView === 'breaches'
   })
 
-  // Available source types and counts
-  const [availableSourceTypes, setAvailableSourceTypes] = useState<string[]>([])
-  const [sourceTypeCounts, setSourceTypeCounts] = useState<Record<string, number>>({})
-  const [sourcesByCategory, setSourcesByCategory] = useState<Record<string, Array<{id: number, name: string, itemCount: number, itemType: string}>>>({})
+  // Source categories (without counts)
+  const [sourcesByCategory, setSourcesByCategory] = useState<Record<string, Array<{id: number, name: string, itemType: string}>>>({})
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
-    loadSourceTypes()
     loadSourcesByCategory()
   }, [currentView])
 
@@ -149,50 +144,24 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     }
   }, [])
 
-  const loadSourceTypes = async () => {
-    try {
-      const [typesResult, countsResult] = await Promise.all([
-        getSourceTypes(),
-        getSourceTypeCounts()
-      ])
 
-      if (typesResult.data && countsResult.data) {
-        // Filter source types based on current view
-        const filteredTypes = typesResult.data.filter(type => {
-          if (currentView === 'breaches') {
-            return !['RSS News Feeds', 'Company IR Sites'].includes(type)
-          } else {
-            return ['RSS News Feeds', 'Company IR Sites'].includes(type)
-          }
-        })
-
-        setAvailableSourceTypes(filteredTypes)
-
-        const counts: Record<string, number> = {}
-        countsResult.data.forEach(item => {
-          counts[item.type] = item.count
-        })
-        setSourceTypeCounts(counts)
-      }
-    } catch (error) {
-      console.error('Failed to load source types:', error)
-    }
-  }
 
   const loadSourcesByCategory = async () => {
     try {
       const sourcesByCategory = await getSourcesByCategory()
 
-      // Filter categories based on current view
-      const filteredCategories: Record<string, Array<{id: number, name: string, itemCount: number, itemType: string}>> = {}
+      // Filter categories based on current view and remove itemCount
+      const filteredCategories: Record<string, Array<{id: number, name: string, itemType: string}>> = {}
 
       Object.entries(sourcesByCategory).forEach(([category, sources]) => {
         const isNewsCategory = ['RSS News Feeds', 'Company IR Sites'].includes(category)
 
         if (currentView === 'breaches' && !isNewsCategory) {
-          filteredCategories[category] = sources
+          // Remove itemCount from sources
+          filteredCategories[category] = sources.map(({ id, name, itemType }) => ({ id, name, itemType }))
         } else if (currentView === 'news' && isNewsCategory) {
-          filteredCategories[category] = sources
+          // Remove itemCount from sources
+          filteredCategories[category] = sources.map(({ id, name, itemType }) => ({ id, name, itemType }))
         }
       })
 
@@ -205,7 +174,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: !prev[section as keyof typeof prev]
     }))
   }
 
@@ -563,7 +532,6 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                 const isExpanded = expandedCategories[category]
                 const categorySourceIds = sources.map(source => source.id)
                 const selectedInCategory = categorySourceIds.filter(id => selectedSources.includes(id))
-                const totalCount = sources.reduce((sum, source) => sum + source.itemCount, 0)
 
                 return (
                   <div key={category} className="border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -580,7 +548,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                               {category}
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {sources.length} sources • {totalCount.toLocaleString()} {sources[0]?.itemType || 'items'}
+                              {sources.length} sources
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -635,9 +603,6 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                                   {source.name}
                                 </span>
                               </div>
-                              <Badge variant="secondary" className="text-xs">
-                                {source.itemCount.toLocaleString()}
-                              </Badge>
                             </div>
                           )
                         })}
