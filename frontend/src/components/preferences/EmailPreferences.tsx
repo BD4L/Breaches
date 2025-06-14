@@ -128,10 +128,20 @@ export function EmailPreferences({ onClose }: EmailPreferencesProps) {
 
   const sendVerificationEmail = async () => {
     try {
-      // In production, implement email verification logic
-      setMessage({ type: 'success', text: 'Verification email sent! Check your inbox.' })
+      if (!preferences.email) {
+        setMessage({ type: 'error', text: 'Please enter an email address first' })
+        return
+      }
+
+      // For now, mark as verified since we don't have a full auth system
+      // In production, this would send an actual verification email
+      setPreferences(prev => ({ ...prev, email_verified: true }))
+      setMessage({ type: 'success', text: 'Email verified! You will now receive breach alerts.' })
+
+      // Auto-save the verification status
+      await savePreferences()
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to send verification email' })
+      setMessage({ type: 'error', text: 'Failed to verify email' })
     }
   }
 

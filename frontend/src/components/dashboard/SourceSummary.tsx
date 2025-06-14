@@ -42,7 +42,7 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
       setLoading(true)
       setError(null)
 
-      // Query to get comprehensive source statistics
+      // Query to get comprehensive source statistics - match hero section logic
       const { data, error: queryError } = await supabase
         .from('v_breach_dashboard')
         .select(`
@@ -59,10 +59,10 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
       // Process the data to create category statistics
       const sourceMap = new Map<number, SourceStats>()
-      
+
       data.forEach(record => {
         const sourceId = record.source_id
-        
+
         if (!sourceMap.has(sourceId)) {
           sourceMap.set(sourceId, {
             source_id: sourceId,
@@ -77,8 +77,15 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
         }
 
         const sourceStats = sourceMap.get(sourceId)!
-        sourceStats.total_breaches++
-        
+
+        // Count items based on source type (match hero section logic)
+        const isBreachSource = ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'].includes(record.source_type)
+        const isNewsSource = ['News Feed', 'Company IR'].includes(record.source_type)
+
+        if (isBreachSource || isNewsSource) {
+          sourceStats.total_breaches++
+        }
+
         if (record.affected_individuals) {
           sourceStats.total_affected += record.affected_individuals
         }
@@ -136,9 +143,11 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
   }
 
   const mapSourceTypeToCategory = (sourceType: string): string => {
-    // Map the current source types to the new categorization
+    // Map the current source types to match hero section categorization
     switch (sourceType) {
       case 'State AG':
+      case 'State Cybersecurity':
+      case 'State Agency':
         return 'State Attorney General Portals'
       case 'Government Portal':
         return 'Government Portals'

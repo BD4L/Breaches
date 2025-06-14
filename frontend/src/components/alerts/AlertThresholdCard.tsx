@@ -86,8 +86,8 @@ export function AlertThresholdCard({ className = '' }: AlertThresholdCardProps) 
 
       if (error) throw error
 
-      setMessage({ type: 'success', text: 'Alert preferences saved!' })
-      setTimeout(() => setMessage(null), 3000)
+      setMessage({ type: 'success', text: '✅ Email alert preferences saved! Alerts will be sent automatically when new breaches are detected by the scrapers.' })
+      setTimeout(() => setMessage(null), 5000)
     } catch (error) {
       console.error('Error saving preferences:', error)
       setMessage({ type: 'error', text: 'Failed to save preferences' })
@@ -201,10 +201,16 @@ export function AlertThresholdCard({ className = '' }: AlertThresholdCardProps) 
         </div>
 
         <div className="text-xs text-gray-500 dark:text-gray-400">
-          Frequency: {preferences.alert_frequency} • 
-          {preferences.notify_high_impact ? ' High impact ✓' : ' High impact ✗'} • 
+          Frequency: {preferences.alert_frequency} •
+          {preferences.notify_high_impact ? ' High impact ✓' : ' High impact ✗'} •
           {preferences.notify_critical_sectors ? ' Critical sectors ✓' : ' Critical sectors ✗'}
         </div>
+
+        {preferences.email && (
+          <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+            📧 Email alerts are processed automatically when scrapers detect new breaches matching your criteria.
+          </div>
+        )}
       </div>
 
       {/* Expanded Settings */}
