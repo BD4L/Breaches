@@ -521,27 +521,41 @@ export async function getSourceTypes() {
   return uniqueTypes.filter(Boolean)
 }
 
-// Get sources by category for hierarchical filtering with breach counts
+// Get sources by category for hierarchical filtering with proper item counts
 export async function getSourcesByCategory() {
   const { data: sourcesData, error: sourcesError } = await supabase
     .from('data_sources')
     .select('id, name, type')
     .not('type', 'is', null)
+    .neq('type', 'API') // Exclude API sources
 
   if (sourcesError) throw sourcesError
 
-  // Get breach counts per source
-  const { data: breachCounts, error: breachError } = await supabase
+  // Get all items per source with proper categorization
+  const { data: allItems, error: itemsError } = await supabase
     .from('v_breach_dashboard')
-    .select('source_id, source_name')
+    .select('source_id, source_name, source_type')
 
-  if (breachError) throw breachError
+  if (itemsError) throw itemsError
 
-  // Count breaches per source
-  const sourceBreachCounts = breachCounts.reduce((acc, breach) => {
-    acc[breach.source_id] = (acc[breach.source_id] || 0) + 1
+  // Count items per source, separating breaches from news
+  const sourceItemCounts = allItems.reduce((acc, item) => {
+    const sourceId = item.source_id
+    const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(item.source_type)
+
+    if (!acc[sourceId]) {
+      acc[sourceId] = { breaches: 0, news: 0, total: 0 }
+    }
+
+    acc[sourceId].total++
+    if (isBreachSource) {
+      acc[sourceId].breaches++
+    } else {
+      acc[sourceId].news++
+    }
+
     return acc
-  }, {} as Record<number, number>)
+  }, {} as Record<number, { breaches: number; news: number; total: number }>)
 
   // Group sources by new categorization
   const categories: Record<string, Array<{id: number, name: string, originalType: string, itemCount: number, itemType: string}>> = {
@@ -555,6 +569,7 @@ export async function getSourcesByCategory() {
   sourcesData.forEach(source => {
     let category = ''
     let itemType = 'breaches' // Default for breach notification sources
+    let itemCount = 0
 
     switch (source.type) {
       case 'State AG':
@@ -562,22 +577,27 @@ export async function getSourcesByCategory() {
       case 'State Agency':
         category = 'State AG Sites'
         itemType = 'breaches'
+        itemCount = sourceItemCounts[source.id]?.breaches || 0
         break
       case 'Government Portal':
         category = 'Government Portals'
         itemType = 'breaches'
+        itemCount = sourceItemCounts[source.id]?.breaches || 0
         break
       case 'News Feed':
         category = 'RSS News Feeds'
         itemType = 'articles'
+        itemCount = sourceItemCounts[source.id]?.news || 0
         break
       case 'Breach Database':
         category = 'Specialized Breach Sites'
         itemType = 'breaches'
+        itemCount = sourceItemCounts[source.id]?.breaches || 0
         break
       case 'Company IR':
         category = 'Company IR Sites'
         itemType = 'reports'
+        itemCount = sourceItemCounts[source.id]?.news || 0
         break
       default:
         return // Skip API and unknown types
@@ -588,7 +608,7 @@ export async function getSourcesByCategory() {
         id: source.id,
         name: source.name,
         originalType: source.type,
-        itemCount: sourceBreachCounts[source.id] || 0,
+        itemCount: itemCount,
         itemType: itemType
       })
     }
