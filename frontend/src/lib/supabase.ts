@@ -535,6 +535,7 @@ export async function getSourcesByCategory() {
   const { data: allItems, error: itemsError } = await supabase
     .from('v_breach_dashboard')
     .select('source_id, source_name, source_type')
+    .limit(10000) // Ensure we get all records, not just first 1000
 
   if (itemsError) throw itemsError
 
