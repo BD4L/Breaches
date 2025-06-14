@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, TrendingUp, Calendar } from 'lucide-react'
-import { supabase, getDailyStats, type DailyStats } from '../../lib/supabase'
+import { supabase, getDailyStats, type DailyStats, SOURCE_TYPE_CONFIG } from '../../lib/supabase'
 import { formatNumber, formatAffectedCount } from '../../lib/utils'
 import { LastScraperRun } from './LastScraperRun'
 
@@ -45,17 +45,17 @@ export function SourceSummaryHero() {
   }
 
   const loadOverallStats = async (): Promise<OverallStats> => {
-    // Get breach count (excluding news feeds)
+    // Get breach count (excluding news feeds) using centralized config
     const { count: totalBreaches } = await supabase
       .from('v_breach_dashboard')
       .select('*', { count: 'exact', head: true })
-      .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
+      .in('source_type', SOURCE_TYPE_CONFIG.getBreachSourceTypes())
 
-    // Get news count
+    // Get news count using centralized config
     const { count: totalNews } = await supabase
       .from('v_breach_dashboard')
       .select('*', { count: 'exact', head: true })
-      .in('source_type', ['News Feed', 'Company IR'])
+      .in('source_type', SOURCE_TYPE_CONFIG.getNewsSourceTypes())
 
     // Get total affected individuals
     const { data: affectedData } = await supabase

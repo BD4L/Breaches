@@ -31,9 +31,64 @@ if (import.meta.env.MODE === 'development') {
 
 export const supabase = createClient(finalUrl, finalKey)
 
-// Helper functions to distinguish between news and breach sources
+// Centralized source type configuration to ensure consistency across all functions
+export const SOURCE_TYPE_CONFIG = {
+  // Raw source types to display categories mapping
+  CATEGORY_MAPPING: {
+    'State AG': 'State AG Sites',
+    'Government Portal': 'Government Portals',
+    'News Feed': 'RSS News Feeds',
+    'Breach Database': 'Specialized Breach Sites',
+    'Company IR': 'Company IR Sites',
+    'State Cybersecurity': 'State AG Sites', // Group with State AG
+    'State Agency': 'State AG Sites' // Group with State AG
+  } as Record<string, string>,
+
+  // Source types that are considered breach sources (not news)
+  BREACH_SOURCE_TYPES: new Set([
+    'State AG',
+    'Government Portal',
+    'Breach Database',
+    'State Cybersecurity',
+    'State Agency',
+    'API'
+  ]),
+
+  // Source types that are considered news sources
+  NEWS_SOURCE_TYPES: new Set([
+    'News Feed',
+    'Company IR'
+  ]),
+
+  // Get display category for a source type
+  getDisplayCategory: (sourceType: string): string => {
+    return SOURCE_TYPE_CONFIG.CATEGORY_MAPPING[sourceType] || sourceType
+  },
+
+  // Check if source type is a breach source
+  isBreachSource: (sourceType: string): boolean => {
+    return SOURCE_TYPE_CONFIG.BREACH_SOURCE_TYPES.has(sourceType)
+  },
+
+  // Check if source type is a news source
+  isNewsSource: (sourceType: string): boolean => {
+    return SOURCE_TYPE_CONFIG.NEWS_SOURCE_TYPES.has(sourceType)
+  },
+
+  // Get all breach source types as array
+  getBreachSourceTypes: (): string[] => {
+    return Array.from(SOURCE_TYPE_CONFIG.BREACH_SOURCE_TYPES)
+  },
+
+  // Get all news source types as array
+  getNewsSourceTypes: (): string[] => {
+    return Array.from(SOURCE_TYPE_CONFIG.NEWS_SOURCE_TYPES)
+  }
+}
+
+// Helper functions to distinguish between news and breach sources (backward compatibility)
 export const isNewsSource = (sourceType: string): boolean => {
-  return ['News Feed', 'Company IR'].includes(sourceType)
+  return SOURCE_TYPE_CONFIG.isNewsSource(sourceType)
 }
 
 // Types for saved breaches
@@ -51,7 +106,7 @@ export interface SavedBreachRecord extends BreachRecord {
 }
 
 export const isBreachSource = (sourceType: string): boolean => {
-  return ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'].includes(sourceType)
+  return SOURCE_TYPE_CONFIG.isBreachSource(sourceType)
 }
 
 // Database types
@@ -163,7 +218,7 @@ export async function getBreaches(params: {
     .select('*', { count: 'exact' })
 
   // Filter to only breach sources (exclude news feeds)
-  const breachSourceTypes = ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API']
+  const breachSourceTypes = SOURCE_TYPE_CONFIG.getBreachSourceTypes()
   query = query.in('source_type', breachSourceTypes)
 
   // Apply filters
@@ -288,7 +343,7 @@ export async function getNewsArticles(params: {
     .select('id, organization_name, source_id, source_name, source_type, publication_date, summary_text, item_url, tags_keywords, created_at, scraped_at', { count: 'exact' })
 
   // Filter to only news sources
-  const newsSourceTypes = ['News Feed', 'Company IR']
+  const newsSourceTypes = SOURCE_TYPE_CONFIG.getNewsSourceTypes()
   query = query.in('source_type', newsSourceTypes)
 
   console.log('🔍 Applied news source filter:', newsSourceTypes)
@@ -457,19 +512,9 @@ export async function getSourceTypes() {
 
   if (error) throw error
 
-  // Map to new categorization and remove API
-  const typeMapping: Record<string, string> = {
-    'State AG': 'State AG Sites',
-    'Government Portal': 'Government Portals',
-    'News Feed': 'RSS News Feeds',
-    'Breach Database': 'Specialized Breach Sites',
-    'Company IR': 'Company IR Sites',
-    'State Cybersecurity': 'State AG Sites', // Group with State AG
-    'State Agency': 'State AG Sites' // Group with State AG
-  }
-
+  // Use centralized mapping
   const mappedTypes = data
-    .map(item => typeMapping[item.type] || item.type)
+    .map(item => SOURCE_TYPE_CONFIG.getDisplayCategory(item.type))
     .filter(type => type !== 'API') // Remove API category
 
   const uniqueTypes = [...new Set(mappedTypes)]
@@ -594,24 +639,13 @@ export async function getSourceTypeCounts() {
 
   console.log('📊 Raw source type counts:', rawCounts)
 
-  // Map to display categories
-  const categoryMapping: Record<string, string> = {
-    'State AG': 'State AG Sites',
-    'Government Portal': 'Government Portals',
-    'News Feed': 'RSS News Feeds',
-    'Breach Database': 'Specialized Breach Sites',
-    'Company IR': 'Company IR Sites',
-    'State Cybersecurity': 'State AG Sites',
-    'State Agency': 'State AG Sites'
-  }
-
-  // Convert raw counts to category counts
+  // Convert raw counts to category counts using centralized mapping
   const categoryCounts: Record<string, number> = {}
 
   Object.entries(rawCounts).forEach(([sourceType, count]) => {
-    const category = categoryMapping[sourceType]
+    const category = SOURCE_TYPE_CONFIG.getDisplayCategory(sourceType)
     console.log(`Mapping: ${sourceType} (${count}) -> ${category}`)
-    if (category) {
+    if (category && category !== 'API') { // Exclude API category
       categoryCounts[category] = (categoryCounts[category] || 0) + count
     }
   })
@@ -749,17 +783,20 @@ export async function checkIfBreachSaved(breachId: number) {
   return { data, error }
 }
 
-// Helper function to get today's 1am timestamp (or yesterday's 1am if before 1am)
+// Helper function to get today's 1am timestamp in UTC (or yesterday's 1am if before 1am UTC)
 function getToday1am(): Date {
   const now = new Date()
-  const today1am = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 1, 0, 0, 0)
+  const nowUTC = new Date(now.getTime() + (now.getTimezoneOffset() * 60000))
 
-  // If it's currently before 1am, use yesterday's 1am
-  if (now.getHours() < 1) {
-    today1am.setDate(today1am.getDate() - 1)
+  // Create 1am UTC for today
+  const today1amUTC = new Date(Date.UTC(nowUTC.getFullYear(), nowUTC.getMonth(), nowUTC.getDate(), 1, 0, 0, 0))
+
+  // If it's currently before 1am UTC, use yesterday's 1am UTC
+  if (nowUTC.getUTCHours() < 1) {
+    today1amUTC.setUTCDate(today1amUTC.getUTCDate() - 1)
   }
 
-  return today1am
+  return today1amUTC
 }
 
 export interface DailyStats {
@@ -796,19 +833,9 @@ export async function getSourceSummary() {
 
     if (error) throw error
 
-    // Map to display categories
-    const typeMapping: Record<string, string> = {
-      'State AG': 'State AG Sites',
-      'Government Portal': 'Government Portals',
-      'News Feed': 'RSS News Feeds',
-      'Breach Database': 'Specialized Breach Sites',
-      'Company IR': 'Company IR Sites',
-      'State Cybersecurity': 'State AG Sites',
-      'State Agency': 'State AG Sites'
-    }
-
+    // Use centralized mapping for display categories
     const summary = data.reduce((acc, item) => {
-      const mappedType = typeMapping[item.source_type] || item.source_type
+      const mappedType = SOURCE_TYPE_CONFIG.getDisplayCategory(item.source_type)
 
       if (!acc[mappedType]) {
         acc[mappedType] = {
@@ -868,7 +895,7 @@ export async function getDailyStats(): Promise<{ data: DailyStats | null; error:
       .select('id, organization_name, affected_individuals, source_name, breach_date, reported_date')
       .gte('scraped_at', startIso)
       .lt('scraped_at', endIso)
-      .in('source_type', ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
+      .in('source_type', SOURCE_TYPE_CONFIG.getBreachSourceTypes())
       .not('affected_individuals', 'is', null)
       .order('affected_individuals', { ascending: false })
       .limit(3)
@@ -880,16 +907,14 @@ export async function getDailyStats(): Promise<{ data: DailyStats | null; error:
     console.log('📊 Daily stats raw data:', data?.length || 0, 'items')
     console.log('🏆 Top breaches data:', topBreachesData?.length || 0, 'breaches')
 
-    // Categorize sources as breach vs news (same logic as daily_change_tracker.py)
-    const breachSourceTypes = new Set(['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API'])
-
+    // Categorize sources as breach vs news using centralized config
     let newBreaches = 0
     let newNews = 0
     let newAffectedTotal = 0
     const sourceStats = new Map<string, { newItems: number; newAffected: number; isBreachSource: boolean; sourceType: string }>()
 
     data.forEach(item => {
-      const isBreachSource = breachSourceTypes.has(item.source_type)
+      const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(item.source_type)
       const key = item.source_name
 
       if (isBreachSource) {
