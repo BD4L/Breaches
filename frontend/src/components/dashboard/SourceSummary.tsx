@@ -61,6 +61,7 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
           publication_date
         `)
         .neq('source_type', 'API') // Exclude API sources
+        .limit(10000) // Ensure we get all records, not just first 1000
 
       if (queryError) throw queryError
 
