@@ -235,13 +235,15 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
 
   const applyBreachesOfTheDayFilter = async () => {
     try {
-      // Get all State AG and HHS OCR sources
+      // Get all State AG sources and HHS OCR portal
       const { data: sources } = await supabase
         .from('data_sources')
         .select('id, name, type')
-        .or('type.eq.State AG,type.eq.State Cybersecurity,type.eq.State Agency,name.eq.HHS OCR')
+        .or('type.eq.State AG,type.eq.State Cybersecurity,type.eq.State Agency,name.ilike.%HHS OCR%')
 
       const sourceIds = sources?.map(s => s.id) || []
+
+      console.log('🎯 Breaches of the Day sources found:', sources?.map(s => ({ id: s.id, name: s.name, type: s.type })))
 
       // Get last 24 hours range (more accurate for frequent scraping)
       const now = new Date()
@@ -394,7 +396,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
               <span>Breaches Of The Day</span>
             </Button>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-              Last 24 hours: State AGs + HHS OCR breaches with known affected counts
+              Last 24 hours: State AGs + HHS OCR Portal breaches with known affected counts
             </p>
           </div>
         )}
