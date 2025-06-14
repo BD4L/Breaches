@@ -485,20 +485,32 @@ export async function getSourcesByCategory() {
 
   if (sourcesError) throw sourcesError
 
-  // Get breach counts per source
+  // Get breach counts per source - ONLY count items that would appear in the breach table
+  // This matches the filtering logic in getBreaches() function
+  const breachSourceTypes = ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API']
+  const newsSourceTypes = ['News Feed', 'Company IR']
+
   const { data: breachCounts, error: breachError } = await supabase
     .from('v_breach_dashboard')
-    .select('source_id, source_name')
+    .select('source_id, source_name, source_type')
 
   if (breachError) throw breachError
 
-  // Count breaches per source
-  const sourceBreachCounts = breachCounts.reduce((acc, breach) => {
-    acc[breach.source_id] = (acc[breach.source_id] || 0) + 1
+  // Count items per source, separating breaches from news
+  const sourceBreachCounts = breachCounts.reduce((acc, item) => {
+    const isBreachSource = breachSourceTypes.includes(item.source_type)
+    const isNewsSource = newsSourceTypes.includes(item.source_type)
+
+    // Only count items that would actually appear when filtering by this source
+    if (isBreachSource || isNewsSource) {
+      acc[item.source_id] = (acc[item.source_id] || 0) + 1
+    }
     return acc
   }, {} as Record<number, number>)
 
-  console.log('📊 Source breach counts:', sourceBreachCounts)
+  console.log('📊 Source item counts (filtered by type):', sourceBreachCounts)
+  console.log('📊 Breach source types:', breachSourceTypes)
+  console.log('📊 News source types:', newsSourceTypes)
 
   // Group sources by new categorization
   const categories: Record<string, Array<{id: number, name: string, originalType: string, itemCount: number, itemType: string}>> = {
@@ -561,9 +573,64 @@ export async function getSourcesByCategory() {
     })
   })
 
-  console.log('📈 Sources by category with breach counts:', categories)
+  console.log('📈 Sources by category with item counts:', categories)
+
+  // Debug: Log a few examples to verify counts
+  Object.entries(categories).forEach(([categoryName, sources]) => {
+    if (sources.length > 0) {
+      console.log(`📊 ${categoryName}: ${sources.length} sources, top source: ${sources[0].name} (${sources[0].itemCount} ${sources[0].itemType})`)
+    }
+  })
 
   return categories
+}
+
+// Debug function to check specific source counts
+export async function debugSourceCount(sourceName: string) {
+  console.log(`🔍 Debugging source count for: ${sourceName}`)
+
+  // Get source info
+  const { data: sourceData, error: sourceError } = await supabase
+    .from('data_sources')
+    .select('id, name, type')
+    .ilike('name', `%${sourceName}%`)
+
+  if (sourceError) {
+    console.error('❌ Error fetching source:', sourceError)
+    return
+  }
+
+  if (!sourceData || sourceData.length === 0) {
+    console.log('❌ No source found matching:', sourceName)
+    return
+  }
+
+  const source = sourceData[0]
+  console.log('📊 Source found:', source)
+
+  // Count all items for this source
+  const { data: allItems, error: allError } = await supabase
+    .from('v_breach_dashboard')
+    .select('id, source_type, organization_name')
+    .eq('source_id', source.id)
+
+  if (allError) {
+    console.error('❌ Error fetching items:', allError)
+    return
+  }
+
+  console.log(`📊 Total items in v_breach_dashboard for ${source.name}:`, allItems?.length || 0)
+  console.log('📊 Sample items:', allItems?.slice(0, 3))
+
+  // Test filtering with getBreaches
+  try {
+    const breachQuery = await getBreaches({ selectedSources: [source.id], limit: 1000 })
+    const { data: breachData, count: breachCount } = await breachQuery
+    console.log(`📊 Items returned by getBreaches() for ${source.name}:`, breachCount)
+    console.log('📊 Sample breach items:', breachData?.slice(0, 3))
+  } catch (error) {
+    console.error('❌ Error testing getBreaches:', error)
+  }
 }
 
 export async function getSourceTypeCounts() {
