@@ -78,6 +78,7 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
       // First, initialize all sources from data_sources table
       allSources.forEach(source => {
+        const sourceId = Number(source.id) // Ensure consistent number type
         const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(source.type)
 
         // Determine item type label based on source type
@@ -98,8 +99,8 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
             break
         }
 
-        sourceMap.set(source.id, {
-          source_id: source.id,
+        sourceMap.set(sourceId, {
+          source_id: sourceId,
           source_name: source.name,
           source_type: source.type,
           total_items: 0,
@@ -116,11 +117,12 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
       // Then, process breach data to update statistics
       breachData.forEach(record => {
-        const sourceId = record.source_id
+        const sourceId = Number(record.source_id) // Ensure consistent number type
 
         // Skip if source not in our map (shouldn't happen, but safety check)
         if (!sourceMap.has(sourceId)) {
-          console.warn(`Found breach data for unknown source ID: ${sourceId}`)
+          console.warn(`Found breach data for unknown source ID: ${sourceId} (type: ${typeof sourceId})`)
+          console.warn('Available source IDs:', Array.from(sourceMap.keys()))
           return
         }
 
