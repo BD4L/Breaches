@@ -523,44 +523,25 @@ export async function getSourceTypes() {
 
 // Get sources by category for hierarchical filtering with breach counts
 export async function getSourcesByCategory() {
-  console.log('🚀 getSourcesByCategory called')
-
   const { data: sourcesData, error: sourcesError } = await supabase
     .from('data_sources')
     .select('id, name, type')
     .not('type', 'is', null)
 
-  if (sourcesError) {
-    console.error('❌ Error fetching sources:', sourcesError)
-    throw sourcesError
-  }
+  if (sourcesError) throw sourcesError
 
-  console.log('📋 Sources fetched:', sourcesData?.length || 0)
-
-  // Get breach counts per source - fetch ALL records (no limit)
+  // Get breach counts per source
   const { data: breachCounts, error: breachError } = await supabase
     .from('v_breach_dashboard')
-    .select('source_id')
-    .order('source_id')
-    .limit(10000) // Explicit high limit to get all records
+    .select('source_id, source_name')
 
-  if (breachError) {
-    console.error('❌ Error fetching breach counts:', breachError)
-    throw breachError
-  }
+  if (breachError) throw breachError
 
-  console.log('📊 Total breach records fetched:', breachCounts?.length || 0)
-
-  // Count breaches per source - ensure consistent number types
-  const sourceBreachCounts = breachCounts?.reduce((acc, breach) => {
-    const sourceId = Number(breach.source_id) // Convert to number to match data_sources.id
-    acc[sourceId] = (acc[sourceId] || 0) + 1
+  // Count breaches per source
+  const sourceBreachCounts = breachCounts.reduce((acc, breach) => {
+    acc[breach.source_id] = (acc[breach.source_id] || 0) + 1
     return acc
-  }, {} as Record<number, number>) || {}
-
-  console.log('📊 Source breach counts sample:', Object.entries(sourceBreachCounts).slice(0, 5))
-  console.log('🔍 North Dakota AG (ID 15) count:', sourceBreachCounts[15] || 0)
-  console.log('🔧 Fixed issues: data type conversion + removed 1000 record limit')
+  }, {} as Record<number, number>)
 
   // Group sources by new categorization
   const categories: Record<string, Array<{id: number, name: string, originalType: string, itemCount: number, itemType: string}>> = {
@@ -571,9 +552,7 @@ export async function getSourcesByCategory() {
     'Company IR Sites': []
   }
 
-  console.log('🏗️ Starting categorization of', sourcesData?.length || 0, 'sources')
-
-  sourcesData?.forEach(source => {
+  sourcesData.forEach(source => {
     let category = ''
     let itemType = 'breaches' // Default for breach notification sources
 
@@ -601,31 +580,15 @@ export async function getSourcesByCategory() {
         itemType = 'reports'
         break
       default:
-        console.log('⚠️ Skipping source with unknown type:', source.type, source.name)
         return // Skip API and unknown types
     }
 
     if (categories[category]) {
-      const itemCount = sourceBreachCounts[source.id] || 0
-
-      // Debug specific sources
-      if (source.name.includes('North Dakota') || source.name.includes('BreachSense')) {
-        console.log('🔍 Processing source:', {
-          id: source.id,
-          name: source.name,
-          type: source.type,
-          category,
-          itemCount,
-          rawCount: sourceBreachCounts[source.id],
-          hasRawCount: source.id in sourceBreachCounts
-        })
-      }
-
       categories[category].push({
         id: source.id,
         name: source.name,
         originalType: source.type,
-        itemCount: itemCount,
+        itemCount: sourceBreachCounts[source.id] || 0,
         itemType: itemType
       })
     }
@@ -641,28 +604,17 @@ export async function getSourcesByCategory() {
     })
   })
 
-  console.log('📈 Sources by category with breach counts:', categories)
-
   return categories
 }
 
 export async function getSourceTypeCounts() {
-  console.log('🔍 getSourceTypeCounts called')
-
   const { data, error } = await supabase
     .from('v_breach_dashboard')
     .select('source_type')
 
-  if (error) {
-    console.error('❌ Supabase error in getSourceTypeCounts:', error)
-    throw error
-  }
-
-  console.log('📊 Total records fetched:', data?.length || 0)
-  console.log('📊 First 5 records:', data?.slice(0, 5))
+  if (error) throw error
 
   if (!data || data.length === 0) {
-    console.warn('⚠️ No data returned from v_breach_dashboard')
     return {}
   }
 
@@ -672,20 +624,15 @@ export async function getSourceTypeCounts() {
     return acc
   }, {} as Record<string, number>)
 
-  console.log('📊 Raw source type counts:', rawCounts)
-
   // Convert raw counts to category counts using centralized mapping
   const categoryCounts: Record<string, number> = {}
 
   Object.entries(rawCounts).forEach(([sourceType, count]) => {
     const category = SOURCE_TYPE_CONFIG.getDisplayCategory(sourceType)
-    console.log(`Mapping: ${sourceType} (${count}) -> ${category}`)
     if (category && category !== 'API') { // Exclude API category
       categoryCounts[category] = (categoryCounts[category] || 0) + count
     }
   })
-
-  console.log('📈 Final category counts:', categoryCounts)
 
   return categoryCounts
 }
