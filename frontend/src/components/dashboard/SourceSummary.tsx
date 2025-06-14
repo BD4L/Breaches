@@ -48,8 +48,16 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
       setLoading(true)
       setError(null)
 
-      // Query to get comprehensive source statistics - exclude API sources like other components
-      const { data, error: queryError } = await supabase
+      // First get all data sources (including those with zero data)
+      const { data: allSources, error: sourcesError } = await supabase
+        .from('data_sources')
+        .select('id, name, type')
+        .neq('type', 'API') // Exclude API sources
+
+      if (sourcesError) throw sourcesError
+
+      // Then get all breach data
+      const { data: breachData, error: breachError } = await supabase
         .from('v_breach_dashboard')
         .select(`
           source_id,
@@ -63,49 +71,57 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
         .neq('source_type', 'API') // Exclude API sources
         .limit(10000) // Ensure we get all records, not just first 1000
 
-      if (queryError) throw queryError
+      if (breachError) throw breachError
 
-      // Process the data to create category statistics
+      // Initialize sourceMap with ALL sources (including those with zero data)
       const sourceMap = new Map<number, SourceStats>()
 
-      data.forEach(record => {
+      // First, initialize all sources from data_sources table
+      allSources.forEach(source => {
+        const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(source.type)
+
+        // Determine item type label based on source type
+        let itemTypeLabel = 'items'
+        switch (source.type) {
+          case 'State AG':
+          case 'State Cybersecurity':
+          case 'State Agency':
+          case 'Government Portal':
+          case 'Breach Database':
+            itemTypeLabel = 'breaches'
+            break
+          case 'News Feed':
+            itemTypeLabel = 'articles'
+            break
+          case 'Company IR':
+            itemTypeLabel = 'reports'
+            break
+        }
+
+        sourceMap.set(source.id, {
+          source_id: source.id,
+          source_name: source.name,
+          source_type: source.type,
+          total_items: 0,
+          total_breaches: 0,
+          total_news: 0,
+          total_affected: 0,
+          latest_breach: null,
+          latest_scraped: null,
+          avg_affected_per_breach: 0,
+          is_breach_source: isBreachSource,
+          item_type_label: itemTypeLabel
+        })
+      })
+
+      // Then, process breach data to update statistics
+      breachData.forEach(record => {
         const sourceId = record.source_id
 
+        // Skip if source not in our map (shouldn't happen, but safety check)
         if (!sourceMap.has(sourceId)) {
-          const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(record.source_type)
-
-          // Determine item type label based on source type
-          let itemTypeLabel = 'items'
-          switch (record.source_type) {
-            case 'State AG':
-            case 'State Cybersecurity':
-            case 'State Agency':
-            case 'Government Portal':
-            case 'Breach Database':
-              itemTypeLabel = 'breaches'
-              break
-            case 'News Feed':
-              itemTypeLabel = 'articles'
-              break
-            case 'Company IR':
-              itemTypeLabel = 'reports'
-              break
-          }
-
-          sourceMap.set(sourceId, {
-            source_id: sourceId,
-            source_name: record.source_name,
-            source_type: record.source_type,
-            total_items: 0,
-            total_breaches: 0,
-            total_news: 0,
-            total_affected: 0,
-            latest_breach: null,
-            latest_scraped: null,
-            avg_affected_per_breach: 0,
-            is_breach_source: isBreachSource,
-            item_type_label: itemTypeLabel
-          })
+          console.warn(`Found breach data for unknown source ID: ${sourceId}`)
+          return
         }
 
         const sourceStats = sourceMap.get(sourceId)!
