@@ -537,11 +537,12 @@ export async function getSourcesByCategory() {
 
   console.log('📋 Sources fetched:', sourcesData?.length || 0)
 
-  // Get breach counts per source - simplified query with cache busting
+  // Get breach counts per source - fetch ALL records (no limit)
   const { data: breachCounts, error: breachError } = await supabase
     .from('v_breach_dashboard')
     .select('source_id')
     .order('source_id')
+    .limit(10000) // Explicit high limit to get all records
 
   if (breachError) {
     console.error('❌ Error fetching breach counts:', breachError)
@@ -559,7 +560,7 @@ export async function getSourcesByCategory() {
 
   console.log('📊 Source breach counts sample:', Object.entries(sourceBreachCounts).slice(0, 5))
   console.log('🔍 North Dakota AG (ID 15) count:', sourceBreachCounts[15] || 0)
-  console.log('🔧 Fixed data type issue: source_id converted from string to number')
+  console.log('🔧 Fixed issues: data type conversion + removed 1000 record limit')
 
   // Group sources by new categorization
   const categories: Record<string, Array<{id: number, name: string, originalType: string, itemCount: number, itemType: string}>> = {
