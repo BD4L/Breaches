@@ -181,7 +181,9 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
 
   const loadSourcesByCategory = async () => {
     try {
+      console.log('🔄 FilterSidebar: Loading sources by category...')
       const sourcesByCategory = await getSourcesByCategory()
+      console.log('📊 FilterSidebar: Raw sources by category:', sourcesByCategory)
 
       // Filter categories based on current view
       const filteredCategories: Record<string, Array<{id: number, name: string, itemCount: number, itemType: string}>> = {}
@@ -196,9 +198,10 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         }
       })
 
+      console.log('🎯 FilterSidebar: Filtered categories for', currentView, ':', filteredCategories)
       setSourcesByCategory(filteredCategories)
     } catch (error) {
-      console.error('Failed to load sources by category:', error)
+      console.error('❌ FilterSidebar: Failed to load sources by category:', error)
     }
   }
 
@@ -372,6 +375,18 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
               className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
               Clear All
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                console.log('🔄 Manual refresh triggered')
+                loadSourcesByCategory()
+              }}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              title="Refresh source counts"
+            >
+              🔄
             </Button>
             <Button
               variant="ghost"

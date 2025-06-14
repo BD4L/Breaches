@@ -537,10 +537,11 @@ export async function getSourcesByCategory() {
 
   console.log('📋 Sources fetched:', sourcesData?.length || 0)
 
-  // Get breach counts per source - simplified query
+  // Get breach counts per source - simplified query with cache busting
   const { data: breachCounts, error: breachError } = await supabase
     .from('v_breach_dashboard')
     .select('source_id')
+    .order('source_id')
 
   if (breachError) {
     console.error('❌ Error fetching breach counts:', breachError)
