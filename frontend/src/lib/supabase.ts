@@ -550,14 +550,16 @@ export async function getSourcesByCategory() {
 
   console.log('📊 Total breach records fetched:', breachCounts?.length || 0)
 
-  // Count breaches per source
+  // Count breaches per source - ensure consistent number types
   const sourceBreachCounts = breachCounts?.reduce((acc, breach) => {
-    acc[breach.source_id] = (acc[breach.source_id] || 0) + 1
+    const sourceId = Number(breach.source_id) // Convert to number to match data_sources.id
+    acc[sourceId] = (acc[sourceId] || 0) + 1
     return acc
   }, {} as Record<number, number>) || {}
 
   console.log('📊 Source breach counts sample:', Object.entries(sourceBreachCounts).slice(0, 5))
   console.log('🔍 North Dakota AG (ID 15) count:', sourceBreachCounts[15] || 0)
+  console.log('🔧 Fixed data type issue: source_id converted from string to number')
 
   // Group sources by new categorization
   const categories: Record<string, Array<{id: number, name: string, originalType: string, itemCount: number, itemType: string}>> = {
