@@ -783,20 +783,17 @@ export async function checkIfBreachSaved(breachId: number) {
   return { data, error }
 }
 
-// Helper function to get today's 1am timestamp in UTC (or yesterday's 1am if before 1am UTC)
+// Helper function to get today's 1am timestamp (or yesterday's 1am if before 1am)
 function getToday1am(): Date {
   const now = new Date()
-  const nowUTC = new Date(now.getTime() + (now.getTimezoneOffset() * 60000))
+  const today1am = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 1, 0, 0, 0)
 
-  // Create 1am UTC for today
-  const today1amUTC = new Date(Date.UTC(nowUTC.getFullYear(), nowUTC.getMonth(), nowUTC.getDate(), 1, 0, 0, 0))
-
-  // If it's currently before 1am UTC, use yesterday's 1am UTC
-  if (nowUTC.getUTCHours() < 1) {
-    today1amUTC.setUTCDate(today1amUTC.getUTCDate() - 1)
+  // If it's currently before 1am, use yesterday's 1am
+  if (now.getHours() < 1) {
+    today1am.setDate(today1am.getDate() - 1)
   }
 
-  return today1amUTC
+  return today1am
 }
 
 export interface DailyStats {
