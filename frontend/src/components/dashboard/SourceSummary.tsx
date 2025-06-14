@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase, SOURCE_TYPE_CONFIG } from '../../lib/supabase'
-import { formatNumber, formatAffectedCount, getSourceTypeColor } from '../../lib/utils'
+import { formatNumber, formatAffectedCount } from '../../lib/utils'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 
@@ -8,17 +8,23 @@ interface SourceStats {
   source_id: number
   source_name: string
   source_type: string
+  total_items: number
   total_breaches: number
+  total_news: number
   total_affected: number
   latest_breach: string | null
   latest_scraped: string | null
   avg_affected_per_breach: number
+  is_breach_source: boolean
+  item_type_label: string // "breaches", "articles", "reports"
 }
 
 interface CategoryStats {
   category: string
   total_sources: number
+  total_items: number
   total_breaches: number
+  total_news: number
   total_affected: number
   sources: SourceStats[]
 }
@@ -42,7 +48,7 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
       setLoading(true)
       setError(null)
 
-      // Query to get comprehensive source statistics - match hero section logic
+      // Query to get comprehensive source statistics - exclude API sources like other components
       const { data, error: queryError } = await supabase
         .from('v_breach_dashboard')
         .select(`
@@ -54,6 +60,7 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
           scraped_at,
           publication_date
         `)
+        .neq('source_type', 'API') // Exclude API sources
 
       if (queryError) throw queryError
 
@@ -64,15 +71,39 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
         const sourceId = record.source_id
 
         if (!sourceMap.has(sourceId)) {
+          const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(record.source_type)
+
+          // Determine item type label based on source type
+          let itemTypeLabel = 'items'
+          switch (record.source_type) {
+            case 'State AG':
+            case 'State Cybersecurity':
+            case 'State Agency':
+            case 'Government Portal':
+            case 'Breach Database':
+              itemTypeLabel = 'breaches'
+              break
+            case 'News Feed':
+              itemTypeLabel = 'articles'
+              break
+            case 'Company IR':
+              itemTypeLabel = 'reports'
+              break
+          }
+
           sourceMap.set(sourceId, {
             source_id: sourceId,
             source_name: record.source_name,
             source_type: record.source_type,
+            total_items: 0,
             total_breaches: 0,
+            total_news: 0,
             total_affected: 0,
             latest_breach: null,
             latest_scraped: null,
-            avg_affected_per_breach: 0
+            avg_affected_per_breach: 0,
+            is_breach_source: isBreachSource,
+            item_type_label: itemTypeLabel
           })
         }
 
@@ -82,11 +113,18 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
         const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(record.source_type)
         const isNewsSource = SOURCE_TYPE_CONFIG.isNewsSource(record.source_type)
 
-        if (isBreachSource || isNewsSource) {
+        // Increment total items
+        sourceStats.total_items++
+
+        // Increment appropriate category count
+        if (isBreachSource) {
           sourceStats.total_breaches++
+        } else if (isNewsSource) {
+          sourceStats.total_news++
         }
 
-        if (record.affected_individuals) {
+        // Only count affected individuals for breach sources
+        if (isBreachSource && record.affected_individuals) {
           sourceStats.total_affected += record.affected_individuals
         }
 
@@ -102,17 +140,24 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
       // Calculate averages and group by category
       const categoryMap = new Map<string, CategoryStats>()
-      
+
       sourceMap.forEach(sourceStats => {
-        sourceStats.avg_affected_per_breach = sourceStats.total_affected / sourceStats.total_breaches
+        // Only calculate averages for breach sources with breaches
+        if (sourceStats.is_breach_source && sourceStats.total_breaches > 0) {
+          sourceStats.avg_affected_per_breach = sourceStats.total_affected / sourceStats.total_breaches
+        } else {
+          sourceStats.avg_affected_per_breach = 0
+        }
 
         const category = SOURCE_TYPE_CONFIG.getDisplayCategory(sourceStats.source_type)
-        
+
         if (!categoryMap.has(category)) {
           categoryMap.set(category, {
             category,
             total_sources: 0,
+            total_items: 0,
             total_breaches: 0,
+            total_news: 0,
             total_affected: 0,
             sources: []
           })
@@ -120,19 +165,21 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
         const categoryStats = categoryMap.get(category)!
         categoryStats.total_sources++
+        categoryStats.total_items += sourceStats.total_items
         categoryStats.total_breaches += sourceStats.total_breaches
+        categoryStats.total_news += sourceStats.total_news
         categoryStats.total_affected += sourceStats.total_affected
         categoryStats.sources.push(sourceStats)
       })
 
-      // Sort sources within each category by total breaches
+      // Sort sources within each category by total items (breaches + news)
       categoryMap.forEach(category => {
-        category.sources.sort((a, b) => b.total_breaches - a.total_breaches)
+        category.sources.sort((a, b) => b.total_items - a.total_items)
       })
 
-      // Convert to array and sort by total breaches
+      // Convert to array and sort by total items
       const categories = Array.from(categoryMap.values())
-        .sort((a, b) => b.total_breaches - a.total_breaches)
+        .sort((a, b) => b.total_items - a.total_items)
 
       setCategoryStats(categories)
     } catch (err) {
@@ -233,17 +280,17 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
             </div>
             <div className="text-sm text-green-800 dark:text-green-300">Total Breaches</div>
           </div>
+          <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+              {formatNumber(categoryStats.reduce((sum, cat) => sum + cat.total_news, 0))}
+            </div>
+            <div className="text-sm text-orange-800 dark:text-orange-300">News Articles</div>
+          </div>
           <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {formatAffectedCount(categoryStats.reduce((sum, cat) => sum + cat.total_affected, 0))}
             </div>
             <div className="text-sm text-red-800 dark:text-red-300">People Affected</div>
-          </div>
-          <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {categoryStats.length}
-            </div>
-            <div className="text-sm text-purple-800 dark:text-purple-300">Categories</div>
           </div>
         </div>
 
@@ -299,17 +346,21 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
                           <div>
-                            <span className="font-medium">Breaches:</span> {formatNumber(source.total_breaches)}
+                            <span className="font-medium">{source.item_type_label}:</span> {formatNumber(source.is_breach_source ? source.total_breaches : source.total_news)}
                           </div>
-                          <div>
-                            <span className="font-medium">Affected:</span> {formatAffectedCount(source.total_affected)}
-                          </div>
-                          <div>
-                            <span className="font-medium">Avg/Breach:</span> {formatAffectedCount(Math.round(source.avg_affected_per_breach))}
-                          </div>
+                          {source.is_breach_source && (
+                            <div>
+                              <span className="font-medium">Affected:</span> {formatAffectedCount(source.total_affected)}
+                            </div>
+                          )}
+                          {source.is_breach_source && source.total_breaches > 0 && (
+                            <div>
+                              <span className="font-medium">Avg/Breach:</span> {formatAffectedCount(Math.round(source.avg_affected_per_breach))}
+                            </div>
+                          )}
                           <div>
                             <span className="font-medium">Last Scraped:</span> {
-                              source.latest_scraped 
+                              source.latest_scraped
                                 ? new Date(source.latest_scraped).toLocaleDateString()
                                 : 'Never'
                             }
