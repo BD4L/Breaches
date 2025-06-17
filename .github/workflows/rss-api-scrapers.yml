@@ -70,6 +70,14 @@ jobs:
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       HIBP_API_KEY: ${{ secrets.HIBP_API_KEY }}
       PYTHONUNBUFFERED: "1"
+      # Enhanced RSS scraper configuration
+      NEWS_FILTER_DAYS_BACK: "3"
+      NEWS_MAX_ITEMS_PER_FEED: "25"
+      NEWS_PROCESSING_MODE: "ENHANCED"
+      NEWS_CONCURRENT_FEEDS: "3"
+      NEWS_FEED_TIMEOUT: "45"
+      BREACH_INTELLIGENCE_ENABLED: "true"
+      BREACH_CONFIDENCE_THRESHOLD: "0.3"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
