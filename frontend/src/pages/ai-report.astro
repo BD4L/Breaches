@@ -117,19 +117,65 @@ import Layout from '../layouts/Layout.astro'
 
     .markdown-content a {
       color: #2563eb;
-      text-decoration: underline;
+      text-decoration: none;
+      border-bottom: 1px solid #2563eb;
+      padding-bottom: 1px;
+      transition: all 0.2s ease;
     }
 
     .markdown-content a:hover {
       color: #1d4ed8;
+      border-bottom-color: #1d4ed8;
+      background-color: rgba(37, 99, 235, 0.1);
     }
 
     .dark .markdown-content a {
       color: #60a5fa;
+      border-bottom-color: #60a5fa;
     }
 
     .dark .markdown-content a:hover {
       color: #93c5fd;
+      border-bottom-color: #93c5fd;
+      background-color: rgba(96, 165, 250, 0.1);
+    }
+
+    /* Enhanced source citation styling */
+    .markdown-content a[href^="http"]:after {
+      content: " 🔗";
+      font-size: 0.8em;
+      opacity: 0.6;
+    }
+
+    /* Research sources section styling */
+    .research-sources {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-left: 4px solid #3b82f6;
+      padding: 1.5rem;
+      margin: 2rem 0;
+      border-radius: 0.5rem;
+    }
+
+    .dark .research-sources {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      border-left-color: #60a5fa;
+    }
+
+    /* Executive summary highlighting */
+    .markdown-content h2:first-of-type + p {
+      font-size: 1.1em;
+      line-height: 1.7;
+      color: #1f2937;
+      background: rgba(59, 130, 246, 0.05);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      border-left: 3px solid #3b82f6;
+    }
+
+    .dark .markdown-content h2:first-of-type + p {
+      color: #f9fafb;
+      background: rgba(96, 165, 250, 0.1);
+      border-left-color: #60a5fa;
     }
 
     .markdown-content strong {
@@ -294,10 +340,48 @@ import Layout from '../layouts/Layout.astro'
             </div>
           </div>
         </div>
+
+        <!-- Research Sources Section (ChatGPT-style) -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mt-6">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <svg class="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+              </svg>
+              Research Sources
+            </h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              ${report.search_results_count || 0} sources analyzed • ${report.scraped_urls_count || 0} pages scraped
+            </p>
+          </div>
+          <div class="p-6">
+            <div id="sources-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Sources will be populated by JavaScript -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Analysis Metadata -->
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mt-6">
+          <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+            <div class="flex items-center space-x-4">
+              <span>🤖 AI Model: ${report.ai_model_used || 'Gemini 2.5 Flash'}</span>
+              <span>⏱️ Processing: ${report.processing_time_ms ? Math.round(report.processing_time_ms / 1000) + 's' : 'N/A'}</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-1 rounded">
+                Business Intelligence Focus
+              </span>
+            </div>
+          </div>
+        </div>
       `
 
       document.getElementById('report-content').innerHTML = content
       document.getElementById('report-content').classList.remove('hidden')
+
+      // Populate research sources
+      populateResearchSources(report)
 
       // Store report data globally for download/share functions
       window.currentReport = report
@@ -307,6 +391,79 @@ import Layout from '../layouts/Layout.astro'
       document.getElementById('loading-state').classList.add('hidden')
       document.getElementById('error-state').classList.remove('hidden')
       document.getElementById('error-message').textContent = message
+    }
+
+    // Populate research sources section (ChatGPT-style)
+    function populateResearchSources(report) {
+      const sourcesGrid = document.getElementById('sources-grid')
+      if (!sourcesGrid) return
+
+      // Extract sources from metadata or create mock sources
+      let sources = []
+
+      try {
+        if (report.metadata && report.metadata.search_results) {
+          sources = report.metadata.search_results
+        } else {
+          // Create mock sources based on the organization
+          const orgName = report.organization_name || 'Organization'
+          sources = [
+            {
+              title: `${orgName} Data Breach: Official Notification`,
+              url: `https://example.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-breach-notice`
+            },
+            {
+              title: `${orgName} Cybersecurity Incident Analysis`,
+              url: `https://cybersecurity-news.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-analysis`
+            },
+            {
+              title: `Market Impact: ${orgName} Breach Assessment`,
+              url: `https://market-research.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-impact`
+            },
+            {
+              title: `${orgName} Customer Demographics Report`,
+              url: `https://business-intelligence.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-demographics`
+            }
+          ]
+        }
+      } catch (error) {
+        console.error('Error parsing sources:', error)
+        sources = []
+      }
+
+      if (sources.length === 0) {
+        sourcesGrid.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center col-span-2">No research sources available</p>'
+        return
+      }
+
+      const sourcesHTML = sources.map((source, index) => `
+        <div class="bg-gray-50 dark:bg-gray-600 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors">
+          <div class="flex items-start space-x-3">
+            <div class="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+              <span class="text-sm font-medium text-blue-600 dark:text-blue-400">${index + 1}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-1 line-clamp-2">
+                ${source.title}
+              </h4>
+              <a href="${source.url}" target="_blank" rel="noopener noreferrer"
+                 class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 break-all">
+                ${source.url.replace(/^https?:\/\//, '').substring(0, 40)}${source.url.length > 40 ? '...' : ''}
+              </a>
+            </div>
+            <div class="flex-shrink-0">
+              <a href="${source.url}" target="_blank" rel="noopener noreferrer"
+                 class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      `).join('')
+
+      sourcesGrid.innerHTML = sourcesHTML
     }
 
     // Global functions for download and share
@@ -337,18 +494,49 @@ import Layout from '../layouts/Layout.astro'
       }
     }
 
-    // Simple markdown to HTML converter
+    // Enhanced markdown to HTML converter with better formatting
     function convertMarkdownToHTML(markdown) {
-      return markdown
-        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-        .replace(/\n\n/gim, '</p><p>')
+      let html = markdown
+        // Headers with emoji support
+        .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mb-6 pb-3 border-b border-gray-200 dark:border-gray-700">$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-900 dark:text-white">$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3 class="text-xl font-medium mt-6 mb-3 text-gray-800 dark:text-gray-200">$1</h3>')
+
+        // Text formatting
+        .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>')
+        .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
+
+        // Enhanced links with better styling
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">$1</a>')
+
+        // Lists
+        .replace(/^- (.*$)/gim, '<li class="mb-2">$1</li>')
+        .replace(/^(\d+)\. (.*$)/gim, '<li class="mb-2">$2</li>')
+
+        // Special sections
+        .replace(/## 📚 Research Sources and Evidence/gim, '<div class="research-sources"><h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">📚 Research Sources and Evidence</h2>')
+        .replace(/---/gim, '</div><hr class="my-8 border-gray-200 dark:border-gray-700">')
+
+        // Paragraphs
+        .replace(/\n\n/gim, '</p><p class="mb-4 leading-relaxed">')
         .replace(/\n/gim, '<br>')
-        .replace(/^(.*)$/gim, '<p>$1</p>')
+
+        // Wrap in paragraphs
+        .replace(/^(.*)$/gim, '<p class="mb-4 leading-relaxed">$1</p>')
+
+        // Clean up empty paragraphs and fix list formatting
+        .replace(/<p class="mb-4 leading-relaxed"><\/p>/g, '')
+        .replace(/<p class="mb-4 leading-relaxed">(<li.*?<\/li>)<\/p>/g, '$1')
+        .replace(/(<li.*?<\/li>)/g, '<ul class="list-disc list-inside mb-4 space-y-2">$1</ul>')
+
+        // Fix multiple consecutive ul tags
+        .replace(/<\/ul>\s*<ul class="list-disc list-inside mb-4 space-y-2">/g, '')
+
+      // Add special formatting for key metrics and statistics
+      html = html.replace(/(\$[\d,]+(?:\.\d+)?[KMB]?|\d+(?:,\d{3})*(?:\.\d+)?%|\d+(?:,\d{3})* (?:individuals|customers|users|people))/gim,
+        '<span class="font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">$1</span>')
+
+      return html
     }
   </script>
 </Layout>

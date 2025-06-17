@@ -246,7 +246,7 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
       return 'AI is analyzing breach demographics, financial impact, and advertising opportunities...'
     }
 
-    return 'Generate AI-powered breach analysis focused on affected demographics, financial damage assessment, and business intelligence for advertising purposes'
+    return 'Generate comprehensive AI-powered breach analysis with web research, demographic profiling, financial impact assessment, competitive intelligence, and actionable business recommendations'
   }
 
   return (
@@ -274,7 +274,7 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
         <div className="absolute top-full left-0 mt-1 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 max-w-xs z-10">
           <div className="flex items-center space-x-1">
             <Clock className="w-3 h-3 animate-pulse" />
-            <span>AI is analyzing demographics and business impact...</span>
+            <span>AI is conducting web research and analyzing business impact...</span>
           </div>
         </div>
       )}
