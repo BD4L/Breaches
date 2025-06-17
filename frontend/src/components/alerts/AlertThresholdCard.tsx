@@ -82,6 +82,8 @@ export function AlertThresholdCard({ className = '' }: AlertThresholdCardProps) 
           notify_high_impact: preferences.notify_high_impact,
           notify_critical_sectors: preferences.notify_critical_sectors,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id' // Use user_id for conflict resolution
         })
 
       if (error) throw error

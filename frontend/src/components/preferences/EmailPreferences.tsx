@@ -113,6 +113,8 @@ export function EmailPreferences({ onClose }: EmailPreferencesProps) {
           source_types: preferences.source_types,
           keywords: preferences.keywords,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id' // Use user_id for conflict resolution
         })
 
       if (error) throw error
