@@ -152,8 +152,8 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
   }
 
   const openReport = (reportId: string) => {
-    // Open report in new tab/window
-    const reportUrl = `/ai-report?id=${reportId}`
+    // Open report in new tab/window - use correct base path for GitHub Pages
+    const reportUrl = `/Breaches/ai-report?id=${reportId}`
     window.open(reportUrl, '_blank')
   }
 
