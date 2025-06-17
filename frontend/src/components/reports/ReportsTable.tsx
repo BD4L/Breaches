@@ -16,6 +16,8 @@ interface Report {
   scraped_urls_count?: number
   cost_estimate?: number
   error_message?: string
+  ai_model_used?: string
+  report_type?: string
   metadata?: {
     research_methodology?: string
     research_phases?: any
@@ -47,12 +49,47 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
     loadReports()
   }, [searchTerm, statusFilter, sortBy, sortOrder])
 
+  // Test database connection on component mount
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        console.log('Testing v_ai_reports view connection...')
+        const { data, error, count } = await supabase
+          .from('v_ai_reports')
+          .select('*', { count: 'exact', head: true })
+
+        if (error) {
+          console.error('v_ai_reports view error:', error)
+          console.log('Trying research_jobs table directly...')
+
+          // Fallback to research_jobs table
+          const { data: jobsData, error: jobsError, count: jobsCount } = await supabase
+            .from('research_jobs')
+            .select('*', { count: 'exact', head: true })
+
+          if (jobsError) {
+            console.error('research_jobs table error:', jobsError)
+          } else {
+            console.log(`research_jobs table exists with ${jobsCount} records`)
+          }
+        } else {
+          console.log(`v_ai_reports view exists with ${count} records`)
+        }
+      } catch (error) {
+        console.error('Database connection test failed:', error)
+      }
+    }
+
+    testConnection()
+  }, [])
+
   const loadReports = async () => {
     try {
       setLoading(true)
-      
+      console.log('Loading AI reports...')
+
       let query = supabase
-        .from('research_jobs')
+        .from('v_ai_reports')
         .select(`
           id,
           breach_id,
@@ -65,7 +102,9 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
           scraped_urls_count,
           cost_estimate,
           error_message,
-          metadata
+          metadata,
+          ai_model_used,
+          report_type
         `)
 
       // Apply search filter
@@ -85,12 +124,15 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
 
       if (error) {
         console.error('Error loading reports:', error)
+        alert(`Error loading reports: ${error.message}`)
         return
       }
 
+      console.log(`Loaded ${data?.length || 0} AI reports`)
       setReports(data || [])
     } catch (error) {
       console.error('Failed to load reports:', error)
+      alert(`Failed to load reports: ${error}`)
     } finally {
       setLoading(false)
     }
@@ -98,14 +140,14 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: { color: 'gray', text: 'Pending' },
-      processing: { color: 'blue', text: 'Processing' },
-      completed: { color: 'green', text: 'Completed' },
-      failed: { color: 'red', text: 'Failed' }
+      pending: { variant: 'secondary', text: 'Pending' },
+      processing: { variant: 'default', text: 'Processing' },
+      completed: { variant: 'success', text: 'Completed' },
+      failed: { variant: 'destructive', text: 'Failed' }
     }
-    
+
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
-    return <Badge variant={config.color as any}>{config.text}</Badge>
+    return <Badge variant={config.variant as any}>{config.text}</Badge>
   }
 
   const formatDuration = (ms?: number) => {
@@ -151,7 +193,7 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
 
     try {
       // Call the AI report generation endpoint
-      const response = await fetch('/functions/v1/generate-ai-report', {
+      const response = await fetch(`${window.location.origin}/functions/v1/generate-ai-report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -404,14 +446,17 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
           </table>
         </div>
 
-        {reports.length === 0 && (
+        {reports.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="text-gray-500 dark:text-gray-400">
               <div className="text-4xl mb-4">🤖</div>
               <h3 className="text-lg font-medium mb-2">No AI reports found</h3>
-              <p className="text-sm">
+              <p className="text-sm mb-4">
                 Generate your first AI report by clicking the "AI Report" button on any breach in the Breach Notifications tab.
               </p>
+              <div className="text-xs text-gray-400 dark:text-gray-500">
+                Search filters: "{searchTerm}" | Status: {statusFilter} | Sort: {sortBy}
+              </div>
             </div>
           </div>
         )}
