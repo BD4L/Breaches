@@ -243,10 +243,10 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
     }
 
     if (loading || reportStatus?.status === 'processing') {
-      return 'AI is analyzing breach demographics, financial impact, and advertising opportunities...'
+      return 'AI is conducting 4-phase comprehensive research: breach intelligence → damage assessment → company demographics → marketing opportunities...'
     }
 
-    return 'Generate comprehensive AI-powered breach analysis with web research, demographic profiling, financial impact assessment, competitive intelligence, and actionable business recommendations'
+    return 'Generate comprehensive 4-phase AI research analysis: breach intelligence gathering, financial damage assessment, company demographic profiling, and marketing intelligence synthesis with 15-25 sources per report'
   }
 
   return (
@@ -274,7 +274,7 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
         <div className="absolute top-full left-0 mt-1 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 max-w-xs z-10">
           <div className="flex items-center space-x-1">
             <Clock className="w-3 h-3 animate-pulse" />
-            <span>AI is conducting web research and analyzing business impact...</span>
+            <span>AI is conducting 4-phase comprehensive research...</span>
           </div>
         </div>
       )}

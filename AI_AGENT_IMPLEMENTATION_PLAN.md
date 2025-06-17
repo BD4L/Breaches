@@ -1,7 +1,33 @@
-# AI Agent Implementation Plan
+# AI Agent Implementation Plan - Enhanced Multi-Phase Research System
 
 ## Overview
-This document outlines the implementation of AI agents for generating comprehensive breach reports using Gemini 2.5 Flash, leveraging existing MCP tools and Supabase infrastructure.
+This document outlines the implementation of a comprehensive AI research system for generating thorough breach intelligence reports. The system uses a multi-phase research methodology with Gemini 2.5 Flash, Brave Search, and Firecrawl MCP for extensive data gathering and analysis focused on business intelligence and marketing demographics.
+
+## 🎯 Research Methodology
+
+### Phase 1: Breach Intelligence Gathering
+- **Objective**: Collect all available information about the specific data breach
+- **Sources**: Official notifications, regulatory filings, news coverage, technical analysis
+- **Tools**: Brave Search with targeted queries, Firecrawl for content extraction
+- **Output**: Comprehensive breach timeline, affected data types, incident details
+
+### Phase 2: Damage Assessment & Financial Impact
+- **Objective**: Calculate estimated financial damages and business impact
+- **Research**: Industry benchmarks, regulatory fine structures, similar breach costs
+- **Analysis**: Direct costs, customer acquisition impact, brand damage, market share loss
+- **Output**: Quantified damage estimates with supporting evidence
+
+### Phase 3: Company Deep Dive & Demographics Research
+- **Objective**: Understand the affected company's customer base and market presence
+- **Research**: Company headquarters, customer demographics, geographic reach, market segments
+- **Analysis**: Age groups, income levels, regional distribution, digital behavior patterns
+- **Output**: Detailed customer demographic profiles for marketing intelligence
+
+### Phase 4: Marketing Intelligence Synthesis
+- **Objective**: Provide actionable insights for advertising and competitive positioning
+- **Analysis**: Targeting opportunities, competitive gaps, customer migration patterns
+- **Recommendations**: Specific marketing strategies, demographic targeting, geographic focus
+- **Output**: Comprehensive business intelligence report with actionable recommendations
 
 ## Current Infrastructure Analysis
 
@@ -51,11 +77,12 @@ MCP Tools (Search/Scrape) ← Breach Context ← Supabase
 Generated Report → Supabase → Frontend Display
 ```
 
-### Cost Optimization
-- Use Gemini 2.5 Flash (~$0.15 per report)
-- Leverage free MCP tools (brave-search, firecrawl)
-- Cache reports to prevent duplicates
-- **Estimated cost: ~$0.17 per report** (75% cheaper than original plan)
+### Enhanced Research Approach - Cost No Object
+- **Comprehensive Research**: 15-25 sources per report for thorough analysis
+- **Multi-Phase Methodology**: 4-phase research pipeline for maximum intelligence
+- **Premium APIs**: Brave Search Pro + Firecrawl for extensive content extraction
+- **Deep Analysis**: Company demographics, financial impact, competitive intelligence
+- **Estimated cost: ~$2-5 per report** (Premium research approach for maximum value)
 
 ## Security Considerations
 - Rate limiting per user

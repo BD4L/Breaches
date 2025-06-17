@@ -1,14 +1,32 @@
-# Enhanced AI Breach Analysis System
+# Enhanced AI Breach Analysis System - Multi-Phase Research
 
 ## 🚀 Overview
 
-The enhanced AI system provides comprehensive business intelligence analysis of data breaches, focusing on:
+The enhanced AI system provides comprehensive business intelligence analysis through a sophisticated 4-phase research methodology, delivering thorough breach analysis with extensive web research capabilities:
 
-- **Demographic Analysis**: Customer segments, age groups, geographic distribution
-- **Financial Impact Assessment**: Direct costs, customer acquisition impact, brand damage
-- **Competitive Intelligence**: Market opportunities, customer migration patterns
-- **Marketing Insights**: Advertising opportunities, targeting strategies
-- **Business Recommendations**: Actionable strategies for all market players
+### 🔍 **Phase 1: Breach Intelligence Gathering**
+- Official breach notifications and regulatory filings
+- Technical incident details and timeline analysis
+- Comprehensive data type and scope assessment
+- 5-8 specialized sources per breach
+
+### 💰 **Phase 2: Financial Damage Assessment**
+- Industry-standard cost calculations ($165/record baseline)
+- Regulatory fine estimates and legal exposure
+- Brand damage and market impact quantification
+- Insurance and liability coverage analysis
+
+### 👥 **Phase 3: Company Demographics Deep Dive**
+- Customer base geographic distribution
+- Age, income, and behavioral demographics
+- Professional profiles and industry affiliations
+- Digital engagement patterns and platform usage
+
+### 🎯 **Phase 4: Marketing Intelligence Synthesis**
+- Competitive landscape and opportunity analysis
+- Customer migration patterns and acquisition strategies
+- Demographic targeting and channel optimization
+- Strategic positioning and market penetration insights
 
 ## 🔧 Technical Architecture
 
@@ -161,11 +179,14 @@ const response = await fetch('/functions/v1/generate-ai-report', {
 - **Firecrawl**: 500 free scrapes/month
 - **Supabase**: Generous free tier
 
-### Estimated Costs (per report)
-- AI Generation: ~$0.01-0.05
-- Web Search: ~$0.001
-- Content Scraping: ~$0.01-0.02
-- **Total**: ~$0.02-0.07 per comprehensive report
+### Estimated Costs (per comprehensive report)
+- AI Generation: ~$0.50-1.00 (extensive analysis)
+- Web Search: ~$0.50-1.00 (15-25 queries per report)
+- Content Scraping: ~$1.00-2.00 (8-12 pages per phase)
+- Processing & Analysis: ~$0.50-1.00
+- **Total**: ~$2.50-5.00 per comprehensive 4-phase report
+
+**Value Proposition**: Premium research approach providing 10x more intelligence than basic reports
 
 ## 🚀 Future Enhancements
 
