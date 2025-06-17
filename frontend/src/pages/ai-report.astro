@@ -10,8 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Breach Report | Security Intelligence Hub</title>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use existing Tailwind setup from the project -->
     
     <!-- Dark mode support -->
     <script>
@@ -223,11 +222,12 @@
 
       if (!reportId) {
         showError('No report ID provided in URL')
-        return
+      } else {
+        // Load and display the report
+        loadReport(reportId)
       }
 
-      // Load and display the report
-      loadReport(reportId)
+
 
       async function loadReport(id) {
         try {
