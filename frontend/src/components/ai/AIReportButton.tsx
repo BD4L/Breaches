@@ -235,18 +235,18 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
       if (reportStatus.cached) {
         stats.push('Cached result')
       }
-      return stats.length > 0 ? stats.join(' • ') : 'Click to view AI-generated breach report'
+      return stats.length > 0 ? stats.join(' • ') : 'Click to view AI-generated business intelligence report'
     }
-    
+
     if (reportStatus?.status === 'failed') {
       return reportStatus.errorMessage || 'Report generation failed - click to retry'
     }
-    
+
     if (loading || reportStatus?.status === 'processing') {
-      return 'AI is analyzing the breach and generating a comprehensive report...'
+      return 'AI is analyzing breach demographics, financial impact, and advertising opportunities...'
     }
-    
-    return 'Generate AI-powered breach analysis with web research and expert insights'
+
+    return 'Generate AI-powered breach analysis focused on affected demographics, financial damage assessment, and business intelligence for advertising purposes'
   }
 
   return (
@@ -274,7 +274,7 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
         <div className="absolute top-full left-0 mt-1 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 max-w-xs z-10">
           <div className="flex items-center space-x-1">
             <Clock className="w-3 h-3 animate-pulse" />
-            <span>AI is researching and analyzing...</span>
+            <span>AI is analyzing demographics and business impact...</span>
           </div>
         </div>
       )}

@@ -138,9 +138,9 @@ serve(async (req) => {
     console.log(`📊 Created report record ${reportRecord.id}`)
 
     try {
-      // Step 1: Search for additional information
-      console.log(`🔍 Searching for information about ${breach.organization_name}`)
-      const searchQuery = `"${breach.organization_name}" data breach cybersecurity incident ${breach.breach_date || ''} ${breach.affected_individuals ? `${breach.affected_individuals} affected` : ''}`
+      // Step 1: Search for demographic and business impact information
+      console.log(`🔍 Searching for demographic and business impact data about ${breach.organization_name}`)
+      const searchQuery = `"${breach.organization_name}" data breach customer demographics affected individuals business impact financial damage ${breach.affected_individuals ? `${breach.affected_individuals} people` : ''} market analysis competitive implications`
       
       // Use MCP Brave Search (simulated - replace with actual MCP call)
       const searchResults = await performWebSearch(searchQuery)
@@ -233,25 +233,25 @@ serve(async (req) => {
 // Helper function to perform web search (replace with actual MCP call)
 async function performWebSearch(query: string): Promise<SearchResult[]> {
   // TODO: Replace with actual MCP brave-search call
-  // For now, return mock data
+  // For now, return mock data focused on breach demographics and business impact
   console.log(`🔍 Performing web search: ${query}`)
-  
-  // Simulate search results
+
+  // Simulate search results focused on business impact and demographics
   return [
     {
-      title: "Data Breach Notification - Official Statement",
-      url: "https://example.com/breach-notice",
-      snippet: "Official notification regarding the recent data security incident..."
+      title: "Data Breach Impact: Customer Demographics and Financial Losses",
+      url: "https://example.com/breach-demographics",
+      snippet: "Analysis of affected customer segments, age groups, and geographic distribution. Estimated financial impact on customer acquisition costs..."
     },
     {
-      title: "Cybersecurity Incident Analysis",
-      url: "https://security-blog.com/analysis",
-      snippet: "Technical analysis of the breach methodology and impact..."
+      title: "Breach Notification: Customer Data Types and Commercial Value",
+      url: "https://example.com/data-types-analysis",
+      snippet: "Detailed breakdown of compromised data types including PII, financial records, and behavioral data. Market value assessment of leaked information..."
     },
     {
-      title: "Regulatory Response and Compliance",
-      url: "https://regulatory.gov/response",
-      snippet: "Regulatory authorities respond to the data breach incident..."
+      title: "Post-Breach Market Analysis: Competitive Implications",
+      url: "https://example.com/market-impact",
+      snippet: "How the data breach affects market positioning, customer migration patterns, and opportunities for competitors in the affected industry..."
     }
   ]
 }
@@ -259,19 +259,29 @@ async function performWebSearch(query: string): Promise<SearchResult[]> {
 // Helper function to scrape URLs (replace with actual MCP call)
 async function scrapeRelevantUrls(searchResults: SearchResult[]): Promise<MCPScrapeResponse[]> {
   // TODO: Replace with actual MCP firecrawl calls
-  console.log(`📄 Scraping ${searchResults.length} URLs`)
-  
+  console.log(`📄 Scraping ${searchResults.length} URLs for demographic and business impact data`)
+
   const scrapedContent: MCPScrapeResponse[] = []
-  
+
   for (const result of searchResults) {
-    // Simulate scraping
+    // Simulate scraping with focus on business intelligence
+    let mockContent = `# ${result.title}\n\n${result.snippet}\n\n`
+
+    if (result.title.includes('Demographics')) {
+      mockContent += `## Customer Demographics Analysis\n- Age distribution: 25-45 (60%), 45-65 (30%), 18-25 (10%)\n- Geographic spread: Urban areas (70%), Suburban (25%), Rural (5%)\n- Income levels: Middle to upper-middle class majority\n- Digital engagement: High social media usage, frequent online shopping\n\n## Marketing Implications\n- Affected customers represent high-value segments\n- Strong digital presence indicates advertising receptiveness\n- Geographic concentration allows targeted regional campaigns`
+    } else if (result.title.includes('Data Types')) {
+      mockContent += `## Compromised Data Analysis\n- Personal Information: Names, addresses, phone numbers\n- Financial Data: Credit card numbers, banking information\n- Behavioral Data: Purchase history, website interactions\n- Professional Data: Employment information, salary ranges\n\n## Commercial Value Assessment\n- PII data: $5-15 per record on dark web\n- Financial data: $50-100 per complete profile\n- Behavioral data: High value for targeted advertising\n- Total estimated data value: $2-5 million`
+    } else if (result.title.includes('Market Analysis')) {
+      mockContent += `## Competitive Landscape Impact\n- Market share vulnerability: 15-20% customer churn expected\n- Competitor opportunities: Increased acquisition campaigns likely\n- Brand recovery timeline: 12-18 months for full reputation restoration\n- Customer acquisition costs: 3x increase in affected segments\n\n## Strategic Recommendations\n- Immediate customer retention campaigns\n- Enhanced security messaging in marketing\n- Competitive monitoring and response strategies`
+    }
+
     scrapedContent.push({
       url: result.url,
-      markdown: `# ${result.title}\n\n${result.snippet}\n\nDetailed content about the breach would be extracted here...`,
+      markdown: mockContent,
       success: true
     })
   }
-  
+
   return scrapedContent
 }
 
@@ -300,30 +310,53 @@ async function generateBreachReport(
     scraped_content: scrapedContent.map(c => ({ url: c.url, content: c.markdown }))
   }
 
-  const prompt = `You are a cybersecurity analyst generating a comprehensive breach report. Create a detailed markdown report with the following sections:
+  const prompt = `You are a cybersecurity analyst specializing in data breach impact assessment and demographic analysis for business intelligence purposes. Create a focused breach report with the following sections:
 
 # ${breach.organization_name} Data Breach Analysis
 
 ## Executive Summary
-Provide a concise overview of the incident, impact, and key findings.
+Provide a concise overview of the incident, focusing on business impact and affected demographics.
 
-## Incident Timeline
-Detail the chronological sequence of events from discovery to disclosure.
+## Breach Impact Assessment
+### People Affected
+- Total number of individuals impacted: ${breach.affected_individuals || 'Unknown'}
+- Geographic distribution (if available)
+- Demographic breakdown by age groups, income levels, or customer segments
 
-## Impact Assessment
-Analyze the scope and severity of the breach, including affected individuals and data types.
+### Data Types Compromised
+Analyze the specific data types breached and their commercial value:
+- Personal Identifiable Information (PII)
+- Financial data (credit cards, bank accounts)
+- Healthcare information (PHI)
+- Professional/employment data
+- Digital behavior and preferences
 
-## Technical Analysis
-Examine the attack vectors, vulnerabilities exploited, and security failures.
+## Commercial Impact Analysis
+### Affected Demographics for Marketing Intelligence
+- Customer segments most impacted
+- Geographic markets affected
+- Age demographics and spending patterns
+- Professional/industry affiliations
+- Digital engagement profiles
 
-## Regulatory and Compliance Implications
-Discuss relevant regulations, compliance requirements, and potential penalties.
+### Financial Damage Assessment
+- Estimated direct costs (regulatory fines, legal fees)
+- Customer acquisition costs for replacement
+- Brand reputation impact and recovery timeline
+- Market share implications
+- Insurance and liability exposure
 
-## Industry Context
-Compare with similar incidents and industry trends.
+## Competitive Intelligence
+- How this breach affects market positioning
+- Opportunities for competitors
+- Customer migration patterns post-breach
+- Industry reputation shifts
 
-## Recommendations
-Provide actionable security recommendations and best practices.
+## Business Recommendations
+- Customer retention strategies
+- Marketing approach adjustments
+- Competitive positioning opportunities
+- Risk mitigation for similar organizations
 
 ## Sources and References
 List all sources with proper hyperlinks.
@@ -332,12 +365,13 @@ Context Data:
 ${JSON.stringify(contextData, null, 2)}
 
 Requirements:
+- Focus specifically on business impact and demographic analysis
+- Quantify financial damages where possible
+- Identify marketing and advertising opportunities
+- Provide actionable business intelligence
 - Use markdown formatting with proper headers
 - Include hyperlinks to all referenced sources
-- Provide specific, actionable insights
-- Maintain professional, analytical tone
-- Ensure accuracy and cite sources properly
-- Include relevant statistics and comparisons where possible`
+- Maintain professional, analytical tone focused on commercial implications`
 
   const result = await model.generateContent(prompt)
   const response = await result.response

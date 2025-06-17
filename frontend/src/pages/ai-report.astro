@@ -1,173 +1,9 @@
 ---
-// AI Report Page - Static page that handles dynamic report viewing client-side
-// URL: /ai-report?id=report-id
+import Layout from '../layouts/Layout.astro'
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Breach Report | Security Intelligence Hub</title>
-    
-    <!-- Use existing Tailwind setup from the project -->
-    
-    <!-- Dark mode support -->
-    <script>
-      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-    </script>
-    
-    <!-- Meta tags for sharing -->
-    <meta property="og:title" content="AI Breach Report - Security Intelligence Hub" />
-    <meta property="og:description" content="Comprehensive AI-generated analysis of data breach incidents" />
-    <meta property="og:type" content="article" />
-    
-    <!-- Styles for markdown content -->
-    <style>
-      .markdown-content {
-        max-width: none;
-        color: #374151;
-      }
-
-      .dark .markdown-content {
-        color: #d1d5db;
-      }
-
-      .markdown-content h1 {
-        font-size: 1.875rem;
-        font-weight: 700;
-        color: #111827;
-        margin-bottom: 1.5rem;
-        border-bottom: 1px solid #e5e7eb;
-        padding-bottom: 1rem;
-      }
-
-      .dark .markdown-content h1 {
-        color: #ffffff;
-        border-bottom-color: #374151;
-      }
-
-      .markdown-content h2 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #111827;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-      }
-
-      .dark .markdown-content h2 {
-        color: #ffffff;
-      }
-
-      .markdown-content h3 {
-        font-size: 1.25rem;
-        font-weight: 500;
-        color: #111827;
-        margin-top: 1.5rem;
-        margin-bottom: 0.75rem;
-      }
-
-      .dark .markdown-content h3 {
-        color: #ffffff;
-      }
-
-      .markdown-content p {
-        color: #374151;
-        margin-bottom: 1rem;
-        line-height: 1.625;
-      }
-
-      .dark .markdown-content p {
-        color: #d1d5db;
-      }
-
-      .markdown-content ul, .markdown-content ol {
-        color: #374151;
-        margin-bottom: 1rem;
-        margin-left: 1.5rem;
-      }
-
-      .dark .markdown-content ul, .dark .markdown-content ol {
-        color: #d1d5db;
-      }
-
-      .markdown-content li {
-        margin-bottom: 0.5rem;
-      }
-
-      .markdown-content a {
-        color: #2563eb;
-        text-decoration: underline;
-      }
-
-      .markdown-content a:hover {
-        color: #1d4ed8;
-      }
-
-      .dark .markdown-content a {
-        color: #60a5fa;
-      }
-
-      .dark .markdown-content a:hover {
-        color: #93c5fd;
-      }
-
-      .markdown-content strong {
-        font-weight: 600;
-        color: #111827;
-      }
-
-      .dark .markdown-content strong {
-        color: #ffffff;
-      }
-
-      .markdown-content em {
-        font-style: italic;
-      }
-
-      .markdown-content blockquote {
-        border-left: 4px solid #3b82f6;
-        padding-left: 1rem;
-        font-style: italic;
-        color: #4b5563;
-        margin: 1rem 0;
-      }
-
-      .dark .markdown-content blockquote {
-        color: #9ca3af;
-      }
-
-      .markdown-content code {
-        background-color: #f3f4f6;
-        padding: 0.125rem 0.5rem;
-        border-radius: 0.25rem;
-        font-size: 0.875rem;
-        font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-      }
-
-      .dark .markdown-content code {
-        background-color: #1f2937;
-      }
-
-      .markdown-content pre {
-        background-color: #f3f4f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        overflow-x: auto;
-        margin-bottom: 1rem;
-      }
-
-      .dark .markdown-content pre {
-        background-color: #1f2937;
-      }
-    </style>
-  </head>
-  
-  <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+<Layout title="AI Breach Report - Security Intelligence Hub">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Loading State -->
     <div id="loading-state" class="min-h-screen flex items-center justify-center">
       <div class="text-center">
@@ -193,8 +29,8 @@
         <p class="text-gray-600 dark:text-gray-400 mb-4" id="error-message">
           The requested report could not be found.
         </p>
-        <button 
-          onclick="window.history.back()" 
+        <button
+          onclick="window.history.back()"
           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
         >
           Go Back
@@ -206,154 +42,313 @@
     <div id="report-content" class="hidden">
       <!-- This will be populated by JavaScript -->
     </div>
+  </div>
+  <style>
+    .markdown-content {
+      max-width: none;
+      color: #374151;
+    }
 
-    <!-- Supabase and React Scripts -->
-    <script type="module">
-      import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-      
-      // Initialize Supabase
-      const supabaseUrl = 'https://hilbbjnnxkitxbptektg.supabase.co'
-      const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpbGJiam5ueGtpdHhicHRla3RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxOTYwNDIsImV4cCI6MjA2Mzc3MjA0Mn0.vk8AJ2pofRAy5y26WQeMYgEFudU1plXnYa6sMFyATFM'
-      const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    .dark .markdown-content {
+      color: #d1d5db;
+    }
 
-      // Get report ID from URL parameters
-      const urlParams = new URLSearchParams(window.location.search)
-      const reportId = urlParams.get('id')
+    .markdown-content h1 {
+      font-size: 1.875rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 1rem;
+    }
 
-      if (!reportId) {
-        showError('No report ID provided in URL')
-      } else {
-        // Load and display the report
-        loadReport(reportId)
-      }
+    .dark .markdown-content h1 {
+      color: #ffffff;
+      border-bottom-color: #374151;
+    }
 
+    .markdown-content h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #111827;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
 
+    .dark .markdown-content h2 {
+      color: #ffffff;
+    }
 
-      async function loadReport(id) {
-        try {
-          const { data, error } = await supabase
-            .from('v_ai_reports')
-            .select('*')
-            .eq('id', id)
-            .single()
+    .markdown-content h3 {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: #111827;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
 
-          if (error) {
-            throw new Error(error.message)
-          }
+    .dark .markdown-content h3 {
+      color: #ffffff;
+    }
 
-          if (!data) {
-            throw new Error('Report not found')
-          }
+    .markdown-content p {
+      color: #374151;
+      margin-bottom: 1rem;
+      line-height: 1.625;
+    }
 
-          displayReport(data)
-        } catch (err) {
-          console.error('Error loading report:', err)
-          showError(err.message)
+    .dark .markdown-content p {
+      color: #d1d5db;
+    }
+
+    .markdown-content ul, .markdown-content ol {
+      color: #374151;
+      margin-bottom: 1rem;
+      margin-left: 1.5rem;
+    }
+
+    .dark .markdown-content ul, .dark .markdown-content ol {
+      color: #d1d5db;
+    }
+
+    .markdown-content li {
+      margin-bottom: 0.5rem;
+    }
+
+    .markdown-content a {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+
+    .markdown-content a:hover {
+      color: #1d4ed8;
+    }
+
+    .dark .markdown-content a {
+      color: #60a5fa;
+    }
+
+    .dark .markdown-content a:hover {
+      color: #93c5fd;
+    }
+
+    .markdown-content strong {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .dark .markdown-content strong {
+      color: #ffffff;
+    }
+
+    .markdown-content em {
+      font-style: italic;
+    }
+
+    .markdown-content blockquote {
+      border-left: 4px solid #3b82f6;
+      padding-left: 1rem;
+      font-style: italic;
+      color: #4b5563;
+      margin: 1rem 0;
+    }
+
+    .dark .markdown-content blockquote {
+      color: #9ca3af;
+    }
+
+    .markdown-content code {
+      background-color: #f3f4f6;
+      padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    .dark .markdown-content code {
+      background-color: #1f2937;
+    }
+
+    .markdown-content pre {
+      background-color: #f3f4f6;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+    }
+
+    .dark .markdown-content pre {
+      background-color: #1f2937;
+    }
+  </style>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    // Initialize Supabase
+    const supabaseUrl = 'https://hilbbjnnxkitxbptektg.supabase.co'
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpbGJiam5ueGtpdHhicHRla3RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxOTYwNDIsImV4cCI6MjA2Mzc3MjA0Mn0.vk8AJ2pofRAy5y26WQeMYgEFudU1plXnYa6sMFyATFM'
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    // Get report ID from URL parameters
+    const urlParams = new URLSearchParams(window.location.search)
+    const reportId = urlParams.get('id')
+
+    if (!reportId) {
+      showError('No report ID provided in URL')
+    } else {
+      // Load and display the report
+      loadReport(reportId)
+    }
+
+    async function loadReport(id) {
+      try {
+        const { data, error } = await supabase
+          .from('v_ai_reports')
+          .select('*')
+          .eq('id', id)
+          .single()
+
+        if (error) {
+          throw new Error(error.message)
         }
-      }
 
-      function displayReport(report) {
-        document.getElementById('loading-state').classList.add('hidden')
-        
-        const content = `
-          <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                  <button onclick="window.history.back()" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                    </svg>
-                  </button>
-                  <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-                      ${report.organization_name} Breach Report
-                    </h1>
-                    <div class="flex items-center space-x-4 mt-1">
-                      <span class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1 rounded text-sm">
-                        🤖 AI Generated
-                      </span>
-                      <span class="text-sm text-gray-500 dark:text-gray-400">
-                        ${new Date(report.completed_at || report.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
+        if (!data) {
+          throw new Error('Report not found')
+        }
+
+        displayReport(data)
+      } catch (err) {
+        console.error('Error loading report:', err)
+        showError(err.message)
+      }
+    }
+
+    function displayReport(report) {
+      document.getElementById('loading-state').classList.add('hidden')
+
+      const content = `
+        <!-- Header Section -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <button onclick="window.history.back()" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                  </svg>
+                </button>
+                <div>
+                  <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                    ${report.organization_name} Breach Report
+                  </h1>
+                  <div class="flex items-center space-x-4 mt-1">
+                    <span class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1 rounded text-sm">
+                      🤖 AI Generated - Business Intelligence Focus
+                    </span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">
+                      ${new Date(report.completed_at || report.created_at).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                  <button onclick="downloadReport()" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm">
-                    📥 Download
-                  </button>
-                  <button onclick="shareReport()" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm">
-                    🔗 Share
-                  </button>
-                </div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <button onclick="downloadReport()" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm">
+                  📥 Download
+                </button>
+                <button onclick="shareReport()" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm">
+                  🔗 Share
+                </button>
               </div>
             </div>
           </div>
 
-          <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-              <div class="markdown-content">
-                ${convertMarkdownToHTML(report.markdown_content || 'Report content is being processed...')}
+          <!-- Quick Stats -->
+          <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">${report.affected_individuals ? report.affected_individuals.toLocaleString() : 'Unknown'}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">People Affected</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-600 dark:text-green-400">${report.source_name || 'Unknown'}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Data Source</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">${report.breach_date ? new Date(report.breach_date).toLocaleDateString() : 'Unknown'}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Breach Date</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">${report.processing_time_ms ? Math.round(report.processing_time_ms / 1000) + 's' : 'N/A'}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Analysis Time</div>
               </div>
             </div>
           </div>
-        `
-        
-        document.getElementById('report-content').innerHTML = content
-        document.getElementById('report-content').classList.remove('hidden')
+        </div>
 
-        // Store report data globally for download/share functions
-        window.currentReport = report
-      }
+        <!-- Report Content -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <div class="p-8">
+            <div class="markdown-content">
+              ${convertMarkdownToHTML(report.markdown_content || 'Report content is being processed...')}
+            </div>
+          </div>
+        </div>
+      `
 
-      function showError(message) {
-        document.getElementById('loading-state').classList.add('hidden')
-        document.getElementById('error-state').classList.remove('hidden')
-        document.getElementById('error-message').textContent = message
-      }
+      document.getElementById('report-content').innerHTML = content
+      document.getElementById('report-content').classList.remove('hidden')
 
-      // Global functions for download and share
-      window.downloadReport = function() {
-        if (!window.currentReport) return
-        
-        const blob = new Blob([window.currentReport.markdown_content], { type: 'text/markdown' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${window.currentReport.organization_name}_breach_report.md`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }
+      // Store report data globally for download/share functions
+      window.currentReport = report
+    }
 
-      window.shareReport = function() {
-        if (navigator.share) {
-          navigator.share({
-            title: `${window.currentReport?.organization_name} Breach Report`,
-            text: `AI-generated breach analysis for ${window.currentReport?.organization_name}`,
-            url: window.location.href
-          }).catch(console.log)
-        } else {
-          navigator.clipboard.writeText(window.location.href)
-          alert('Report URL copied to clipboard')
-        }
-      }
+    function showError(message) {
+      document.getElementById('loading-state').classList.add('hidden')
+      document.getElementById('error-state').classList.remove('hidden')
+      document.getElementById('error-message').textContent = message
+    }
 
-      // Simple markdown to HTML converter
-      function convertMarkdownToHTML(markdown) {
-        return markdown
-          .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-          .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-          .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-          .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-          .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-          .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-          .replace(/\n\n/gim, '</p><p>')
-          .replace(/\n/gim, '<br>')
-          .replace(/^(.*)$/gim, '<p>$1</p>')
+    // Global functions for download and share
+    window.downloadReport = function() {
+      if (!window.currentReport) return
+
+      const blob = new Blob([window.currentReport.markdown_content], { type: 'text/markdown' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${window.currentReport.organization_name}_breach_report.md`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
+
+    window.shareReport = function() {
+      if (navigator.share) {
+        navigator.share({
+          title: `${window.currentReport?.organization_name} Breach Report`,
+          text: `AI-generated breach analysis for ${window.currentReport?.organization_name}`,
+          url: window.location.href
+        }).catch(console.log)
+      } else {
+        navigator.clipboard.writeText(window.location.href)
+        alert('Report URL copied to clipboard')
       }
-    </script>
-  </body>
-</html>
+    }
+
+    // Simple markdown to HTML converter
+    function convertMarkdownToHTML(markdown) {
+      return markdown
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+        .replace(/\n\n/gim, '</p><p>')
+        .replace(/\n/gim, '<br>')
+        .replace(/^(.*)$/gim, '<p>$1</p>')
+    }
+  </script>
+</Layout>
