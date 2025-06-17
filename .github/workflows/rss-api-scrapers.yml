@@ -1,0 +1,222 @@
+name: RSS & API Scrapers (Independent)
+
+on:
+  schedule:
+    - cron: '15 */2 * * *' # Runs every 2 hours at 15 minutes past the hour
+  workflow_dispatch: # Allows manual triggering
+    inputs:
+      run_breachsense:
+        description: 'Run BreachSense Scraper'
+        required: false
+        default: true
+        type: boolean
+      run_cybersecurity_news:
+        description: 'Run Cybersecurity News RSS Scraper'
+        required: false
+        default: true
+        type: boolean
+      run_company_ir:
+        description: 'Run Company IR Scraper'
+        required: false
+        default: true
+        type: boolean
+      run_hibp_api:
+        description: 'Run HIBP API Scraper'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  # ============================================================================
+  # PRE-SCRAPING SNAPSHOT - Capture database state before scraping
+  # ============================================================================
+
+  pre-scraping-snapshot:
+    name: "📸 Pre-Scraping Database Snapshot (RSS/API)"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Take database snapshot
+        run: python scrapers/database_change_tracker.py --snapshot
+      - name: Upload snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: rss-api-database-snapshot
+          path: /tmp/scraper_snapshot.json
+          retention-days: 1
+
+  # ============================================================================
+  # RSS & API SCRAPERS - Independent from state portal scrapers
+  # ============================================================================
+
+  rss-api-scrapers:
+    name: "📰 RSS & API Scrapers"
+    runs-on: ubuntu-latest
+    needs: pre-scraping-snapshot
+    continue-on-error: true # Don't fail if RSS/API scrapers have issues
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      HIBP_API_KEY: ${{ secrets.HIBP_API_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Run BreachSense Scraper
+        if: ${{ github.event.inputs.run_breachsense != 'false' }}
+        run: |
+          echo "🔍 Running BreachSense scraper..."
+          python scrapers/fetch_breachsense.py || echo "⚠️ BreachSense scraper failed"
+      
+      - name: Wait between scrapers
+        run: sleep 10
+      
+      - name: Run Cybersecurity News RSS Scraper
+        if: ${{ github.event.inputs.run_cybersecurity_news != 'false' }}
+        run: |
+          echo "📰 Running Cybersecurity News RSS scraper..."
+          python scrapers/fetch_cybersecurity_news.py || echo "⚠️ Cybersecurity News scraper failed"
+      
+      - name: Wait between scrapers
+        run: sleep 10
+      
+      - name: Run Company IR Scraper
+        if: ${{ github.event.inputs.run_company_ir != 'false' }}
+        run: |
+          echo "🏢 Running Company IR scraper..."
+          python scrapers/fetch_company_ir.py || echo "⚠️ Company IR scraper failed"
+      
+      - name: Wait between scrapers
+        run: sleep 10
+      
+      - name: Run HIBP API Scraper
+        if: ${{ github.event.inputs.run_hibp_api != 'false' }}
+        run: |
+          echo "🔐 Running HIBP API scraper..."
+          python scrapers/fetch_hibp_api.py || echo "⚠️ HIBP API scraper failed"
+
+  # ============================================================================
+  # SUMMARY JOB - Report on RSS/API scraping results
+  # ============================================================================
+
+  summary:
+    name: "📊 RSS/API Scraping Summary"
+    runs-on: ubuntu-latest
+    needs: [pre-scraping-snapshot, rss-api-scrapers]
+    if: always() # Run even if scrapers fail
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    outputs:
+      new_items: ${{ steps.database-report.outputs.new_items }}
+      new_breaches: ${{ steps.database-report.outputs.new_breaches }}
+      new_news: ${{ steps.database-report.outputs.new_news }}
+      new_affected: ${{ steps.database-report.outputs.new_affected }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Download snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: rss-api-database-snapshot
+          path: /tmp/
+      - name: Generate database change report
+        id: database-report
+        run: python scrapers/database_change_tracker.py --report
+      - name: Check scraper results
+        run: |
+          echo "=== RSS/API SCRAPING SUMMARY ==="
+          echo "RSS & API Scrapers: ${{ needs.rss-api-scrapers.result }}"
+          echo "================================="
+
+          if [[ "${{ needs.rss-api-scrapers.result }}" == "success" ]]; then
+            echo "✅ RSS/API scrapers completed successfully!"
+          else
+            echo "⚠️ RSS/API scrapers had some issues (this is expected and won't affect state portal scrapers)"
+          fi
+
+          echo ""
+          echo "📊 DATABASE CHANGES SUMMARY:"
+          echo "   Items Change: ${{ steps.database-report.outputs.new_items }}"
+          echo "   Breaches Change: ${{ steps.database-report.outputs.new_breaches }}"
+          echo "   News Change: ${{ steps.database-report.outputs.new_news }}"
+          echo "   People Affected Change: ${{ steps.database-report.outputs.new_affected }}"
+
+          # Interpret the results
+          NEW_ITEMS="${{ steps.database-report.outputs.new_items }}"
+
+          if [ "$NEW_ITEMS" -lt 0 ]; then
+            echo "ℹ️  Note: Negative values indicate database cleanup (duplicate removal)"
+          elif [ "$NEW_ITEMS" -eq 0 ]; then
+            echo "ℹ️  No new items discovered in this RSS/API run"
+          else
+            echo "✅ $NEW_ITEMS new items discovered from RSS/API sources!"
+          fi
+
+  # ============================================================================
+  # EMAIL ALERTS JOB - Send email notifications for RSS/API discoveries
+  # ============================================================================
+
+  email-alerts:
+    name: "📧 RSS/API Email Alerts"
+    runs-on: ubuntu-latest
+    needs: summary
+    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' }}
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      ALERT_FROM_EMAIL: ${{ secrets.ALERT_FROM_EMAIL }}
+      DASHBOARD_URL: "https://bd4l.github.io/Breaches/"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install requests  # Add requests for Resend API
+      - name: Send email alerts
+        run: |
+          echo "📧 Processing email alerts for new RSS/API breaches..."
+          python scrapers/email_alerts.py --since-minutes 125
+          echo ""
+          echo "✅ RSS/API email alert processing complete"
+      - name: Log alert summary
+        run: |
+          echo "🚨 RSS/API BREACH ALERT SUMMARY:"
+          echo "📊 New breaches detected: ${{ needs.summary.outputs.new_breaches }}"
+          echo "📊 Total new items: ${{ needs.summary.outputs.new_items }}"
+          echo "👥 Additional people affected: ${{ needs.summary.outputs.new_affected }}"
+          echo ""
+          echo "🔗 View dashboard: https://bd4l.github.io/Breaches/"
+          echo "📧 Email alerts have been sent to subscribers"

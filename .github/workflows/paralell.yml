@@ -30,11 +30,6 @@ on:
         required: false
         default: true
         type: boolean
-      run_news_api:
-        description: 'Run News & API Scrapers'
-        required: false
-        default: true
-        type: boolean
       run_problematic:
         description: 'Run Problematic Scrapers (MD)'
         required: false
@@ -267,39 +262,11 @@ jobs:
       - name: Run Texas AG Scraper
         run: python scrapers/fetch_texas_ag.py
 
-  news-and-api-scrapers:
-    name: "News & API Scrapers"
-    runs-on: ubuntu-latest
-    needs: pre-scraping-snapshot
-    if: ${{ github.event.inputs.run_news_api != 'false' }}
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      HIBP_API_KEY: ${{ secrets.HIBP_API_KEY }}
-      PYTHONUNBUFFERED: "1"
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Run BreachSense Scraper
-        run: python scrapers/fetch_breachsense.py
-      - name: Wait between scrapers
-        run: sleep 10
-      - name: Run Cybersecurity News RSS Scraper
-        run: python scrapers/fetch_cybersecurity_news.py
-      - name: Wait between scrapers
-        run: sleep 10
-      - name: Run Company IR Scraper
-        run: python scrapers/fetch_company_ir.py
-      - name: Wait between scrapers
-        run: sleep 10
-      - name: Run HIBP API Scraper
-        run: python scrapers/fetch_hibp_api.py
+  # ============================================================================
+  # NOTE: RSS & API scrapers have been moved to a separate workflow
+  # See: .github/workflows/rss-api-scrapers.yml
+  # This separation prevents RSS/API failures from affecting state portal scrapers
+  # ============================================================================
 
   # ============================================================================
   # PROBLEMATIC SCRAPERS - Sites with known issues (run separately for monitoring)
@@ -336,7 +303,7 @@ jobs:
   summary:
     name: "📊 Scraping Summary & Database Changes"
     runs-on: ubuntu-latest
-    needs: [pre-scraping-snapshot, government-scrapers, state-ag-group-1, state-ag-group-2, state-ag-group-3, state-ag-group-4, news-and-api-scrapers, problematic-scrapers]
+    needs: [pre-scraping-snapshot, government-scrapers, state-ag-group-1, state-ag-group-2, state-ag-group-3, state-ag-group-4, problematic-scrapers]
     if: always() # Run even if some jobs fail
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -377,20 +344,19 @@ jobs:
           echo "State AG Group 2 (IN,IA,ME): ${{ needs.state-ag-group-2.result }}"
           echo "State AG Group 3 (MA,MT,NH,NJ): ${{ needs.state-ag-group-3.result }}"
           echo "State AG Group 4 (ND,OK,VT,WI,TX): ${{ needs.state-ag-group-4.result }}"
-          echo "News & API Scrapers: ${{ needs.news-and-api-scrapers.result }}"
           echo "Problematic Scrapers (MD): ${{ needs.problematic-scrapers.result }}"
           echo "================================="
+          echo "ℹ️  Note: RSS & API scrapers now run in separate workflow"
 
           # Count successful jobs (excluding problematic scrapers from main count)
           success_count=0
-          total_count=6
+          total_count=5
 
           [[ "${{ needs.government-scrapers.result }}" == "success" ]] && ((success_count++))
           [[ "${{ needs.state-ag-group-1.result }}" == "success" ]] && ((success_count++))
           [[ "${{ needs.state-ag-group-2.result }}" == "success" ]] && ((success_count++))
           [[ "${{ needs.state-ag-group-3.result }}" == "success" ]] && ((success_count++))
           [[ "${{ needs.state-ag-group-4.result }}" == "success" ]] && ((success_count++))
-          [[ "${{ needs.news-and-api-scrapers.result }}" == "success" ]] && ((success_count++))
 
           echo "✅ Successful core groups: $success_count/$total_count"
 

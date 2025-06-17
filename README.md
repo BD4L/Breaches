@@ -221,24 +221,40 @@ Ensure your environment variables are set (e.g., loaded from `.env` if you use a
 
 ## GitHub Actions Automation
 
-The workflow defined in `.github/workflows/main_scraper_workflow.yml` automates the data collection process using **parallel execution** for optimal performance.
+The system uses **two separate workflows** for optimal reliability and performance:
+
+### **Main State Portal Scrapers** (`.github/workflows/paralell.yml`)
+Handles critical government and state attorney general portals:
 
 **Execution Strategy:**
-*   **6 parallel groups** run simultaneously for ~3x speed improvement
-*   **Government & Federal** (SEC, HHS OCR)
+*   **5 parallel groups** run simultaneously for optimal speed
+*   **Government & Federal** (SEC EDGAR 8-K, HHS OCR)
 *   **State AG Groups 1-4** (organized by geographic/processing similarity)
-*   **News & API** (BreachSense, Cybersecurity News, Company IR, HIBP)
 *   **Problematic Scrapers** (Maryland AG - isolated due to website issues)
 
 **Schedule & Triggers:**
-*   Runs daily at 3 AM UTC
-*   Can be triggered manually from the Actions tab in your GitHub repository
+*   Runs **every 30 minutes** for real-time breach detection
+*   Can be triggered manually from the Actions tab
 *   Uses configured GitHub Secrets for API keys and Supabase credentials
 
+### **RSS & API Scrapers** (`.github/workflows/rss-api-scrapers.yml`)
+Handles news feeds and API-based sources independently:
+
+**Sources:**
+*   **BreachSense** - Breach intelligence platform
+*   **Cybersecurity News** - RSS feeds from security publications
+*   **Company IR** - Investor relations pages
+*   **HIBP API** - Have I Been Pwned breach data
+
+**Schedule & Benefits:**
+*   Runs **every 2 hours** (less frequent than critical portals)
+*   **Independent execution** - RSS failures don't affect state portal scrapers
+*   **Separate email alerts** - Dedicated notifications for RSS/API discoveries
+
 **Performance:**
-*   **Execution time**: ~8-12 minutes (vs 30-40 minutes sequential)
-*   **Failure isolation**: If one group fails, others continue
-*   **Comprehensive reporting**: Summary job shows results of all groups
+*   **Execution time**: ~8-12 minutes per workflow
+*   **Failure isolation**: Each workflow operates independently
+*   **Comprehensive reporting**: Summary jobs show results for each workflow type
 
 ## Viewing the Dashboard
 
