@@ -387,6 +387,10 @@ jobs:
           NEW_ITEMS="${{ steps.database-report.outputs.new_items }}"
           NEW_BREACHES="${{ steps.database-report.outputs.new_breaches }}"
 
+          # Handle empty values by defaulting to 0
+          NEW_ITEMS=${NEW_ITEMS:-0}
+          NEW_BREACHES=${NEW_BREACHES:-0}
+
           if [ "$NEW_ITEMS" -lt 0 ]; then
             echo "ℹ️  Note: Negative values indicate database cleanup (duplicate removal)"
           elif [ "$NEW_ITEMS" -eq 0 ]; then
@@ -394,6 +398,9 @@ jobs:
           else
             echo "✅ $NEW_ITEMS new items discovered!"
           fi
+
+          # Always exit successfully if core groups succeeded
+          echo "🎉 Workflow completed successfully!"
 
   # ============================================================================
   # EMAIL ALERTS JOB - Send email notifications to subscribers
@@ -403,7 +410,7 @@ jobs:
     name: "📧 Email Alert Notifications"
     runs-on: ubuntu-latest
     needs: summary
-    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' }}
+    if: ${{ always() && needs.summary.outputs.new_breaches > 0 }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -446,7 +453,7 @@ jobs:
     name: "🔔 Breach Alert Notification (Legacy)"
     runs-on: ubuntu-latest
     needs: summary
-    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' }}
+    if: ${{ always() && needs.summary.outputs.new_breaches > 0 }}
     steps:
       - name: Send breach alert
         run: |
