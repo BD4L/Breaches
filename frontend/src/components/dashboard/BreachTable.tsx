@@ -15,6 +15,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { BreachDetail } from '../breach/BreachDetail'
 import { SaveBreachButton, type SaveBreachData } from '../saved/SaveBreachButton'
+import { AIReportButton } from '../ai/AIReportButton'
 
 interface BreachTableProps {
   filters: {
@@ -271,6 +272,14 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
                 </Button>
               )}
             </div>
+
+            {/* AI Report Button */}
+            <AIReportButton
+              breach={row.original}
+              className="w-full"
+            />
+
+            {/* Save Breach Button */}
             <SaveBreachButton
               key={`save-${row.original.id}-${!!savedBreaches[row.original.id]}`}
               breach={row.original}

@@ -170,12 +170,34 @@ export interface UserPrefs {
 export interface ResearchJob {
   id: string
   scraped_item: string
-  status: 'pending' | 'planned' | 'running' | 'done' | 'failed'
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
   report_url: string | null
   requested_by: string
   created_at: string
   completed_at: string | null
   error_message: string | null
+  // Enhanced AI report fields
+  report_type?: 'ai_breach_analysis' | 'manual_research' | 'automated_summary'
+  markdown_content?: string
+  html_content?: string
+  processing_time_ms?: number
+  cost_estimate?: number
+  metadata?: any
+  search_results_count?: number
+  scraped_urls_count?: number
+  ai_model_used?: string
+  updated_at?: string
+}
+
+export interface AIReportUsage {
+  id: string
+  user_id: string
+  date: string
+  report_count: number
+  total_cost: number
+  total_processing_time_ms: number
+  created_at: string
+  updated_at: string
 }
 
 // API functions
@@ -983,6 +1005,127 @@ export async function getDailyStats(): Promise<{ data: DailyStats | null; error:
     return { data: dailyStats, error: null }
   } catch (error) {
     console.error('❌ Error fetching daily stats:', error)
+    return { data: null, error: error as Error }
+  }
+}
+
+// AI Report Functions
+export async function generateAIReport(breachId: number, userId?: string) {
+  console.log('🤖 Generating AI report for breach:', breachId)
+
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-ai-report', {
+      body: {
+        breachId,
+        userId: userId || null
+      }
+    })
+
+    if (error) {
+      console.error('❌ Error generating AI report:', error)
+      throw error
+    }
+
+    console.log('✅ AI report generation initiated:', data)
+    return { data, error: null }
+  } catch (error) {
+    console.error('❌ Failed to generate AI report:', error)
+    return { data: null, error: error as Error }
+  }
+}
+
+export async function getAIReport(reportId: string) {
+  console.log('📄 Fetching AI report:', reportId)
+
+  try {
+    const { data, error } = await supabase
+      .from('v_ai_reports')
+      .select('*')
+      .eq('id', reportId)
+      .single()
+
+    if (error) {
+      console.error('❌ Error fetching AI report:', error)
+      throw error
+    }
+
+    console.log('✅ AI report fetched successfully')
+    return { data, error: null }
+  } catch (error) {
+    console.error('❌ Failed to fetch AI report:', error)
+    return { data: null, error: error as Error }
+  }
+}
+
+export async function getAIReportsByBreach(breachId: number) {
+  console.log('📄 Fetching AI reports for breach:', breachId)
+
+  try {
+    const { data, error } = await supabase
+      .from('research_jobs')
+      .select('id, status, processing_time_ms, search_results_count, scraped_urls_count, error_message, created_at, completed_at')
+      .eq('scraped_item', breachId)
+      .eq('report_type', 'ai_breach_analysis')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('❌ Error fetching AI reports for breach:', error)
+      throw error
+    }
+
+    console.log('✅ AI reports for breach fetched successfully:', data?.length || 0, 'reports')
+    return { data, error: null }
+  } catch (error) {
+    console.error('❌ Failed to fetch AI reports for breach:', error)
+    return { data: null, error: error as Error }
+  }
+}
+
+export async function getUserAIReportUsage(userId: string, days: number = 7) {
+  console.log('📊 Fetching AI report usage for user:', userId)
+
+  try {
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+
+    const { data, error } = await supabase
+      .from('ai_report_usage')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startDate.toISOString().split('T')[0])
+      .order('date', { ascending: false })
+
+    if (error) {
+      console.error('❌ Error fetching AI report usage:', error)
+      throw error
+    }
+
+    console.log('✅ AI report usage fetched successfully:', data?.length || 0, 'records')
+    return { data, error: null }
+  } catch (error) {
+    console.error('❌ Failed to fetch AI report usage:', error)
+    return { data: null, error: error as Error }
+  }
+}
+
+export async function checkDailyRateLimit(userId: string, maxReports: number = 10) {
+  console.log('🚦 Checking daily rate limit for user:', userId)
+
+  try {
+    const { data, error } = await supabase.rpc('check_daily_rate_limit', {
+      p_user_id: userId,
+      p_max_reports: maxReports
+    })
+
+    if (error) {
+      console.error('❌ Error checking rate limit:', error)
+      throw error
+    }
+
+    console.log('✅ Rate limit check result:', data)
+    return { data, error: null }
+  } catch (error) {
+    console.error('❌ Failed to check rate limit:', error)
     return { data: null, error: error as Error }
   }
 }

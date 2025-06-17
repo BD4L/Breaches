@@ -1,0 +1,192 @@
+---
+// AI Report Page - Dynamic route for viewing individual AI-generated breach reports
+// URL: /ai-reports/[report-id]
+
+export const prerender = false; // This page needs to be server-side rendered for dynamic content
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Breach Report | Security Intelligence Hub</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Dark mode support -->
+    <script>
+      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    </script>
+    
+    <!-- Meta tags for sharing -->
+    <meta property="og:title" content="AI Breach Report - Security Intelligence Hub" />
+    <meta property="og:description" content="Comprehensive AI-generated analysis of data breach incidents" />
+    <meta property="og:type" content="article" />
+    
+    <!-- Styles for markdown content -->
+    <style>
+      .markdown-content {
+        @apply prose prose-gray dark:prose-invert max-w-none;
+      }
+      
+      .markdown-content h1 {
+        @apply text-3xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-4;
+      }
+      
+      .markdown-content h2 {
+        @apply text-2xl font-semibold text-gray-900 dark:text-white mt-8 mb-4;
+      }
+      
+      .markdown-content h3 {
+        @apply text-xl font-medium text-gray-900 dark:text-white mt-6 mb-3;
+      }
+      
+      .markdown-content p {
+        @apply text-gray-700 dark:text-gray-300 mb-4 leading-relaxed;
+      }
+      
+      .markdown-content ul, .markdown-content ol {
+        @apply text-gray-700 dark:text-gray-300 mb-4 ml-6;
+      }
+      
+      .markdown-content li {
+        @apply mb-2;
+      }
+      
+      .markdown-content a {
+        @apply text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 underline;
+      }
+      
+      .markdown-content strong {
+        @apply font-semibold text-gray-900 dark:text-white;
+      }
+      
+      .markdown-content em {
+        @apply italic;
+      }
+      
+      .markdown-content blockquote {
+        @apply border-l-4 border-blue-500 pl-4 italic text-gray-600 dark:text-gray-400 my-4;
+      }
+      
+      .markdown-content code {
+        @apply bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm font-mono;
+      }
+      
+      .markdown-content pre {
+        @apply bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto mb-4;
+      }
+      
+      .markdown-content table {
+        @apply w-full border-collapse border border-gray-300 dark:border-gray-600 mb-4;
+      }
+      
+      .markdown-content th, .markdown-content td {
+        @apply border border-gray-300 dark:border-gray-600 px-4 py-2 text-left;
+      }
+      
+      .markdown-content th {
+        @apply bg-gray-100 dark:bg-gray-800 font-semibold;
+      }
+    </style>
+  </head>
+  
+  <body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <!-- Loading State -->
+    <div id="loading-state" class="min-h-screen flex items-center justify-center">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Loading AI Report</h2>
+        <p class="text-gray-600 dark:text-gray-400">Retrieving your breach analysis...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="min-h-screen flex items-center justify-center hidden">
+      <div class="text-center max-w-md">
+        <div class="text-red-600 dark:text-red-400 mb-4">
+          <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Report Not Found</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-4" id="error-message">
+          The requested report could not be found.
+        </p>
+        <button 
+          onclick="window.history.back()" 
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+        >
+          Go Back
+        </button>
+      </div>
+    </div>
+
+    <!-- Report Content -->
+    <div id="report-content" class="hidden">
+      <!-- This will be populated by the AIReportViewer component -->
+    </div>
+
+    <!-- React and Component Scripts -->
+    <script type="module">
+      import { createRoot } from 'https://esm.sh/react-dom@18/client'
+      import React from 'https://esm.sh/react@18'
+      import { AIReportViewer } from '../../components/ai/AIReportViewer.tsx'
+
+      // Get report ID from URL
+      const pathParts = window.location.pathname.split('/')
+      const reportId = pathParts[pathParts.length - 1]
+
+      if (!reportId || reportId === 'ai-reports') {
+        // Invalid report ID
+        document.getElementById('loading-state').classList.add('hidden')
+        document.getElementById('error-state').classList.remove('hidden')
+        document.getElementById('error-message').textContent = 'Invalid report ID provided.'
+      } else {
+        // Load the report viewer
+        const container = document.getElementById('report-content')
+        const root = createRoot(container)
+        
+        // Show the report content container
+        document.getElementById('loading-state').classList.add('hidden')
+        container.classList.remove('hidden')
+        
+        // Render the AIReportViewer component
+        root.render(
+          React.createElement(AIReportViewer, {
+            reportId: reportId,
+            onClose: () => {
+              // Go back to dashboard
+              window.location.href = '/'
+            }
+          })
+        )
+      }
+    </script>
+
+    <!-- Supabase Configuration -->
+    <script type="module">
+      // Initialize Supabase client for the components
+      import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+      
+      const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL
+      const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('Missing Supabase configuration')
+        document.getElementById('loading-state').classList.add('hidden')
+        document.getElementById('error-state').classList.remove('hidden')
+        document.getElementById('error-message').textContent = 'Configuration error. Please try again later.'
+      }
+      
+      // Make Supabase client available globally for components
+      window.supabase = createClient(supabaseUrl, supabaseAnonKey)
+    </script>
+  </body>
+</html>
