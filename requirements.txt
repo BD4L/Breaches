@@ -7,3 +7,4 @@ apify-client
 PyYAML
 PyPDF2
 pdfplumber
+playwright
