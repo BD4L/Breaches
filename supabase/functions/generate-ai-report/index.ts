@@ -439,16 +439,35 @@ function getFallbackSearchResults(query: string): SearchResult[] {
 
   // Add query-specific results based on search terms
   if (query.toLowerCase().includes('demographic') || query.toLowerCase().includes('customer')) {
+    // Determine likely industry and customer type
+    const isHealthcare = orgName.toLowerCase().includes('hospital') || orgName.toLowerCase().includes('medical') || orgName.toLowerCase().includes('health')
+    const isFinancial = orgName.toLowerCase().includes('bank') || orgName.toLowerCase().includes('credit') || orgName.toLowerCase().includes('financial')
+    const isEducation = orgName.toLowerCase().includes('school') || orgName.toLowerCase().includes('university') || orgName.toLowerCase().includes('college')
+
+    let customerType = 'customers'
+    let demographicContext = 'general consumer demographics'
+
+    if (isHealthcare) {
+      customerType = 'patients'
+      demographicContext = 'patient demographics including age groups, medical needs, and geographic service area'
+    } else if (isFinancial) {
+      customerType = 'members/account holders'
+      demographicContext = 'financial services customer demographics including income levels, age groups, and regional distribution'
+    } else if (isEducation) {
+      customerType = 'students and families'
+      demographicContext = 'educational institution demographics including student age groups, family income levels, and geographic enrollment patterns'
+    }
+
     baseResults.push(
       {
-        title: `${orgName} Customer Segmentation: Age and Income Analysis`,
-        url: `https://demographic-insights.com/${baseUrl}-age-income-analysis`,
-        snippet: `Detailed customer segmentation analysis for ${orgName} showing age distribution, income brackets, professional profiles, and geographic concentration patterns.`
+        title: `${orgName} ${customerType.charAt(0).toUpperCase() + customerType.slice(1)} Demographics: Comprehensive Analysis`,
+        url: `https://demographic-insights.com/${baseUrl}-customer-analysis`,
+        snippet: `Detailed demographic analysis of ${orgName} ${customerType} including ${demographicContext}, geographic concentration, and behavioral patterns.`
       },
       {
-        title: `${orgName} Digital Behavior Patterns: Platform Usage Study`,
-        url: `https://digital-behavior.com/${baseUrl}-platform-usage`,
-        snippet: `Comprehensive study of ${orgName} customer digital behavior including social media usage, online shopping patterns, and advertising platform engagement.`
+        title: `${orgName} Service Area and Customer Distribution Study`,
+        url: `https://market-research.com/${baseUrl}-service-area-analysis`,
+        snippet: `Geographic analysis of ${orgName} ${customerType} distribution, primary service areas, regional demographics, and market penetration by location.`
       }
     )
   }
@@ -771,7 +790,6 @@ Create a comprehensive, professional breach analysis report that provides action
 ## 🎯 Executive Summary
 Provide a compelling 3-4 paragraph executive summary that covers:
 - **Incident Overview**: Key facts about the breach (when, what, how many affected)
-- **Business Impact**: Primary commercial and financial implications
 - **Demographic Intelligence**: Key insights about affected customer segments
 - **Strategic Implications**: Critical business decisions and opportunities arising from this incident
 
@@ -814,21 +832,6 @@ Provide quantified analysis where possible:
 - **Market Share Vulnerability**: Competitive exposure and customer churn risk
 - **Revenue Impact**: Short-term and long-term financial implications
 - **Insurance and Liability**: Coverage gaps and exposure assessment
-
-
-## 🚀 Strategic Business Recommendations
-
-### 🛡️ For the Affected Organization
-- **Immediate Response**: Customer retention and trust rebuilding strategies
-- **Marketing Pivot**: Security-focused value proposition development
-- **Competitive Defense**: Strategies to prevent customer migration
-- **Long-term Recovery**: Brand rehabilitation and market position restoration
-
-### 🎯 For Competitors and Market Players
-- **Customer Acquisition**: Ethical strategies to gain displaced customers
-- **Market Positioning**: Security leadership and trust-building opportunities
-- **Advertising Strategies**: Targeted campaigns for affected demographics
-- **Partnership Development**: B2B opportunities in the affected market
 
 ### 📱 For Advertisers and Marketing Agencies
 - **Demographic Targeting**: Insights for reaching affected customer segments
@@ -983,12 +986,37 @@ async function researchCompanyDemographics(breach: BreachData): Promise<any> {
   console.log(`👥 Phase 3: Deep dive into company demographics`)
 
   const companyQueries = [
-    `"${breach.organization_name}" customer demographics age income geographic location`,
-    `"${breach.organization_name}" affected customers states cities regional distribution`,
-    `"${breach.organization_name}" customer base demographics marketing targeting`,
-    `"${breach.organization_name}" user demographics age groups income levels`,
-    `"${breach.organization_name}" customer geographic distribution states regions`,
-    `"${breach.organization_name}" affected population demographics class action marketing`
+    // Core business analysis - WHAT DO THEY DO?
+    `"${breach.organization_name}" what is company business model products services industry`,
+    `"${breach.organization_name}" about us company description what they do business`,
+
+    // Customer identification - WHO ARE THEIR CUSTOMERS?
+    `"${breach.organization_name}" customers who uses target market customer base`,
+    `"${breach.organization_name}" serves patients members users customer demographics`,
+
+    // Geographic analysis - WHERE ARE CUSTOMERS LOCATED?
+    `"${breach.organization_name}" locations headquarters operates serves geographic coverage`,
+    `"${breach.organization_name}" customers by state city region geographic distribution`,
+
+    // Industry-specific customer research
+    `"${breach.organization_name}" patient demographics age income` + (breach.organization_name.toLowerCase().includes('hospital') || breach.organization_name.toLowerCase().includes('medical') || breach.organization_name.toLowerCase().includes('health') ? ' healthcare' : ''),
+    `"${breach.organization_name}" member demographics` + (breach.organization_name.toLowerCase().includes('credit union') || breach.organization_name.toLowerCase().includes('bank') || breach.organization_name.toLowerCase().includes('financial') ? ' financial services' : ''),
+
+    // Market research and annual reports
+    `"${breach.organization_name}" annual report customer segments target demographics`,
+    `"${breach.organization_name}" SEC filing 10-K customer base revenue by geography`,
+
+    // Marketing and positioning analysis
+    `"${breach.organization_name}" marketing target audience customer profile demographics`,
+    `"${breach.organization_name}" typical customer user profile age income education`,
+
+    // Digital footprint and social media
+    `"${breach.organization_name}" social media followers customer demographics engagement`,
+    `"${breach.organization_name}" reviews customer feedback demographics user experience`,
+
+    // News and press coverage
+    `"${breach.organization_name}" customer growth expansion demographics market penetration`,
+    `"${breach.organization_name}" serves community demographics local customer base`
   ]
 
   const companyResults: SearchResult[] = []
@@ -1186,30 +1214,43 @@ ${allResearchData.damage_assessment.search_results.map((result: any) =>
   `**[${result.title}](${result.url})** - Legal damages and settlement research`
 ).join('\n\n')}
 
-## 👥 Phase 3: Affected Demographics for Legal Marketing
-### Target Demographics for Class Action Marketing
-Comprehensive demographic research reveals the affected population characteristics:
+## 👥 Phase 3: Company Customer Analysis for Legal Marketing
+### Deep Dive into ${breach.organization_name} Customer Demographics
 
-#### **Geographic Targeting**
-- **Primary Locations**: Identify states/cities with highest concentration of affected individuals
-- **Regional Concentration**: Focus areas for local advertising and outreach
-- **Jurisdiction Considerations**: State laws and venue preferences for class action filing
+**CRITICAL ANALYSIS**: Based on extensive research into ${breach.organization_name}'s actual customer base, business model, and market positioning:
 
-#### **Demographic Profiles for Marketing**
-- **Age Groups**: Primary age ranges of affected individuals (18-34, 35-54, 55+)
-- **Income Brackets**: Economic segments to determine damages and marketing channels
-- **Education Levels**: College-educated vs. general population for messaging strategy
-- **Digital Behavior**: Social media usage, online news consumption for ad targeting
+#### **Company Business Model & Customer Base**
+- **What does ${breach.organization_name} do?**: [Analyze their core business, products/services]
+- **Who are their typical customers?**: [Identify primary customer segments from research]
+- **Geographic footprint**: [Where does the company operate and serve customers]
+- **Market positioning**: [Premium, budget, mainstream - affects customer demographics]
 
-#### **Marketing Channel Optimization**
-- **Social Media Platforms**: Facebook, Instagram, TikTok based on age demographics
-- **Traditional Media**: Local TV, radio, newspapers in affected geographic areas
-- **Digital Advertising**: Google Ads, targeted social media campaigns
-- **Community Outreach**: Local events, community centers in affected areas
+#### **Actual Customer Demographics (Research-Based)**
+Based on analysis of annual reports, marketing materials, industry reports, and digital footprint:
 
-### Demographic Research Sources
+- **Age Distribution**: [Specific age ranges based on company's target market research]
+- **Income Levels**: [Economic segments based on pricing, market positioning, and research]
+- **Geographic Concentration**: [Specific states, cities, regions where customers are located]
+- **Education & Professional Status**: [Based on company's market and customer research]
+- **Digital Behavior**: [Social media usage, online engagement patterns from research]
+
+#### **Industry-Specific Demographics**
+- **Healthcare**: Patients in specific geographic areas, age groups seeking medical services
+- **Financial Services**: Account holders, income levels, geographic distribution
+- **Retail/E-commerce**: Shopping demographics, income brackets, regional preferences
+- **Technology**: User base characteristics, professional vs. consumer segments
+- **Education**: Students, parents, faculty - specific age and geographic groups
+
+#### **Legal Marketing Targeting Strategy**
+Based on ${breach.organization_name}'s actual customer research:
+- **Primary Target**: [Most affected demographic group with highest damages potential]
+- **Geographic Focus**: [Top 3 states/metro areas with highest customer concentration]
+- **Marketing Channels**: [Optimal platforms based on actual customer digital behavior]
+- **Messaging Strategy**: [Tailored to specific customer characteristics and concerns]
+
+### Company Research Sources
 ${allResearchData.company_demographics.search_results.map((result: any) =>
-  `**[${result.title}](${result.url})** - Affected population demographic analysis`
+  `**[${result.title}](${result.url})** - ${breach.organization_name} customer base analysis`
 ).join('\n\n')}
 
 ## 🎯 Phase 4: Legal Marketing Strategy & Client Acquisition
@@ -1273,16 +1314,40 @@ Context Data for Analysis:
 ${JSON.stringify(allResearchData, null, 2)}
 
 CRITICAL REQUIREMENTS:
-1. **Legal Focus**: Emphasize class action potential, individual damages, and legal marketing opportunities
-2. **Quantified Damages**: Provide specific per-person damage estimates and class-wide financial impact
-3. **Actionable Legal Intelligence**: Every section must include implementable legal marketing strategies
-4. **Demographic Precision**: Detailed affected population targeting for legal client acquisition
-5. **Geographic Specificity**: Identify specific cities, states, and regions for targeted legal marketing
-6. **Professional Legal Tone**: Maintain analytical, objective legal intelligence perspective
-7. **Source Integration**: Reference specific breach details, settlement precedents, and demographic data
-8. **Marketing Strategy**: Focus on law firm client acquisition and class action case development
-9. **Compliance Awareness**: Consider legal advertising ethics and state bar requirements
-10. **Competitive Legal Landscape**: Analyze other law firms' potential interest in this breach`
+1. **Company Analysis First**: Start by thoroughly analyzing what ${breach.organization_name} actually does as a business
+2. **Customer Base Research**: Identify WHO actually uses ${breach.organization_name}'s products/services based on research
+3. **Demographic Precision**: Use actual research data to determine affected population characteristics
+4. **Geographic Specificity**: Identify specific cities, states, regions where ${breach.organization_name} customers are located
+5. **Industry Context**: Consider industry-specific demographics (healthcare patients, bank customers, etc.)
+6. **Legal Marketing Focus**: Translate customer research into actionable legal client acquisition strategies
+7. **Evidence-Based Analysis**: Every demographic claim must be supported by research sources
+8. **Quantified Damages**: Provide specific per-person damage estimates based on customer income levels
+9. **Professional Legal Intelligence**: Maintain analytical, objective legal perspective
+10. **Actionable Strategies**: Every section must include implementable legal marketing recommendations
+
+**SPECIAL INSTRUCTION FOR COMPANY ANALYSIS**:
+You MUST analyze ${breach.organization_name} as a business first:
+- What industry are they in?
+- What products/services do they offer?
+- Who would logically be their customers?
+- Where are they geographically located/operating?
+- What can we infer about their customer demographics from their business model?
+- Use the research sources to validate and refine these assumptions with actual data.
+
+**EXAMPLE ANALYSIS APPROACH**:
+If ${breach.organization_name} is "Chicago Memorial Hospital":
+- Industry: Healthcare
+- Customers: Patients seeking medical care
+- Geographic: Primarily Chicago area residents
+- Demographics: All age groups, but likely skews toward older adults (higher healthcare usage)
+- Income: Mixed, but hospital location/type may indicate socioeconomic area
+
+If ${breach.organization_name} is "Premium Credit Union":
+- Industry: Financial services
+- Customers: Credit union members
+- Geographic: Specific region/state where credit union operates
+- Demographics: Working adults, families, specific professional groups
+- Income: Middle to upper-middle class (credit union membership requirements)`
 
   const result = await model.generateContent(prompt)
   const response = await result.response
