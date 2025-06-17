@@ -1,8 +1,8 @@
-# Enhanced AI Breach Analysis System - Multi-Phase Research
+# Enhanced AI Legal Intelligence System - Multi-Phase Research
 
 ## 🚀 Overview
 
-The enhanced AI system provides comprehensive business intelligence analysis through a sophisticated 4-phase research methodology, delivering thorough breach analysis with extensive web research capabilities:
+The enhanced AI system provides comprehensive legal intelligence analysis for class action data breach litigation through a sophisticated 4-phase research methodology, delivering thorough breach analysis with extensive web research capabilities:
 
 ### 🔍 **Phase 1: Breach Intelligence Gathering**
 - Official breach notifications and regulatory filings
@@ -10,23 +10,23 @@ The enhanced AI system provides comprehensive business intelligence analysis thr
 - Comprehensive data type and scope assessment
 - 5-8 specialized sources per breach
 
-### 💰 **Phase 2: Financial Damage Assessment**
-- Industry-standard cost calculations ($165/record baseline)
-- Regulatory fine estimates and legal exposure
-- Brand damage and market impact quantification
-- Insurance and liability coverage analysis
+### 💰 **Phase 2: Individual Damages & Class Action Assessment**
+- Per-person damage calculations ($445-1,175 per individual)
+- Credit monitoring and identity theft protection costs
+- Class action settlement precedents and statutory damages
+- Individual harm quantification for legal claims
 
-### 👥 **Phase 3: Company Demographics Deep Dive**
-- Customer base geographic distribution
-- Age, income, and behavioral demographics
-- Professional profiles and industry affiliations
-- Digital engagement patterns and platform usage
+### 👥 **Phase 3: Affected Demographics for Legal Marketing**
+- Geographic distribution of affected individuals
+- Age groups, income levels, and demographic targeting
+- Regional concentration for legal advertising focus
+- Digital behavior patterns for marketing channel optimization
 
-### 🎯 **Phase 4: Marketing Intelligence Synthesis**
-- Competitive landscape and opportunity analysis
-- Customer migration patterns and acquisition strategies
-- Demographic targeting and channel optimization
-- Strategic positioning and market penetration insights
+### 🎯 **Phase 4: Legal Marketing Strategy & Client Acquisition**
+- Class action marketing opportunities and strategies
+- Geographic targeting for legal advertising campaigns
+- Demographic segmentation for client acquisition
+- Legal advertising compliance and competitive analysis
 
 ## 🔧 Technical Architecture
 

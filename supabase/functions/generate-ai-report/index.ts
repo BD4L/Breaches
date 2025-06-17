@@ -877,11 +877,11 @@ async function gatherBreachIntelligence(breach: BreachData): Promise<any> {
   console.log(`🔍 Phase 1: Gathering comprehensive breach intelligence`)
 
   const searchQueries = [
-    `"${breach.organization_name}" data breach notification official statement`,
-    `"${breach.organization_name}" cybersecurity incident ${breach.breach_date || ''} affected individuals`,
-    `"${breach.organization_name}" breach SEC filing 8-K regulatory disclosure`,
-    `"${breach.organization_name}" data breach timeline incident details`,
-    `"${breach.organization_name}" breach what data was stolen compromised`
+    `"${breach.organization_name}" data breach notification affected individuals personal information`,
+    `"${breach.organization_name}" breach class action lawsuit settlement damages`,
+    `"${breach.organization_name}" cybersecurity incident ${breach.breach_date || ''} customer demographics`,
+    `"${breach.organization_name}" data breach what information leaked SSN credit card`,
+    `"${breach.organization_name}" breach geographic location affected customers states`
   ]
 
   const allResults: SearchResult[] = []
@@ -930,12 +930,12 @@ async function researchDamageAssessment(breach: BreachData, breachIntel: any): P
   console.log(`💰 Phase 2: Researching financial damage assessment`)
 
   const damageQueries = [
-    `data breach cost per record ${new Date().getFullYear()} industry average`,
-    `"${breach.organization_name}" industry data breach penalties fines`,
-    `cybersecurity incident financial impact ${breach.affected_individuals || 'millions'} affected`,
-    `data breach lawsuit settlement amounts ${breach.organization_name}`,
-    `GDPR CCPA data breach fines ${breach.organization_name} industry`,
-    `data breach insurance claims cyber liability coverage costs`
+    `data breach class action settlement per person damages ${new Date().getFullYear()}`,
+    `"${breach.organization_name}" breach credit monitoring costs identity theft protection`,
+    `data breach individual harm damages time inconvenience ${breach.affected_individuals || 'millions'} affected`,
+    `class action data breach lawsuit settlement amounts per person`,
+    `CCPA BIPA statutory damages data breach per person`,
+    `data breach victim compensation credit monitoring identity theft costs`
   ]
 
   const damageResults: SearchResult[] = []
@@ -983,12 +983,12 @@ async function researchCompanyDemographics(breach: BreachData): Promise<any> {
   console.log(`👥 Phase 3: Deep dive into company demographics`)
 
   const companyQueries = [
-    `"${breach.organization_name}" customer demographics age income statistics`,
-    `"${breach.organization_name}" headquarters location customer base geographic`,
-    `"${breach.organization_name}" target market customer profile analysis`,
-    `"${breach.organization_name}" annual report customer segments demographics`,
-    `"${breach.organization_name}" market research customer base characteristics`,
-    `"${breach.organization_name}" user base demographics age gender location`
+    `"${breach.organization_name}" customer demographics age income geographic location`,
+    `"${breach.organization_name}" affected customers states cities regional distribution`,
+    `"${breach.organization_name}" customer base demographics marketing targeting`,
+    `"${breach.organization_name}" user demographics age groups income levels`,
+    `"${breach.organization_name}" customer geographic distribution states regions`,
+    `"${breach.organization_name}" affected population demographics class action marketing`
   ]
 
   const companyResults: SearchResult[] = []
@@ -1032,12 +1032,12 @@ async function analyzeMarketingOpportunities(breach: BreachData, demographics: a
   console.log(`🎯 Phase 4: Analyzing marketing intelligence opportunities`)
 
   const marketingQueries = [
-    `"${breach.organization_name}" competitors market share customer acquisition`,
-    `"${breach.organization_name}" industry competitive landscape analysis`,
-    `data breach customer churn migration patterns competitors`,
-    `"${breach.organization_name}" market positioning brand reputation impact`,
-    `cybersecurity incident competitive advantage opportunities`,
-    `"${breach.organization_name}" customer retention marketing strategies`
+    `"${breach.organization_name}" data breach law firm marketing class action`,
+    `data breach affected customers legal marketing advertising strategies`,
+    `class action data breach law firm client acquisition marketing`,
+    `"${breach.organization_name}" breach legal advertising affected individuals`,
+    `data breach victim outreach legal marketing geographic targeting`,
+    `class action lawsuit marketing affected customers demographic targeting`
   ]
 
   const marketingResults: SearchResult[] = []
@@ -1134,23 +1134,29 @@ async function generateComprehensiveReport(
     allResearchData.company_demographics.scraped_content.length +
     allResearchData.marketing_intelligence.scraped_content.length
 
-  const prompt = `You are an elite cybersecurity business intelligence analyst conducting a comprehensive multi-phase research analysis. You have conducted extensive research across 4 specialized phases with ${totalSources} sources and ${totalScrapedContent} detailed content extractions.
+  const prompt = `You are a specialized legal intelligence analyst conducting comprehensive research for class action data breach litigation. You have conducted extensive research across 4 specialized phases with ${totalSources} sources and ${totalScrapedContent} detailed content extractions.
 
-# ${breach.organization_name} Data Breach: Comprehensive Business Intelligence Analysis
+# ${breach.organization_name} Data Breach: Legal Marketing Intelligence Analysis
 
-## 🎯 Executive Summary
+## 🎯 Executive Summary for Legal Marketing
 Based on extensive multi-phase research, provide a compelling executive summary covering:
-- **Incident Overview**: Key breach facts and timeline
-- **Financial Impact**: Estimated damages of $${allResearchData.damage_assessment.estimated_damages?.total_estimated_damage?.toLocaleString() || 'TBD'}
-- **Demographic Intelligence**: Affected customer segments and characteristics
-- **Strategic Implications**: Critical business opportunities and threats
+- **Breach Scope**: Types of data compromised and number of affected individuals
+- **Class Action Potential**: Estimated damages and financial harm to affected individuals
+- **Affected Demographics**: Geographic distribution and demographic profiles for targeted legal marketing
+- **Legal Marketing Opportunities**: Specific targeting strategies for affected individuals
 
 ## 📊 Phase 1: Breach Intelligence Analysis
-### Incident Details
-- **Affected Individuals**: ${breach.affected_individuals?.toLocaleString() || 'Under Investigation'}
-- **Data Types Compromised**: ${breach.what_was_leaked || 'Multiple data categories'}
-- **Discovery Date**: ${breach.breach_date || 'Under investigation'}
-- **Disclosure Date**: ${breach.reported_date || 'Ongoing'}
+### Critical Breach Information for Legal Action
+- **Affected Individuals**: ${breach.affected_individuals?.toLocaleString() || 'Under Investigation'} people
+- **Types of Personal Information Compromised**: ${breach.what_was_leaked || 'Multiple sensitive data categories'}
+- **Breach Discovery Date**: ${breach.breach_date || 'Under investigation'}
+- **Public Disclosure Date**: ${breach.reported_date || 'Ongoing'}
+- **Legal Notification Requirements**: Analysis of state and federal notification compliance
+
+### Key Legal Considerations
+- **CCPA/GDPR Violations**: Potential regulatory violations and statutory damages
+- **Negligence Claims**: Security failures and duty of care breaches
+- **Class Certification Potential**: Commonality of harm across affected individuals
 
 ### Research Sources Analyzed
 Based on ${allResearchData.breach_intelligence.total_sources} specialized breach intelligence sources:
@@ -1158,67 +1164,96 @@ ${allResearchData.breach_intelligence.search_results.map((result: any, index: nu
   `**[${result.title}](${result.url})** - ${result.snippet}`
 ).join('\n\n')}
 
-## 💰 Phase 2: Financial Damage Assessment
-### Estimated Financial Impact
+## 💰 Phase 2: Individual Damages & Class Action Potential
+### Estimated Individual Harm for Legal Claims
 ${allResearchData.damage_assessment.estimated_damages ? `
-- **Direct Response Costs**: $${allResearchData.damage_assessment.estimated_damages.direct_costs.toLocaleString()}
-- **Regulatory Fines (Estimated)**: $${allResearchData.damage_assessment.estimated_damages.regulatory_fines_estimate.toLocaleString()}
-- **Brand Damage Impact**: $${allResearchData.damage_assessment.estimated_damages.brand_damage_estimate.toLocaleString()}
-- **Total Estimated Damage**: $${allResearchData.damage_assessment.estimated_damages.total_estimated_damage.toLocaleString()}
-- **Cost Per Affected Individual**: $${allResearchData.damage_assessment.estimated_damages.cost_per_record}
-` : 'Detailed financial analysis based on industry benchmarks and comparable incidents.'}
+- **Per-Person Damages**: $${allResearchData.damage_assessment.estimated_damages.cost_per_record} per affected individual
+- **Credit Monitoring Costs**: Industry standard $120-300 per person annually
+- **Identity Theft Protection**: $200-500 per person for comprehensive coverage
+- **Time and Inconvenience**: 5-15 hours per person at $25/hour = $125-375
+- **Total Individual Harm Range**: $445-1,175 per person
+- **Class-Wide Damage Estimate**: $${allResearchData.damage_assessment.estimated_damages.total_estimated_damage.toLocaleString()}
+` : 'Detailed individual harm analysis based on industry benchmarks and comparable class action settlements.'}
+
+### Class Action Precedents & Settlement Values
+- **Similar Breach Settlements**: Research comparable data breach class actions
+- **Statutory Damages**: CCPA ($100-750), BIPA ($1,000-5,000), state privacy laws
+- **Actual Damages**: Credit monitoring, identity theft losses, time spent on remediation
+- **Punitive Damages Potential**: Based on company negligence and willful misconduct
 
 ### Damage Assessment Sources
 ${allResearchData.damage_assessment.search_results.map((result: any) =>
-  `**[${result.title}](${result.url})** - Financial impact research`
+  `**[${result.title}](${result.url})** - Legal damages and settlement research`
 ).join('\n\n')}
 
-## 👥 Phase 3: Company Demographics & Customer Intelligence
-### Customer Base Analysis
-Comprehensive demographic research reveals:
-- **Geographic Distribution**: Primary markets and regional concentration
-- **Age Demographics**: Key age segments and generational preferences
-- **Income Levels**: Economic segments and spending power analysis
-- **Digital Behavior**: Online engagement patterns and platform usage
-- **Professional Profiles**: Industry affiliations and B2B implications
+## 👥 Phase 3: Affected Demographics for Legal Marketing
+### Target Demographics for Class Action Marketing
+Comprehensive demographic research reveals the affected population characteristics:
+
+#### **Geographic Targeting**
+- **Primary Locations**: Identify states/cities with highest concentration of affected individuals
+- **Regional Concentration**: Focus areas for local advertising and outreach
+- **Jurisdiction Considerations**: State laws and venue preferences for class action filing
+
+#### **Demographic Profiles for Marketing**
+- **Age Groups**: Primary age ranges of affected individuals (18-34, 35-54, 55+)
+- **Income Brackets**: Economic segments to determine damages and marketing channels
+- **Education Levels**: College-educated vs. general population for messaging strategy
+- **Digital Behavior**: Social media usage, online news consumption for ad targeting
+
+#### **Marketing Channel Optimization**
+- **Social Media Platforms**: Facebook, Instagram, TikTok based on age demographics
+- **Traditional Media**: Local TV, radio, newspapers in affected geographic areas
+- **Digital Advertising**: Google Ads, targeted social media campaigns
+- **Community Outreach**: Local events, community centers in affected areas
 
 ### Demographic Research Sources
 ${allResearchData.company_demographics.search_results.map((result: any) =>
-  `**[${result.title}](${result.url})** - Customer demographic intelligence`
+  `**[${result.title}](${result.url})** - Affected population demographic analysis`
 ).join('\n\n')}
 
-## 🎯 Phase 4: Marketing Intelligence & Competitive Analysis
-### Strategic Marketing Opportunities
-- **Customer Acquisition**: Displaced customer targeting strategies
-- **Geographic Targeting**: Regional market penetration opportunities
-- **Demographic Segmentation**: Age, income, and behavior-based targeting
-- **Competitive Positioning**: Market gaps and positioning opportunities
-- **Channel Strategy**: Most effective platforms for customer acquisition
+## 🎯 Phase 4: Legal Marketing Strategy & Client Acquisition
+### Class Action Marketing Opportunities
+- **Affected Individual Outreach**: Direct marketing to breach victims
+- **Geographic Concentration**: Focus advertising in areas with highest affected populations
+- **Demographic Targeting**: Age, income, and platform-specific marketing strategies
+- **Competitive Legal Landscape**: Other law firms targeting this breach
+- **Marketing Channel Optimization**: Most effective platforms for legal client acquisition
 
-### Competitive Intelligence Sources
+#### **Recommended Marketing Approach**
+1. **Immediate Response**: Launch targeted ads within 30-60 days of breach disclosure
+2. **Geographic Focus**: Concentrate 70% of ad spend in top 3 affected metropolitan areas
+3. **Demographic Targeting**: Primary focus on 35-65 age group with higher damages potential
+4. **Multi-Channel Strategy**: Combine digital ads, local TV, and community outreach
+5. **Compliance Considerations**: Ensure all marketing complies with state bar advertising rules
+
+### Legal Marketing Intelligence Sources
 ${allResearchData.marketing_intelligence.search_results.map((result: any) =>
-  `**[${result.title}](${result.url})** - Competitive and marketing intelligence`
+  `**[${result.title}](${result.url})** - Legal marketing and client acquisition research`
 ).join('\n\n')}
 
-## 🚀 Strategic Business Recommendations
+## 🚀 Legal Action & Marketing Recommendations
 
-### For Competitors & Market Players
-1. **Immediate Opportunities**: Customer acquisition campaigns targeting affected demographics
-2. **Geographic Focus**: Concentrate efforts in ${breach.organization_name}'s primary markets
-3. **Trust Messaging**: Security-focused value propositions to capture displaced customers
-4. **Demographic Targeting**: Focus on identified high-value customer segments
+### For Class Action Litigation Strategy
+1. **Case Viability Assessment**: Strong potential based on ${breach.affected_individuals?.toLocaleString() || 'significant number of'} affected individuals
+2. **Jurisdiction Selection**: File in state with favorable class action laws and affected population concentration
+3. **Class Certification Strategy**: Emphasize common harm, standardized damages, and adequate representation
+4. **Settlement Negotiation**: Target $${allResearchData.damage_assessment.estimated_damages?.cost_per_record || '500'}-1,500 per class member based on comparable settlements
 
-### For Advertisers & Marketing Agencies
-1. **Audience Targeting**: Leverage demographic insights for precise ad targeting
-2. **Channel Strategy**: Utilize platforms with high engagement from affected demographics
-3. **Creative Messaging**: Security, trust, and reliability-focused advertising themes
-4. **Budget Allocation**: Increase investment in markets with highest customer displacement
+### For Legal Marketing & Client Acquisition
+1. **Target Demographics**: Focus on affected individuals aged 35-65 with higher damage potential
+2. **Geographic Concentration**: Prioritize advertising in top 3 metropolitan areas with highest affected populations
+3. **Marketing Channels**:
+   - **Digital**: Facebook/Google ads targeting affected zip codes
+   - **Traditional**: Local TV/radio in affected markets
+   - **Community**: Outreach at community centers, libraries in affected areas
+4. **Messaging Strategy**: Emphasize "free consultation," "no fees unless we win," and specific breach details
 
-### For Business Intelligence & Strategy
-1. **Market Monitoring**: Track customer migration patterns and competitive responses
-2. **Opportunity Assessment**: Quantify market share capture potential
-3. **Risk Analysis**: Assess similar vulnerabilities in your own organization
-4. **Partnership Opportunities**: B2B relationships with enhanced security positioning
+### For Legal Practice Development
+1. **Timeline**: Launch marketing within 30-60 days of breach disclosure for maximum impact
+2. **Budget Allocation**: Invest 70% of marketing budget in top 3 affected geographic areas
+3. **Compliance**: Ensure all advertising meets state bar ethical requirements
+4. **Competition Monitoring**: Track other law firms' marketing efforts for this breach
 
 ## 📚 Comprehensive Research Methodology
 This analysis is based on:
@@ -1238,14 +1273,16 @@ Context Data for Analysis:
 ${JSON.stringify(allResearchData, null, 2)}
 
 CRITICAL REQUIREMENTS:
-1. **Evidence-Based Analysis**: Reference specific sources throughout the report
-2. **Quantified Impact**: Provide specific financial estimates and demographic data
-3. **Actionable Intelligence**: Every section must include implementable recommendations
-4. **Competitive Focus**: Emphasize opportunities for market players and advertisers
-5. **Demographic Precision**: Detailed customer targeting and segmentation insights
-6. **Professional Presentation**: Maintain analytical, objective business intelligence tone
-7. **Source Integration**: Weave research findings throughout the analysis naturally
-8. **Strategic Value**: Focus on high-value business opportunities and market intelligence`
+1. **Legal Focus**: Emphasize class action potential, individual damages, and legal marketing opportunities
+2. **Quantified Damages**: Provide specific per-person damage estimates and class-wide financial impact
+3. **Actionable Legal Intelligence**: Every section must include implementable legal marketing strategies
+4. **Demographic Precision**: Detailed affected population targeting for legal client acquisition
+5. **Geographic Specificity**: Identify specific cities, states, and regions for targeted legal marketing
+6. **Professional Legal Tone**: Maintain analytical, objective legal intelligence perspective
+7. **Source Integration**: Reference specific breach details, settlement precedents, and demographic data
+8. **Marketing Strategy**: Focus on law firm client acquisition and class action case development
+9. **Compliance Awareness**: Consider legal advertising ethics and state bar requirements
+10. **Competitive Legal Landscape**: Analyze other law firms' potential interest in this breach`
 
   const result = await model.generateContent(prompt)
   const response = await result.response
