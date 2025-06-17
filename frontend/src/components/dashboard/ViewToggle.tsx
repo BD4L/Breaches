@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button } from '../ui/Button'
 
-export type ViewType = 'breaches' | 'news' | 'saved'
+export type ViewType = 'breaches' | 'news' | 'saved' | 'reports'
 
 interface ViewToggleProps {
   currentView: ViewType
@@ -9,9 +9,10 @@ interface ViewToggleProps {
   breachCount?: number
   newsCount?: number
   savedCount?: number
+  reportsCount?: number
 }
 
-export function ViewToggle({ currentView, onViewChange, breachCount, newsCount, savedCount }: ViewToggleProps) {
+export function ViewToggle({ currentView, onViewChange, breachCount, newsCount, savedCount, reportsCount }: ViewToggleProps) {
   return (
     <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
       <Button
@@ -67,6 +68,25 @@ export function ViewToggle({ currentView, onViewChange, breachCount, newsCount, 
         {savedCount !== undefined && (
           <span className="ml-1 px-2 py-0.5 text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full">
             {savedCount.toLocaleString()}
+          </span>
+        )}
+      </Button>
+
+      <Button
+        variant={currentView === 'reports' ? 'default' : 'ghost'}
+        size="sm"
+        onClick={() => onViewChange('reports')}
+        className={`flex items-center space-x-2 ${
+          currentView === 'reports'
+            ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white'
+            : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+        }`}
+      >
+        <span>🤖</span>
+        <span>AI Reports</span>
+        {reportsCount !== undefined && (
+          <span className="ml-1 px-2 py-0.5 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full">
+            {reportsCount.toLocaleString()}
           </span>
         )}
       </Button>

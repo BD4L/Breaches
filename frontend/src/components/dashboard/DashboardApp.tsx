@@ -7,6 +7,7 @@ import { FilterToggle } from '../filters/FilterToggle'
 import { ActiveFilterPills, createFilterPills } from '../filters/ActiveFilterPills'
 import { AdminControls } from './AdminControls'
 import { SavedBreachesView } from '../saved/SavedBreachesView'
+import { ReportsTable } from '../reports/ReportsTable'
 import { supabase, getDataSources, getSavedBreaches } from '../../lib/supabase'
 
 interface Filters {
@@ -25,6 +26,7 @@ export function DashboardApp() {
   const [breachCount, setBreachCount] = useState<number | undefined>(undefined)
   const [newsCount, setNewsCount] = useState<number | undefined>(undefined)
   const [savedCount, setSavedCount] = useState<number | undefined>(undefined)
+  const [reportsCount, setReportsCount] = useState<number | undefined>(undefined)
 
   // Handle saved count updates from BreachTable
   const handleSavedCountChange = (count: number) => {
@@ -68,6 +70,11 @@ export function DashboardApp() {
         const savedResult = await getSavedBreaches()
         const savedBreachesCount = savedResult.data?.length || 0
 
+        // Get AI reports count
+        const { count: reports } = await supabase
+          .from('research_jobs')
+          .select('*', { count: 'exact', head: true })
+
         // Get data sources for filter pills
         const sourcesResult = await getDataSources()
         if (sourcesResult.data) {
@@ -80,6 +87,7 @@ export function DashboardApp() {
         setBreachCount(breaches || 0)
         setNewsCount(news || 0)
         setSavedCount(savedBreachesCount)
+        setReportsCount(reports || 0)
       } catch (error) {
         console.error('Failed to load initial data:', error)
       }
@@ -140,6 +148,7 @@ export function DashboardApp() {
                 breachCount={breachCount}
                 newsCount={newsCount}
                 savedCount={savedCount}
+                reportsCount={reportsCount}
               />
             </div>
 
@@ -187,8 +196,12 @@ export function DashboardApp() {
                   ? `${filters.publicationDateRange.start || ''}|${filters.publicationDateRange.end || ''}`
                   : ''
               }} />
-            ) : (
+            ) : currentView === 'saved' ? (
               <SavedBreachesView />
+            ) : (
+              <ReportsTable filters={{
+                search: filters.search
+              }} />
             )}
           </div>
         </div>
