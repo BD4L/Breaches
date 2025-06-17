@@ -153,7 +153,7 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
 
   const openReport = (reportId: string) => {
     // Open report in new tab/window
-    const reportUrl = `/ai-reports/${reportId}`
+    const reportUrl = `/ai-report?id=${reportId}`
     window.open(reportUrl, '_blank')
   }
 
