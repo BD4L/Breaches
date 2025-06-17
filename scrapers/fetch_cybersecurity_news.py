@@ -7,11 +7,18 @@ from datetime import datetime, timedelta
 from dateutil import parser as dateutil_parser
 import time # For converting time_struct to datetime
 import concurrent.futures
-import threading
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import yaml
-from .breach_intelligence import process_breach_intelligence # For loading config
+
+# Handle imports for both direct execution and module import
+try:
+    from .breach_intelligence import process_breach_intelligence
+except ImportError:
+    # Direct execution - add parent directory to path
+    import sys
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from scrapers.breach_intelligence import process_breach_intelligence
 
 # Assuming SupabaseClient is in utils.supabase_client
 try:
@@ -383,7 +390,7 @@ def process_cybersecurity_news_feeds():
         for future in concurrent.futures.as_completed(future_to_feed, timeout=FEED_TIMEOUT * len(NEWS_FEEDS)):
             feed_info = future_to_feed[future]
             try:
-                feed_name, processed_count, inserted_count, skipped_count = future.result(timeout=FEED_TIMEOUT)
+                _, processed_count, inserted_count, skipped_count = future.result(timeout=FEED_TIMEOUT)
 
                 total_processed_all_feeds += processed_count
                 total_inserted_all_feeds += inserted_count
