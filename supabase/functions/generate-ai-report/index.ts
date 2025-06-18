@@ -5,6 +5,20 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0"
 
+// Rate limiting for API calls
+let lastApiCall = 0
+const MIN_API_DELAY = 1500 // 1.5 seconds between API calls
+
+async function rateLimitedDelay(): Promise<void> {
+  const now = Date.now()
+  const timeSinceLastCall = now - lastApiCall
+  if (timeSinceLastCall < MIN_API_DELAY) {
+    const delayTime = MIN_API_DELAY - timeSinceLastCall
+    await new Promise(resolve => setTimeout(resolve, delayTime))
+  }
+  lastApiCall = Date.now()
+}
+
 // CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -352,6 +366,8 @@ async function performWebSearch(query: string): Promise<SearchResult[]> {
 
 // Brave Search API integration
 async function searchWithBrave(query: string): Promise<SearchResult[]> {
+  await rateLimitedDelay() // Add rate limiting
+
   const braveApiKey = Deno.env.get('BRAVE_SEARCH_API_KEY')
 
   if (!braveApiKey) {
@@ -574,6 +590,8 @@ async function scrapeUrl(searchResult: SearchResult): Promise<ScrapeResponse> {
 
 // Firecrawl API integration
 async function scrapeWithFirecrawl(url: string): Promise<ScrapeResponse> {
+  await rateLimitedDelay() // Add rate limiting
+
   const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')
 
   if (!firecrawlApiKey) {
@@ -880,17 +898,10 @@ async function gatherBreachIntelligence(breach: BreachData): Promise<any> {
   console.log(`🔍 Phase 1: Gathering comprehensive breach intelligence`)
 
   const searchQueries = [
-    // PRIORITY: Breach details and scope
-    `"${breach.organization_name}" data breach notification what happened how many affected`,
-    `"${breach.organization_name}" breach what data was stolen leaked compromised personal information`,
-    `"${breach.organization_name}" cybersecurity incident ${breach.breach_date || ''} timeline details scope`,
-    `"${breach.organization_name}" data breach notification letter affected individuals count`,
-    `"${breach.organization_name}" breach SSN social security credit card financial information leaked`,
-
-    // Secondary: Legal and regulatory aspects
-    `"${breach.organization_name}" breach class action lawsuit settlement potential`,
-    `"${breach.organization_name}" data breach regulatory filing state attorney general notification`,
-    `"${breach.organization_name}" breach CCPA GDPR violation penalties fines`
+    // Reduced to 3 queries to prevent rate limiting
+    `"${breach.organization_name}" data breach notification what data was stolen leaked`,
+    `"${breach.organization_name}" breach how many people affected individuals compromised`,
+    `"${breach.organization_name}" cybersecurity incident ${breach.breach_date || ''} class action lawsuit`
   ]
 
   const allResults: SearchResult[] = []
@@ -900,7 +911,7 @@ async function gatherBreachIntelligence(breach: BreachData): Promise<any> {
   for (const query of searchQueries) {
     try {
       const results = await searchWithBrave(query)
-      allResults.push(...results.slice(0, 4)) // Top 4 results per query (5 queries = 20 sources)
+      allResults.push(...results.slice(0, 2)) // Top 2 results per query (3 queries = 6 sources)
     } catch (error) {
       console.log(`Search failed for: ${query}`)
       allResults.push(...getFallbackSearchResults(query).slice(0, 3)) // 3 fallback per query
@@ -912,8 +923,8 @@ async function gatherBreachIntelligence(breach: BreachData): Promise<any> {
     index === self.findIndex(r => r.url === result.url)
   )
 
-  // Scrape top 12 most relevant sources for comprehensive analysis
-  const topResults = uniqueResults.slice(0, 12)
+  // Scrape top 6 most relevant sources for faster processing
+  const topResults = uniqueResults.slice(0, 6)
   for (const result of topResults) {
     try {
       const content = await scrapeUrl(result)
@@ -939,21 +950,10 @@ async function researchDamageAssessment(breach: BreachData, breachIntel: any): P
   console.log(`💰 Phase 2: Researching financial damage assessment`)
 
   const damageQueries = [
-    // Data-type specific settlement research
-    `SSN social security number data breach class action settlement amounts per person`,
-    `credit card data breach settlement payouts per person class action`,
-    `medical records health data breach settlement amounts HIPAA violations`,
-    `financial data breach settlement amounts bank account credit card`,
-    `personal information data breach settlement email address phone number`,
-
-    // General settlement research
-    `"${breach.organization_name}" breach settlement lawsuit class action payout`,
-    `data breach class action settlement ${new Date().getFullYear()} per person damages`,
-    `${breach.what_was_leaked || 'personal information'} data breach settlement amounts`,
-
-    // Statutory damages by data type
-    `CCPA BIPA statutory damages SSN social security number breach`,
-    `data breach victim compensation credit monitoring identity theft ${breach.what_was_leaked || 'personal data'}`
+    // Reduced to 3 queries to prevent rate limiting
+    `${breach.what_was_leaked || 'SSN social security'} data breach class action settlement amounts per person`,
+    `"${breach.organization_name}" breach settlement lawsuit class action payout damages`,
+    `data breach victim compensation credit monitoring identity theft costs`
   ]
 
   const damageResults: SearchResult[] = []
@@ -1001,37 +1001,10 @@ async function researchCompanyDemographics(breach: BreachData): Promise<any> {
   console.log(`👥 Phase 3: Deep dive into company demographics`)
 
   const companyQueries = [
-    // Core business analysis - WHAT DO THEY DO?
-    `"${breach.organization_name}" what is company business model products services industry`,
-    `"${breach.organization_name}" about us company description what they do business`,
-
-    // Customer identification - WHO ARE THEIR CUSTOMERS?
-    `"${breach.organization_name}" customers who uses target market customer base`,
-    `"${breach.organization_name}" serves patients members users customer demographics`,
-
-    // Geographic analysis - WHERE ARE CUSTOMERS LOCATED?
-    `"${breach.organization_name}" locations headquarters operates serves geographic coverage`,
-    `"${breach.organization_name}" customers by state city region geographic distribution`,
-
-    // Industry-specific customer research
-    `"${breach.organization_name}" patient demographics age income` + (breach.organization_name.toLowerCase().includes('hospital') || breach.organization_name.toLowerCase().includes('medical') || breach.organization_name.toLowerCase().includes('health') ? ' healthcare' : ''),
-    `"${breach.organization_name}" member demographics` + (breach.organization_name.toLowerCase().includes('credit union') || breach.organization_name.toLowerCase().includes('bank') || breach.organization_name.toLowerCase().includes('financial') ? ' financial services' : ''),
-
-    // Market research and annual reports
-    `"${breach.organization_name}" annual report customer segments target demographics`,
-    `"${breach.organization_name}" SEC filing 10-K customer base revenue by geography`,
-
-    // Marketing and positioning analysis
-    `"${breach.organization_name}" marketing target audience customer profile demographics`,
-    `"${breach.organization_name}" typical customer user profile age income education`,
-
-    // Digital footprint and social media
-    `"${breach.organization_name}" social media followers customer demographics engagement`,
-    `"${breach.organization_name}" reviews customer feedback demographics user experience`,
-
-    // News and press coverage
-    `"${breach.organization_name}" customer growth expansion demographics market penetration`,
-    `"${breach.organization_name}" serves community demographics local customer base`
+    // Reduced to 3 queries to prevent rate limiting
+    `"${breach.organization_name}" customers demographics who uses target market customer base`,
+    `"${breach.organization_name}" geographic distribution locations serves customers states`,
+    `"${breach.organization_name}" customer age income demographics social media usage`
   ]
 
   const companyResults: SearchResult[] = []
@@ -1075,13 +1048,9 @@ async function analyzeMarketingOpportunities(breach: BreachData, demographics: a
   console.log(`🎯 Phase 4: Analyzing marketing intelligence opportunities`)
 
   const marketingQueries = [
-    // Social media advertising and demographic targeting
-    `"${breach.organization_name}" customers social media usage Facebook Instagram TikTok demographics`,
-    `"${breach.organization_name}" customer age groups social media platforms digital advertising`,
-    `data breach affected individuals social media targeting Facebook ads demographics`,
-    `"${breach.organization_name}" customer geographic distribution social media advertising targeting`,
-    `class action law firm social media advertising Facebook Instagram targeting affected individuals`,
-    `data breach victim outreach social media ads demographic targeting strategies`
+    // Reduced to 2 queries to prevent rate limiting
+    `"${breach.organization_name}" customers social media usage Facebook Instagram demographics`,
+    `data breach affected individuals social media targeting Facebook ads class action law firm`
   ]
 
   const marketingResults: SearchResult[] = []
@@ -1200,37 +1169,14 @@ async function generateComprehensiveReport(
   breach: BreachData,
   allResearchData: any
 ): Promise<string> {
-  // First, use sequential thinking to plan the analysis approach
-  const planningModel = genAI.getGenerativeModel({
-    model: "gemini-2.5-pro",
-    generationConfig: {
-      temperature: 0.3,
-      topK: 20,
-      topP: 0.8,
-      maxOutputTokens: 2048,
-    }
-  })
+  // Skip sequential thinking for now to improve performance
+  const analysisStrategy = `Strategic Analysis Approach:
+1. Prioritize breach details and data types for settlement calculations
+2. Focus on demographic insights for social media targeting
+3. Emphasize legal marketing effectiveness and client acquisition
+4. Synthesize all research phases for comprehensive intelligence`
 
-  const planningPrompt = `You are planning a comprehensive legal intelligence analysis for the ${breach.organization_name} data breach.
-
-Available Research Data:
-- Breach Intelligence: ${allResearchData.breach_intelligence.total_sources} sources
-- Damage Assessment: ${allResearchData.damage_assessment.total_sources} sources
-- Company Demographics: ${allResearchData.company_demographics.total_sources} sources
-- Marketing Intelligence: ${allResearchData.marketing_intelligence.total_sources} sources
-
-Plan your analysis approach by thinking through:
-1. What are the most critical breach details to prioritize?
-2. How should you synthesize data type information for settlement calculations?
-3. What demographic insights are most valuable for social media targeting?
-4. How can you best structure the report for legal marketing effectiveness?
-
-Think step by step about your analysis strategy.`
-
-  console.log('🧠 Planning analysis approach with sequential thinking...')
-  const planningResult = await planningModel.generateContent(planningPrompt)
-  const analysisStrategy = await planningResult.response.text()
-  console.log('✅ Analysis strategy planned')
+  console.log('🧠 Using optimized analysis strategy for faster processing...')
 
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-pro",
