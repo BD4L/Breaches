@@ -337,7 +337,15 @@ jobs:
           path: /tmp/
       - name: Generate database change report
         id: database-report
-        run: python scrapers/database_change_tracker.py --report
+        run: |
+          echo "📊 Generating database change report..."
+          python scrapers/database_change_tracker.py --report || {
+            echo "⚠️  Database report failed, setting default outputs"
+            echo "new_items=0" >> $GITHUB_OUTPUT
+            echo "new_breaches=0" >> $GITHUB_OUTPUT
+            echo "new_news=0" >> $GITHUB_OUTPUT
+            echo "new_affected=0" >> $GITHUB_OUTPUT
+          }
       - name: Show today's daily activity context
         run: |
           echo ""
@@ -390,13 +398,24 @@ jobs:
           echo "   News Change: ${{ steps.database-report.outputs.new_news }}"
           echo "   People Affected Change: ${{ steps.database-report.outputs.new_affected }}"
 
-          # Interpret the results
+          # Interpret the results with better error handling
           NEW_ITEMS="${{ steps.database-report.outputs.new_items }}"
           NEW_BREACHES="${{ steps.database-report.outputs.new_breaches }}"
 
-          # Handle empty values by defaulting to 0
+          # Handle empty values by defaulting to 0 and ensure they're numeric
           NEW_ITEMS=${NEW_ITEMS:-0}
           NEW_BREACHES=${NEW_BREACHES:-0}
+
+          # Validate that values are numeric
+          if ! [[ "$NEW_ITEMS" =~ ^-?[0-9]+$ ]]; then
+            echo "⚠️  Warning: NEW_ITEMS is not numeric, defaulting to 0"
+            NEW_ITEMS=0
+          fi
+
+          if ! [[ "$NEW_BREACHES" =~ ^-?[0-9]+$ ]]; then
+            echo "⚠️  Warning: NEW_BREACHES is not numeric, defaulting to 0"
+            NEW_BREACHES=0
+          fi
 
           if [ "$NEW_ITEMS" -lt 0 ]; then
             echo "ℹ️  Note: Negative values indicate database cleanup (duplicate removal)"
