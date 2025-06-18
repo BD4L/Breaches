@@ -33,10 +33,12 @@ async function rateLimitedFirecrawlDelay(): Promise<void> {
   lastFirecrawlCall = Date.now()
 }
 
-// CORS headers for browser requests
+// CORS headers for browser requests - specifically allow GitHub Pages
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+  'Access-Control-Allow-Origin': 'https://bd4l.github.io',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Max-Age': '86400'
 };
 serve(async (req)=>{
   // Handle CORS preflight requests
@@ -201,20 +203,24 @@ Think step by step about your analysis strategy.`;
           research_phases: {
             phase_1_breach_intelligence: {
               sources: allResearchData.breach_intelligence.total_sources,
-              scraped: allResearchData.breach_intelligence.scraped_sources
+              scraped: allResearchData.breach_intelligence.scraped_sources,
+              search_results: allResearchData.breach_intelligence.search_results || []
             },
             phase_2_damage_assessment: {
               sources: allResearchData.damage_assessment.total_sources,
               scraped: allResearchData.damage_assessment.scraped_content.length,
-              estimated_damages: allResearchData.damage_assessment.estimated_damages
+              estimated_damages: allResearchData.damage_assessment.estimated_damages,
+              search_results: allResearchData.damage_assessment.search_results || []
             },
             phase_3_company_demographics: {
               sources: allResearchData.company_demographics.total_sources,
-              scraped: allResearchData.company_demographics.scraped_content.length
+              scraped: allResearchData.company_demographics.scraped_content.length,
+              search_results: allResearchData.company_demographics.search_results || []
             },
             phase_4_marketing_intelligence: {
               sources: allResearchData.marketing_intelligence.total_sources,
-              scraped: allResearchData.marketing_intelligence.scraped_content.length
+              scraped: allResearchData.marketing_intelligence.scraped_content.length,
+              search_results: allResearchData.marketing_intelligence.search_results || []
             }
           },
           processing_stats: {

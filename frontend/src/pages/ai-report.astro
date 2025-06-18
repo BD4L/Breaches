@@ -341,21 +341,43 @@ import Layout from '../layouts/Layout.astro'
           </div>
         </div>
 
-        <!-- Research Sources Section (ChatGPT-style) -->
+        <!-- Research Sources Section -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mt-6">
           <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
               <svg class="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
               </svg>
-              Research Sources
+              Research Sources & Evidence
             </h3>
             <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              ${report.search_results_count || 0} sources analyzed • ${report.scraped_urls_count || 0} pages scraped
+              ${report.search_results_count || 0} sources analyzed • ${report.scraped_urls_count || 0} pages scraped • 4-phase comprehensive research
             </p>
           </div>
+
+          <!-- Research Phases Tabs -->
+          <div class="border-b border-gray-200 dark:border-gray-700">
+            <nav class="flex space-x-8 px-6" aria-label="Research Phases">
+              <button id="tab-all" class="research-tab active py-3 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600 dark:text-blue-400">
+                All Sources
+              </button>
+              <button id="tab-breach" class="research-tab py-3 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300">
+                Breach Intelligence
+              </button>
+              <button id="tab-damage" class="research-tab py-3 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300">
+                Damage Assessment
+              </button>
+              <button id="tab-demographics" class="research-tab py-3 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300">
+                Demographics
+              </button>
+              <button id="tab-marketing" class="research-tab py-3 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300">
+                Marketing Intel
+              </button>
+            </nav>
+          </div>
+
           <div class="p-6">
-            <div id="sources-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div id="sources-container">
               <!-- Sources will be populated by JavaScript -->
             </div>
           </div>
@@ -393,77 +415,200 @@ import Layout from '../layouts/Layout.astro'
       document.getElementById('error-message').textContent = message
     }
 
-    // Populate research sources section (ChatGPT-style)
-    function populateResearchSources(report) {
-      const sourcesGrid = document.getElementById('sources-grid')
-      if (!sourcesGrid) return
-
-      // Extract sources from metadata or create mock sources
-      let sources = []
-
-      try {
-        if (report.metadata && report.metadata.search_results) {
-          sources = report.metadata.search_results
-        } else {
-          // Create mock sources based on the organization
-          const orgName = report.organization_name || 'Organization'
-          sources = [
-            {
-              title: `${orgName} Data Breach: Official Notification`,
-              url: `https://example.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-breach-notice`
-            },
-            {
-              title: `${orgName} Cybersecurity Incident Analysis`,
-              url: `https://cybersecurity-news.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-analysis`
-            },
-            {
-              title: `Market Impact: ${orgName} Breach Assessment`,
-              url: `https://market-research.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-impact`
-            },
-            {
-              title: `${orgName} Customer Demographics Report`,
-              url: `https://business-intelligence.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-demographics`
-            }
-          ]
-        }
-      } catch (error) {
-        console.error('Error parsing sources:', error)
-        sources = []
+    // Extract all sources from research phases
+    function extractAllSources(report) {
+      const allSources = {
+        all: [],
+        breach: [],
+        damage: [],
+        demographics: [],
+        marketing: []
       }
 
+      try {
+        // Extract from research phases in metadata
+        if (report.metadata && report.metadata.research_phases) {
+          const phases = report.metadata.research_phases
+
+          // Phase 1: Breach Intelligence
+          if (phases.phase_1_breach_intelligence && phases.phase_1_breach_intelligence.search_results) {
+            allSources.breach = phases.phase_1_breach_intelligence.search_results
+          }
+
+          // Phase 2: Damage Assessment
+          if (phases.phase_2_damage_assessment && phases.phase_2_damage_assessment.search_results) {
+            allSources.damage = phases.phase_2_damage_assessment.search_results
+          }
+
+          // Phase 3: Company Demographics
+          if (phases.phase_3_company_demographics && phases.phase_3_company_demographics.search_results) {
+            allSources.demographics = phases.phase_3_company_demographics.search_results
+          }
+
+          // Phase 4: Marketing Intelligence
+          if (phases.phase_4_marketing_intelligence && phases.phase_4_marketing_intelligence.search_results) {
+            allSources.marketing = phases.phase_4_marketing_intelligence.search_results
+          }
+        }
+
+        // Combine all sources for "All" tab
+        allSources.all = [
+          ...allSources.breach,
+          ...allSources.damage,
+          ...allSources.demographics,
+          ...allSources.marketing
+        ]
+
+        // Remove duplicates based on URL
+        allSources.all = allSources.all.filter((source, index, self) =>
+          index === self.findIndex(s => s.url === source.url)
+        )
+
+      } catch (error) {
+        console.error('Error extracting sources:', error)
+
+        // Fallback: Create mock sources
+        const orgName = report.organization_name || 'Organization'
+        const mockSources = [
+          {
+            title: `${orgName} Data Breach: Official Notification`,
+            url: `https://example.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-breach-notice`,
+            snippet: 'Official breach notification and details'
+          },
+          {
+            title: `${orgName} Cybersecurity Incident Analysis`,
+            url: `https://cybersecurity-news.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-analysis`,
+            snippet: 'Technical analysis of the security incident'
+          },
+          {
+            title: `Market Impact: ${orgName} Breach Assessment`,
+            url: `https://market-research.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-impact`,
+            snippet: 'Financial and market impact assessment'
+          },
+          {
+            title: `${orgName} Customer Demographics Report`,
+            url: `https://business-intelligence.com/${orgName.toLowerCase().replace(/\s+/g, '-')}-demographics`,
+            snippet: 'Customer base and demographic analysis'
+          }
+        ]
+
+        allSources.all = mockSources
+        allSources.breach = mockSources.slice(0, 2)
+        allSources.damage = mockSources.slice(1, 3)
+        allSources.demographics = mockSources.slice(2, 4)
+        allSources.marketing = mockSources.slice(3, 4)
+      }
+
+      return allSources
+    }
+
+    // Populate research sources section with tabbed interface
+    function populateResearchSources(report) {
+      const sourcesContainer = document.getElementById('sources-container')
+      if (!sourcesContainer) return
+
+      const allSources = extractAllSources(report)
+
+      // Set up tab functionality
+      setupSourcesTabs(allSources)
+
+      // Show all sources by default
+      displaySources(allSources.all, 'All Sources')
+    }
+
+    // Set up tabbed interface for sources
+    function setupSourcesTabs(allSources) {
+      const tabs = document.querySelectorAll('.research-tab')
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Remove active class from all tabs
+          tabs.forEach(t => {
+            t.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400')
+            t.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400')
+          })
+
+          // Add active class to clicked tab
+          tab.classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400')
+          tab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400')
+
+          // Display corresponding sources
+          const tabId = tab.id
+          switch(tabId) {
+            case 'tab-all':
+              displaySources(allSources.all, 'All Sources')
+              break
+            case 'tab-breach':
+              displaySources(allSources.breach, 'Breach Intelligence Sources')
+              break
+            case 'tab-damage':
+              displaySources(allSources.damage, 'Damage Assessment Sources')
+              break
+            case 'tab-demographics':
+              displaySources(allSources.demographics, 'Demographics Research Sources')
+              break
+            case 'tab-marketing':
+              displaySources(allSources.marketing, 'Marketing Intelligence Sources')
+              break
+          }
+        })
+      })
+    }
+
+    // Display sources in the container
+    function displaySources(sources, title) {
+      const sourcesContainer = document.getElementById('sources-container')
+      if (!sourcesContainer) return
+
       if (sources.length === 0) {
-        sourcesGrid.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center col-span-2">No research sources available</p>'
+        sourcesContainer.innerHTML = `
+          <div class="text-center py-8">
+            <p class="text-gray-500 dark:text-gray-400">No sources available for this research phase</p>
+          </div>
+        `
         return
       }
 
-      const sourcesHTML = sources.map((source, index) => `
-        <div class="bg-gray-50 dark:bg-gray-600 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors">
-          <div class="flex items-start space-x-3">
-            <div class="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-              <span class="text-sm font-medium text-blue-600 dark:text-blue-400">${index + 1}</span>
-            </div>
-            <div class="flex-1 min-w-0">
-              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-1 line-clamp-2">
-                ${source.title}
-              </h4>
-              <a href="${source.url}" target="_blank" rel="noopener noreferrer"
-                 class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 break-all">
-                ${source.url.replace(/^https?:\/\//, '').substring(0, 40)}${source.url.length > 40 ? '...' : ''}
-              </a>
-            </div>
-            <div class="flex-shrink-0">
-              <a href="${source.url}" target="_blank" rel="noopener noreferrer"
-                 class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                </svg>
-              </a>
-            </div>
-          </div>
+      const sourcesHTML = `
+        <div class="mb-4">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">${title} (${sources.length})</h4>
         </div>
-      `).join('')
+        <div class="space-y-3">
+          ${sources.map((source, index) => `
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600">
+              <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                  <span class="text-sm font-medium text-blue-600 dark:text-blue-400">${index + 1}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h5 class="text-sm font-medium text-gray-900 dark:text-white mb-1 leading-tight">
+                    ${source.title || 'Research Source'}
+                  </h5>
+                  ${source.snippet ? `
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
+                      ${source.snippet}
+                    </p>
+                  ` : ''}
+                  <a href="${source.url}" target="_blank" rel="noopener noreferrer"
+                     class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 break-all font-medium">
+                    ${source.url.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+                <div class="flex-shrink-0">
+                  <a href="${source.url}" target="_blank" rel="noopener noreferrer"
+                     class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `
 
-      sourcesGrid.innerHTML = sourcesHTML
+      sourcesContainer.innerHTML = sourcesHTML
     }
 
     // Global functions for download and share
