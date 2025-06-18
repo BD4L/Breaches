@@ -1200,8 +1200,40 @@ async function generateComprehensiveReport(
   breach: BreachData,
   allResearchData: any
 ): Promise<string> {
+  // First, use sequential thinking to plan the analysis approach
+  const planningModel = genAI.getGenerativeModel({
+    model: "gemini-2.5-pro",
+    generationConfig: {
+      temperature: 0.3,
+      topK: 20,
+      topP: 0.8,
+      maxOutputTokens: 2048,
+    }
+  })
+
+  const planningPrompt = `You are planning a comprehensive legal intelligence analysis for the ${breach.organization_name} data breach.
+
+Available Research Data:
+- Breach Intelligence: ${allResearchData.breach_intelligence.total_sources} sources
+- Damage Assessment: ${allResearchData.damage_assessment.total_sources} sources
+- Company Demographics: ${allResearchData.company_demographics.total_sources} sources
+- Marketing Intelligence: ${allResearchData.marketing_intelligence.total_sources} sources
+
+Plan your analysis approach by thinking through:
+1. What are the most critical breach details to prioritize?
+2. How should you synthesize data type information for settlement calculations?
+3. What demographic insights are most valuable for social media targeting?
+4. How can you best structure the report for legal marketing effectiveness?
+
+Think step by step about your analysis strategy.`
+
+  console.log('🧠 Planning analysis approach with sequential thinking...')
+  const planningResult = await planningModel.generateContent(planningPrompt)
+  const analysisStrategy = await planningResult.response.text()
+  console.log('✅ Analysis strategy planned')
+
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-pro",
     generationConfig: {
       temperature: 0.7,
       topK: 40,
@@ -1224,6 +1256,9 @@ async function generateComprehensiveReport(
     allResearchData.marketing_intelligence.scraped_content.length
 
   const prompt = `You are a specialized legal intelligence analyst conducting comprehensive research for class action data breach litigation. You have conducted extensive research across 4 specialized phases with ${totalSources} sources and ${totalScrapedContent} detailed content extractions.
+
+ANALYSIS STRATEGY:
+${analysisStrategy}
 
 # ${breach.organization_name} Data Breach: Legal Marketing Intelligence Analysis
 
@@ -1276,7 +1311,7 @@ Based on extensive multi-phase research, provide a compelling executive summary 
 
 ### Research Sources Analyzed
 Based on ${allResearchData.breach_intelligence.total_sources} specialized breach intelligence sources:
-${allResearchData.breach_intelligence.search_results.map((result: any, index: number) =>
+${allResearchData.breach_intelligence.search_results.map((result: any) =>
   `**[${result.title}](${result.url})** - ${result.snippet}`
 ).join('\n\n')}
 
@@ -1414,15 +1449,42 @@ ${allResearchData.marketing_intelligence.search_results.map((result: any) =>
 3. **Compliance**: Ensure all advertising meets state bar ethical requirements
 4. **Competition Monitoring**: Track other law firms' marketing efforts for this breach
 
-## 📚 Comprehensive Research Methodology
-This analysis is based on:
-- **Total Sources Analyzed**: ${totalSources} specialized sources
+## 📚 Complete Research Sources & Methodology
+
+### Research Scope Summary
+- **Total Sources Analyzed**: ${totalSources} specialized sources across 4 research phases
 - **Content Extracted**: ${totalScrapedContent} detailed content analyses
 - **Research Phases**: 4 specialized intelligence gathering phases
 - **Financial Modeling**: Industry benchmark-based damage calculations
 - **Demographic Analysis**: Multi-source customer intelligence synthesis
 
-**Research Quality**: Premium comprehensive analysis with extensive source verification and cross-referencing.
+### 🔍 All Sources Used in This Analysis
+
+#### Phase 1: Breach Intelligence Sources (${allResearchData.breach_intelligence.total_sources} sources)
+${allResearchData.breach_intelligence.search_results.map((result: any, index: number) =>
+  `${index + 1}. **[${result.title}](${result.url})**\n   *${result.snippet}*`
+).join('\n\n')}
+
+#### Phase 2: Damage Assessment Sources (${allResearchData.damage_assessment.total_sources} sources)
+${allResearchData.damage_assessment.search_results.map((result: any, index: number) =>
+  `${index + 1}. **[${result.title}](${result.url})**\n   *${result.snippet}*`
+).join('\n\n')}
+
+#### Phase 3: Company Demographics Sources (${allResearchData.company_demographics.total_sources} sources)
+${allResearchData.company_demographics.search_results.map((result: any, index: number) =>
+  `${index + 1}. **[${result.title}](${result.url})**\n   *${result.snippet}*`
+).join('\n\n')}
+
+#### Phase 4: Legal Marketing Sources (${allResearchData.marketing_intelligence.total_sources} sources)
+${allResearchData.marketing_intelligence.search_results.map((result: any, index: number) =>
+  `${index + 1}. **[${result.title}](${result.url})**\n   *${result.snippet}*`
+).join('\n\n')}
+
+### Research Quality Assurance
+- **Source Verification**: All sources cross-referenced and validated
+- **Content Analysis**: Deep extraction and synthesis across ${totalScrapedContent} pages
+- **Multi-Phase Approach**: Specialized research methodology for comprehensive coverage
+- **Evidence-Based**: Every claim supported by specific source citations
 
 ---
 
@@ -1446,7 +1508,9 @@ CRITICAL REQUIREMENTS:
 7. **CUSTOMER DEMOGRAPHICS**: WHO uses ${breach.organization_name}'s products/services
 8. **SOCIAL MEDIA TARGETING**: Facebook/Instagram/TikTok ad targeting for affected individuals
 9. **GEOGRAPHIC PRECISION**: Cities/states for location-based social media campaigns
-10. **EVIDENCE-BASED**: Every claim supported by research sources and settlement precedents
+10. **INTERACTIVE SOURCES**: Use hyperlinks throughout - cite sources as **[Source Title](URL)** format
+11. **COMPREHENSIVE SOURCE DISPLAY**: Reference ALL ${totalSources} sources used in research
+12. **EVIDENCE-BASED**: Every claim supported by clickable research sources and settlement precedents
 
 **SPECIAL INSTRUCTION FOR COMPANY ANALYSIS**:
 You MUST analyze ${breach.organization_name} as a business first:
