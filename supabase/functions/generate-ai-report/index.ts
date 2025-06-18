@@ -119,10 +119,8 @@ serve(async (req)=>{
     }
     console.log(`📊 Created report record ${reportRecord.id}`);
     try {
-      // First, use sequential thinking MCP server to plan the analysis approach
-      console.log(`🧠 Planning analysis approach with Sequential Thinking MCP...`);
-      const analysisStrategy = await planAnalysisWithSequentialThinking(breach);
-      console.log('✅ Analysis strategy planned with Sequential Thinking MCP');
+      // Start comprehensive research directly
+      console.log(`🔍 Starting comprehensive breach analysis for ${breach.organization_name}`);
 
       // Multi-Phase Research Pipeline for Comprehensive Intelligence
       console.log(`🔍 Starting comprehensive 4-phase research for ${breach.organization_name}`);
@@ -153,7 +151,7 @@ serve(async (req)=>{
       console.log(`📊 RESEARCH SUMMARY: ${researchSummary.totalSources} total sources analyzed, ${researchSummary.totalScrapedContent} pages scraped across 4 phases`);
       // Generate comprehensive report with all research
       console.log(`🧠 Generating comprehensive business intelligence report`);
-      const report = await generateComprehensiveReport(genAI, breach, allResearchData, analysisStrategy);
+      const report = await generateComprehensiveReport(genAI, breach, allResearchData);
       // Update report record with comprehensive research results
       const processingTime = Date.now() - startTime;
       const estimatedCost = 3.50 // Premium research approach cost estimate
@@ -259,109 +257,7 @@ serve(async (req)=>{
   }
 });
 
-// Sequential Thinking MCP Server Integration
-async function planAnalysisWithSequentialThinking(breach) {
-  console.log(`🧠 Using Sequential Thinking MCP for analysis planning...`);
 
-  try {
-    // Call the Sequential Thinking MCP server
-    const sequentialThinkingUrl = Deno.env.get('SEQUENTIAL_THINKING_MCP_URL') || 'http://localhost:3001';
-
-    const response = await fetch(`${sequentialThinkingUrl}/think`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        thought: `I need to plan a comprehensive legal intelligence analysis for the ${breach.organization_name} data breach.
-
-Available Breach Data:
-- Organization: ${breach.organization_name}
-- Affected Individuals: ${breach.affected_individuals || 'Unknown'}
-- Data Types: ${breach.what_was_leaked || 'Under investigation'}
-- Breach Date: ${breach.breach_date || 'TBD'}
-- Source: ${breach.source_name}
-
-I need to think through:
-1. What are the most critical breach details to prioritize for legal action?
-2. How should I approach damage assessment based on the data types leaked?
-3. What demographic insights would be most valuable for social media targeting?
-4. How can I structure the research to maximize legal marketing effectiveness?
-
-Let me think step by step about the optimal analysis strategy for this breach.`,
-        nextThoughtNeeded: true,
-        thoughtNumber: 1,
-        totalThoughts: 5
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Sequential Thinking MCP error: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    // Continue the thinking process until complete
-    let currentThought = result;
-    let allThoughts = [currentThought.thought];
-
-    while (currentThought.nextThoughtNeeded && allThoughts.length < 10) {
-      const nextResponse = await fetch(`${sequentialThinkingUrl}/think`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          thought: `Building on my previous analysis, let me continue planning the research strategy...`,
-          nextThoughtNeeded: true,
-          thoughtNumber: allThoughts.length + 1,
-          totalThoughts: Math.max(5, allThoughts.length + 2)
-        })
-      });
-
-      if (!nextResponse.ok) {
-        break;
-      }
-
-      currentThought = await nextResponse.json();
-      allThoughts.push(currentThought.thought);
-    }
-
-    // Combine all thoughts into a comprehensive strategy
-    const comprehensiveStrategy = allThoughts.join('\n\n');
-    console.log(`✅ Sequential thinking completed with ${allThoughts.length} thoughts`);
-
-    return comprehensiveStrategy;
-
-  } catch (error) {
-    console.error('Sequential Thinking MCP failed, using fallback planning:', error);
-
-    // Fallback to simple planning if MCP server is unavailable
-    return `Analysis Strategy for ${breach.organization_name} Breach:
-
-1. BREACH INTELLIGENCE PRIORITY:
-   - Focus on data types leaked: ${breach.what_was_leaked || 'personal information'}
-   - Affected individuals: ${breach.affected_individuals || 'unknown count'}
-   - Timeline and discovery details
-
-2. DAMAGE ASSESSMENT APPROACH:
-   - Research settlement precedents for similar data types
-   - Calculate per-person damages based on leaked information
-   - Assess regulatory penalties and compliance costs
-
-3. DEMOGRAPHIC RESEARCH STRATEGY:
-   - Identify customer base characteristics
-   - Geographic distribution analysis
-   - Income and age demographics for targeting
-
-4. MARKETING INTELLIGENCE FOCUS:
-   - Social media advertising opportunities
-   - Customer acquisition strategies
-   - Competitive positioning analysis
-
-This comprehensive approach will maximize legal marketing effectiveness.`;
-  }
-}
 
 // Conservative web search to minimize API calls
 async function performWebSearch(query) {
@@ -1168,7 +1064,7 @@ function calculateEstimatedDamages(breach, damageContent) {
   };
 }
 // Generate comprehensive report with all research phases
-async function generateComprehensiveReport(genAI, breach, allResearchData, analysisStrategy) {
+async function generateComprehensiveReport(genAI, breach, allResearchData) {
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-pro",
     generationConfig: {
@@ -1182,9 +1078,6 @@ async function generateComprehensiveReport(genAI, breach, allResearchData, analy
   const totalSources = allResearchData.breach_intelligence.total_sources + allResearchData.damage_assessment.total_sources + allResearchData.company_demographics.total_sources + allResearchData.marketing_intelligence.total_sources;
   const totalScrapedContent = allResearchData.breach_intelligence.scraped_sources + allResearchData.damage_assessment.scraped_content.length + allResearchData.company_demographics.scraped_content.length + allResearchData.marketing_intelligence.scraped_content.length;
   const prompt = `You are a specialized legal intelligence analyst conducting comprehensive research for class action data breach litigation. You have conducted extensive research across 4 specialized phases with ${totalSources} sources and ${totalScrapedContent} detailed content extractions.
-
-ANALYSIS STRATEGY:
-${analysisStrategy}
 
 # ${breach.organization_name} Data Breach: Legal Marketing Intelligence Analysis
 
