@@ -195,25 +195,19 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
     if (!confirm(`Regenerate AI report for ${organizationName}? This will create a new report with the latest research.`)) return
 
     try {
-      // Call the AI report generation endpoint
-      const response = await fetch(`${window.location.origin}/functions/v1/generate-ai-report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Call Supabase Edge Function using the client (avoids CORS issues)
+      const { data, error } = await supabase.functions.invoke('generate-ai-report', {
+        body: {
           breachId: breachId,
           userId: 'reports-tab-user' // Optional user tracking
-        })
+        }
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to start report generation')
+      if (error) {
+        throw new Error(error.message)
       }
 
-      const result = await response.json()
-
-      if (result.reportId) {
+      if (data?.reportId) {
         alert('Report generation started! Refresh the page in a few minutes to see the new report.')
         // Reload reports to show the new pending report
         loadReports()
