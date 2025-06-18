@@ -153,7 +153,8 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
 
   const openReport = (reportId: string) => {
     // Open report in new tab/window - use correct base path for GitHub Pages
-    const reportUrl = `/Breaches/ai-report?id=${reportId}`
+    const basePath = import.meta.env.BASE_URL || '/'
+    const reportUrl = `${basePath}ai-report?id=${reportId}`.replace('//', '/')
     window.open(reportUrl, '_blank')
   }
 

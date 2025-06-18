@@ -162,7 +162,10 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
   }
 
   const viewReport = (reportId: string) => {
-    window.open(`/ai-report?id=${reportId}`, '_blank')
+    // Account for GitHub Pages base path
+    const basePath = import.meta.env.BASE_URL || '/'
+    const reportUrl = `${basePath}ai-report?id=${reportId}`.replace('//', '/')
+    window.open(reportUrl, '_blank')
   }
 
   const deleteReport = async (reportId: string) => {
