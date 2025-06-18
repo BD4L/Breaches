@@ -164,7 +164,8 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
   const viewReport = (reportId: string) => {
     // Account for GitHub Pages base path
     const basePath = import.meta.env.BASE_URL || '/'
-    const reportUrl = `${basePath}ai-report?id=${reportId}`.replace('//', '/')
+    // Ensure proper slash handling: basePath ends with '/', so add 'ai-report'
+    const reportUrl = `${basePath}ai-report?id=${reportId}`
     window.open(reportUrl, '_blank')
   }
 
