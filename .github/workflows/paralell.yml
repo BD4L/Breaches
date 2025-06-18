@@ -353,6 +353,7 @@ jobs:
           python scrapers/daily_change_tracker.py --today
       - name: Check job results
         run: |
+          set +e  # Disable exit on error for this section
           echo "=== PARALLEL SCRAPING SUMMARY ==="
           echo "Government & Federal: ${{ needs.government-scrapers.result }}"
           echo "State AG Group 1 (DE,CA,WA,HI): ${{ needs.state-ag-group-1.result }}"
@@ -367,11 +368,12 @@ jobs:
           success_count=0
           total_count=5
 
-          [[ "${{ needs.government-scrapers.result }}" == "success" ]] && ((success_count++))
-          [[ "${{ needs.state-ag-group-1.result }}" == "success" ]] && ((success_count++))
-          [[ "${{ needs.state-ag-group-2.result }}" == "success" ]] && ((success_count++))
-          [[ "${{ needs.state-ag-group-3.result }}" == "success" ]] && ((success_count++))
-          [[ "${{ needs.state-ag-group-4.result }}" == "success" ]] && ((success_count++))
+          # Use safer arithmetic that won't fail
+          [[ "${{ needs.government-scrapers.result }}" == "success" ]] && success_count=$((success_count + 1))
+          [[ "${{ needs.state-ag-group-1.result }}" == "success" ]] && success_count=$((success_count + 1))
+          [[ "${{ needs.state-ag-group-2.result }}" == "success" ]] && success_count=$((success_count + 1))
+          [[ "${{ needs.state-ag-group-3.result }}" == "success" ]] && success_count=$((success_count + 1))
+          [[ "${{ needs.state-ag-group-4.result }}" == "success" ]] && success_count=$((success_count + 1))
 
           echo "✅ Successful core groups: $success_count/$total_count"
 
@@ -382,13 +384,16 @@ jobs:
             echo "⚠️ Problematic scrapers: Failed as expected (Maryland AG has known website issues)"
           fi
 
+          # Determine overall success - only fail if NO core groups succeeded
           if [ $success_count -eq $total_count ]; then
             echo "🎉 All core scraper groups completed successfully!"
+            WORKFLOW_SUCCESS=true
           elif [ $success_count -gt 0 ]; then
             echo "⚠️ Some core scraper groups failed, but $success_count groups succeeded"
+            WORKFLOW_SUCCESS=true
           else
             echo "❌ All core scraper groups failed"
-            exit 1
+            WORKFLOW_SUCCESS=false
           fi
 
           echo ""
@@ -425,8 +430,14 @@ jobs:
             echo "✅ $NEW_ITEMS new items discovered!"
           fi
 
-          # Always exit successfully if core groups succeeded
-          echo "🎉 Workflow completed successfully!"
+          # Final workflow status
+          if [ "$WORKFLOW_SUCCESS" = "true" ]; then
+            echo "🎉 Workflow completed successfully!"
+            exit 0
+          else
+            echo "❌ Workflow failed - no core scraper groups succeeded"
+            exit 1
+          fi
 
   # ============================================================================
   # EMAIL ALERTS JOB - Send email notifications to subscribers
