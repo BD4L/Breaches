@@ -412,9 +412,9 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
                       <div className="flex space-x-2">
                         {report.status === 'completed' && (
                           <Button
+                            variant="default"
                             size="sm"
                             onClick={() => viewReport(report.id)}
-                            className="text-blue-600 hover:text-blue-900"
                           >
                             View Report
                           </Button>
@@ -422,9 +422,8 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
                         {(report.status === 'completed' || report.status === 'failed') && (
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="secondary"
                             onClick={() => regenerateReport(report.breach_id, report.organization_name)}
-                            className="text-green-600 hover:text-green-900"
                           >
                             Regenerate
                           </Button>
@@ -432,9 +431,9 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
                       </div>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="destructive"
                         onClick={() => deleteReport(report.id)}
-                        className="text-red-600 hover:text-red-900 self-start"
+                        className="self-start"
                       >
                         Delete
                       </Button>
