@@ -35,7 +35,7 @@ async function rateLimitedFirecrawlDelay(): Promise<void> {
 
 // CORS headers for browser requests - specifically allow GitHub Pages
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://bd4l.github.io',
+  'Access-Control-Allow-Origin': '*', // Allow all origins for now, can be restricted later
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Max-Age': '86400'
