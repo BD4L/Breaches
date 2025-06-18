@@ -880,11 +880,17 @@ async function gatherBreachIntelligence(breach: BreachData): Promise<any> {
   console.log(`🔍 Phase 1: Gathering comprehensive breach intelligence`)
 
   const searchQueries = [
-    `"${breach.organization_name}" data breach notification affected individuals personal information`,
-    `"${breach.organization_name}" breach class action lawsuit settlement damages`,
-    `"${breach.organization_name}" cybersecurity incident ${breach.breach_date || ''} customer demographics`,
-    `"${breach.organization_name}" data breach what information leaked SSN credit card`,
-    `"${breach.organization_name}" breach geographic location affected customers states`
+    // PRIORITY: Breach details and scope
+    `"${breach.organization_name}" data breach notification what happened how many affected`,
+    `"${breach.organization_name}" breach what data was stolen leaked compromised personal information`,
+    `"${breach.organization_name}" cybersecurity incident ${breach.breach_date || ''} timeline details scope`,
+    `"${breach.organization_name}" data breach notification letter affected individuals count`,
+    `"${breach.organization_name}" breach SSN social security credit card financial information leaked`,
+
+    // Secondary: Legal and regulatory aspects
+    `"${breach.organization_name}" breach class action lawsuit settlement potential`,
+    `"${breach.organization_name}" data breach regulatory filing state attorney general notification`,
+    `"${breach.organization_name}" breach CCPA GDPR violation penalties fines`
   ]
 
   const allResults: SearchResult[] = []
@@ -1060,12 +1066,13 @@ async function analyzeMarketingOpportunities(breach: BreachData, demographics: a
   console.log(`🎯 Phase 4: Analyzing marketing intelligence opportunities`)
 
   const marketingQueries = [
-    `"${breach.organization_name}" data breach law firm marketing class action`,
-    `data breach affected customers legal marketing advertising strategies`,
-    `class action data breach law firm client acquisition marketing`,
-    `"${breach.organization_name}" breach legal advertising affected individuals`,
-    `data breach victim outreach legal marketing geographic targeting`,
-    `class action lawsuit marketing affected customers demographic targeting`
+    // Social media advertising and demographic targeting
+    `"${breach.organization_name}" customers social media usage Facebook Instagram TikTok demographics`,
+    `"${breach.organization_name}" customer age groups social media platforms digital advertising`,
+    `data breach affected individuals social media targeting Facebook ads demographics`,
+    `"${breach.organization_name}" customer geographic distribution social media advertising targeting`,
+    `class action law firm social media advertising Facebook Instagram targeting affected individuals`,
+    `data breach victim outreach social media ads demographic targeting strategies`
   ]
 
   const marketingResults: SearchResult[] = []
@@ -1168,23 +1175,44 @@ async function generateComprehensiveReport(
 
 ## 🎯 Executive Summary for Legal Marketing
 Based on extensive multi-phase research, provide a compelling executive summary covering:
-- **Breach Scope**: Types of data compromised and number of affected individuals
-- **Class Action Potential**: Estimated damages and financial harm to affected individuals
-- **Affected Demographics**: Geographic distribution and demographic profiles for targeted legal marketing
-- **Legal Marketing Opportunities**: Specific targeting strategies for affected individuals
 
-## 📊 Phase 1: Breach Intelligence Analysis
-### Critical Breach Information for Legal Action
-- **Affected Individuals**: ${breach.affected_individuals?.toLocaleString() || 'Under Investigation'} people
-- **Types of Personal Information Compromised**: ${breach.what_was_leaked || 'Multiple sensitive data categories'}
-- **Breach Discovery Date**: ${breach.breach_date || 'Under investigation'}
-- **Public Disclosure Date**: ${breach.reported_date || 'Ongoing'}
-- **Legal Notification Requirements**: Analysis of state and federal notification compliance
+**🚨 PRIORITY #1 - BREACH DETAILS (MOST IMPORTANT)**:
+- **Exactly what personal data was stolen**: SSN, credit cards, medical records, passwords, etc.
+- **Exactly how many people were affected**: Get the most accurate count possible
+- **How the breach happened**: Ransomware, phishing, insider threat, security failure
+- **Timeline**: When it started vs. when discovered vs. when disclosed
 
-### Key Legal Considerations
-- **CCPA/GDPR Violations**: Potential regulatory violations and statutory damages
+**💰 PRIORITY #2 - INDIVIDUAL DAMAGES**:
+- **Specific financial harm** to affected individuals for class action potential
+- **Credit monitoring costs**, identity theft protection, time/inconvenience damages
+
+**📱 PRIORITY #3 - SOCIAL MEDIA AD TARGETING**:
+- **Demographic profiles** for precise Facebook/Instagram/TikTok ad targeting
+- **Geographic targeting** for location-based social media campaigns to reach affected individuals
+- **Platform-specific strategies** to get ads in front of breach victims
+
+## 📊 Phase 1: PRIORITY - Comprehensive Breach Intelligence
+### CRITICAL: What Exactly Happened in This Breach?
+
+**MOST IMPORTANT - Breach Scope & Details:**
+- **Affected Individuals**: ${breach.affected_individuals?.toLocaleString() || 'RESEARCH REQUIRED'} people
+- **Exact Data Types Compromised**: ${breach.what_was_leaked || 'RESEARCH REQUIRED - Find specific data types'}
+- **How the Breach Occurred**: [Research the attack method, security failure, cause]
+- **Timeline**: Discovery ${breach.breach_date || 'TBD'} → Disclosure ${breach.reported_date || 'TBD'}
+- **Breach Duration**: [How long were hackers in the system?]
+- **Company Response**: [What steps did the company take? Notifications sent?]
+
+**RESEARCH PRIORITY**: Use all sources to find:
+1. **EXACTLY what personal information was stolen** (SSN, credit cards, medical records, passwords, etc.)
+2. **EXACTLY how many people were affected** (get the most accurate count)
+3. **HOW the breach happened** (phishing, ransomware, insider threat, etc.)
+4. **WHEN it was discovered vs. when it actually started**
+5. **WHAT the company has done in response**
+
+### Legal Implications Based on Breach Details
+- **Statutory Violations**: CCPA/GDPR/HIPAA violations based on data types stolen
 - **Negligence Claims**: Security failures and duty of care breaches
-- **Class Certification Potential**: Commonality of harm across affected individuals
+- **Class Action Viability**: Commonality of harm across all affected individuals
 
 ### Research Sources Analyzed
 Based on ${allResearchData.breach_intelligence.total_sources} specialized breach intelligence sources:
@@ -1253,24 +1281,41 @@ ${allResearchData.company_demographics.search_results.map((result: any) =>
   `**[${result.title}](${result.url})** - ${breach.organization_name} customer base analysis`
 ).join('\n\n')}
 
-## 🎯 Phase 4: Legal Marketing Strategy & Client Acquisition
-### Class Action Marketing Opportunities
-- **Affected Individual Outreach**: Direct marketing to breach victims
-- **Geographic Concentration**: Focus advertising in areas with highest affected populations
-- **Demographic Targeting**: Age, income, and platform-specific marketing strategies
-- **Competitive Legal Landscape**: Other law firms targeting this breach
-- **Marketing Channel Optimization**: Most effective platforms for legal client acquisition
+## 🎯 Phase 4: Social Media Advertising Strategy for Affected Individuals
+### Precise Social Media Targeting for ${breach.organization_name} Breach Victims
 
-#### **Recommended Marketing Approach**
-1. **Immediate Response**: Launch targeted ads within 30-60 days of breach disclosure
-2. **Geographic Focus**: Concentrate 70% of ad spend in top 3 affected metropolitan areas
-3. **Demographic Targeting**: Primary focus on 35-65 age group with higher damages potential
-4. **Multi-Channel Strategy**: Combine digital ads, local TV, and community outreach
-5. **Compliance Considerations**: Ensure all marketing complies with state bar advertising rules
+**OBJECTIVE**: Use demographic research to create highly targeted social media ads that will appear in affected individuals' feeds
 
-### Legal Marketing Intelligence Sources
+#### **Facebook/Instagram Ad Targeting Strategy**
+Based on ${breach.organization_name} customer demographics research:
+- **Age Targeting**: [Specific age ranges based on customer research - e.g., 35-65 for financial services]
+- **Location Targeting**: [Specific cities, zip codes, states where customers are concentrated]
+- **Interest Targeting**: [Interests based on company type - e.g., "Healthcare" for hospital breaches]
+- **Behavior Targeting**: [Financial behaviors, healthcare interests, etc. based on company type]
+- **Lookalike Audiences**: Create lookalikes based on ${breach.organization_name} customer profiles
+
+#### **Platform-Specific Targeting**
+- **Facebook**: Primary platform for 35+ demographics, detailed targeting options
+- **Instagram**: Younger demographics (25-45), visual content, Stories ads
+- **TikTok**: If customer base includes younger demographics (18-35)
+- **Google Ads**: Search-based targeting for "data breach," "${breach.organization_name} breach"
+
+#### **Ad Creative Strategy**
+- **Headline**: "Were you affected by the ${breach.organization_name} data breach?"
+- **Body**: Mention specific data types stolen (SSN, credit cards, etc.)
+- **Call-to-Action**: "Free consultation - No fees unless we win"
+- **Visual**: Professional law firm imagery, data security themes
+
+#### **Geographic Ad Targeting**
+Based on research into ${breach.organization_name} customer locations:
+- **Primary Markets**: [Top 3 cities/states with highest customer concentration]
+- **Secondary Markets**: [Additional areas with significant customer presence]
+- **Radius Targeting**: 25-mile radius around major customer concentration areas
+- **Exclude**: Areas with minimal ${breach.organization_name} customer presence
+
+### Social Media Research Sources
 ${allResearchData.marketing_intelligence.search_results.map((result: any) =>
-  `**[${result.title}](${result.url})** - Legal marketing and client acquisition research`
+  `**[${result.title}](${result.url})** - Social media targeting and customer behavior research`
 ).join('\n\n')}
 
 ## 🚀 Legal Action & Marketing Recommendations
@@ -1314,16 +1359,16 @@ Context Data for Analysis:
 ${JSON.stringify(allResearchData, null, 2)}
 
 CRITICAL REQUIREMENTS:
-1. **Company Analysis First**: Start by thoroughly analyzing what ${breach.organization_name} actually does as a business
-2. **Customer Base Research**: Identify WHO actually uses ${breach.organization_name}'s products/services based on research
-3. **Demographic Precision**: Use actual research data to determine affected population characteristics
-4. **Geographic Specificity**: Identify specific cities, states, regions where ${breach.organization_name} customers are located
-5. **Industry Context**: Consider industry-specific demographics (healthcare patients, bank customers, etc.)
-6. **Legal Marketing Focus**: Translate customer research into actionable legal client acquisition strategies
-7. **Evidence-Based Analysis**: Every demographic claim must be supported by research sources
-8. **Quantified Damages**: Provide specific per-person damage estimates based on customer income levels
-9. **Professional Legal Intelligence**: Maintain analytical, objective legal perspective
-10. **Actionable Strategies**: Every section must include implementable legal marketing recommendations
+1. **BREACH DETAILS FIRST**: Prioritize finding exactly what data was stolen, how many affected, how it happened
+2. **SPECIFIC DATA TYPES**: Identify exact personal information compromised (SSN, credit cards, medical, etc.)
+3. **ACCURATE VICTIM COUNT**: Get the most precise number of affected individuals possible
+4. **BREACH METHODOLOGY**: Research how the attack occurred (ransomware, phishing, insider, etc.)
+5. **TIMELINE ANALYSIS**: When breach started vs. discovered vs. disclosed to public
+6. **COMPANY ANALYSIS**: Understand what ${breach.organization_name} does as a business
+7. **CUSTOMER DEMOGRAPHICS**: WHO actually uses ${breach.organization_name}'s products/services
+8. **SOCIAL MEDIA TARGETING**: Translate demographics into Facebook/Instagram/TikTok ad targeting
+9. **GEOGRAPHIC PRECISION**: Specific cities/states for location-based social media campaigns
+10. **EVIDENCE-BASED**: Every claim must be supported by research sources
 
 **SPECIAL INSTRUCTION FOR COMPANY ANALYSIS**:
 You MUST analyze ${breach.organization_name} as a business first:
