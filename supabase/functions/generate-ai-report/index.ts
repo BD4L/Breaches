@@ -119,38 +119,10 @@ serve(async (req)=>{
     }
     console.log(`📊 Created report record ${reportRecord.id}`);
     try {
-      // First, use sequential thinking to plan the analysis approach
-      console.log(`🧠 Planning analysis approach with sequential thinking...`);
-      const planningModel = genAI.getGenerativeModel({
-        model: "gemini-2.5-pro",
-        generationConfig: {
-          temperature: 0.3,
-          topK: 20,
-          topP: 0.8,
-          maxOutputTokens: 2048
-        }
-      });
-
-      const planningPrompt = `You are planning a comprehensive legal intelligence analysis for the ${breach.organization_name} data breach.
-
-Available Breach Data:
-- Organization: ${breach.organization_name}
-- Affected Individuals: ${breach.affected_individuals || 'Unknown'}
-- Data Types: ${breach.what_was_leaked || 'Under investigation'}
-- Breach Date: ${breach.breach_date || 'TBD'}
-- Source: ${breach.source_name}
-
-Plan your analysis approach by thinking through:
-1. What are the most critical breach details to prioritize for legal action?
-2. How should you approach damage assessment based on the data types leaked?
-3. What demographic insights would be most valuable for social media targeting?
-4. How can you structure the research to maximize legal marketing effectiveness?
-
-Think step by step about your analysis strategy.`;
-
-      const planningResult = await planningModel.generateContent(planningPrompt);
-      const analysisStrategy = await planningResult.response.text();
-      console.log('✅ Analysis strategy planned');
+      // First, use sequential thinking MCP server to plan the analysis approach
+      console.log(`🧠 Planning analysis approach with Sequential Thinking MCP...`);
+      const analysisStrategy = await planAnalysisWithSequentialThinking(breach);
+      console.log('✅ Analysis strategy planned with Sequential Thinking MCP');
 
       // Multi-Phase Research Pipeline for Comprehensive Intelligence
       console.log(`🔍 Starting comprehensive 4-phase research for ${breach.organization_name}`);
@@ -286,6 +258,111 @@ Think step by step about your analysis strategy.`;
     });
   }
 });
+
+// Sequential Thinking MCP Server Integration
+async function planAnalysisWithSequentialThinking(breach) {
+  console.log(`🧠 Using Sequential Thinking MCP for analysis planning...`);
+
+  try {
+    // Call the Sequential Thinking MCP server
+    const sequentialThinkingUrl = Deno.env.get('SEQUENTIAL_THINKING_MCP_URL') || 'http://localhost:3001';
+
+    const response = await fetch(`${sequentialThinkingUrl}/think`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        thought: `I need to plan a comprehensive legal intelligence analysis for the ${breach.organization_name} data breach.
+
+Available Breach Data:
+- Organization: ${breach.organization_name}
+- Affected Individuals: ${breach.affected_individuals || 'Unknown'}
+- Data Types: ${breach.what_was_leaked || 'Under investigation'}
+- Breach Date: ${breach.breach_date || 'TBD'}
+- Source: ${breach.source_name}
+
+I need to think through:
+1. What are the most critical breach details to prioritize for legal action?
+2. How should I approach damage assessment based on the data types leaked?
+3. What demographic insights would be most valuable for social media targeting?
+4. How can I structure the research to maximize legal marketing effectiveness?
+
+Let me think step by step about the optimal analysis strategy for this breach.`,
+        nextThoughtNeeded: true,
+        thoughtNumber: 1,
+        totalThoughts: 5
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Sequential Thinking MCP error: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Continue the thinking process until complete
+    let currentThought = result;
+    let allThoughts = [currentThought.thought];
+
+    while (currentThought.nextThoughtNeeded && allThoughts.length < 10) {
+      const nextResponse = await fetch(`${sequentialThinkingUrl}/think`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          thought: `Building on my previous analysis, let me continue planning the research strategy...`,
+          nextThoughtNeeded: true,
+          thoughtNumber: allThoughts.length + 1,
+          totalThoughts: Math.max(5, allThoughts.length + 2)
+        })
+      });
+
+      if (!nextResponse.ok) {
+        break;
+      }
+
+      currentThought = await nextResponse.json();
+      allThoughts.push(currentThought.thought);
+    }
+
+    // Combine all thoughts into a comprehensive strategy
+    const comprehensiveStrategy = allThoughts.join('\n\n');
+    console.log(`✅ Sequential thinking completed with ${allThoughts.length} thoughts`);
+
+    return comprehensiveStrategy;
+
+  } catch (error) {
+    console.error('Sequential Thinking MCP failed, using fallback planning:', error);
+
+    // Fallback to simple planning if MCP server is unavailable
+    return `Analysis Strategy for ${breach.organization_name} Breach:
+
+1. BREACH INTELLIGENCE PRIORITY:
+   - Focus on data types leaked: ${breach.what_was_leaked || 'personal information'}
+   - Affected individuals: ${breach.affected_individuals || 'unknown count'}
+   - Timeline and discovery details
+
+2. DAMAGE ASSESSMENT APPROACH:
+   - Research settlement precedents for similar data types
+   - Calculate per-person damages based on leaked information
+   - Assess regulatory penalties and compliance costs
+
+3. DEMOGRAPHIC RESEARCH STRATEGY:
+   - Identify customer base characteristics
+   - Geographic distribution analysis
+   - Income and age demographics for targeting
+
+4. MARKETING INTELLIGENCE FOCUS:
+   - Social media advertising opportunities
+   - Customer acquisition strategies
+   - Competitive positioning analysis
+
+This comprehensive approach will maximize legal marketing effectiveness.`;
+  }
+}
+
 // Conservative web search to minimize API calls
 async function performWebSearch(query) {
   console.log(`🔍 Performing conservative web search: ${query}`);
