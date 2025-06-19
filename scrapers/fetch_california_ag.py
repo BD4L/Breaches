@@ -14,10 +14,12 @@ from dateutil import parser as dateutil_parser # For flexible date parsing
 # Assuming SupabaseClient is in utils.supabase_client
 try:
     from utils.supabase_client import SupabaseClient, clean_text_for_database
+    from scraper_logger import ScraperLogger
 except ImportError:
     import sys
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from utils.supabase_client import SupabaseClient, clean_text_for_database
+    from scraper_logger import ScraperLogger
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -749,7 +751,7 @@ def enhance_breach_data(breach_record: dict) -> dict:
         }
         return enhanced_data  # Return enhanced_data with errors logged, not the original record
 
-def process_california_ag_breaches():
+def process_california_ag_breaches(scraper_logger=None):
     """
     Enhanced California AG breach scraper using 3-tier approach.
     """
@@ -818,6 +820,13 @@ def process_california_ag_breaches():
                 # Log progress every 10 records
                 if i % 10 == 0 or i == 1:
                     logger.info(f"Processing breach {i}/{total_breaches} ({(i/total_breaches)*100:.1f}%)")
+                    if scraper_logger:
+                        scraper_logger.log_progress(
+                            f"Processing breach {i}/{total_breaches}",
+                            items_processed=i,
+                            current_page=i,
+                            total_pages=total_breaches
+                        )
 
                 # Tier 2: Enhance with additional data
                 enhanced_record = enhance_breach_data(breach_record)
@@ -1056,26 +1065,73 @@ def process_california_ag_breaches():
 
         logger.info(f"California AG enhanced breach fetch completed. Processed {processed_count} items.")
 
+        # Return statistics for logging
+        return {
+            'processed_count': processed_count,
+            'inserted_count': processed_count,  # For CA AG, processed = inserted
+            'skipped_count': total_breaches - processed_count,
+            'total_breaches': total_breaches
+        }
+
     except Exception as e:
         logger.error(f"Unexpected error in California AG breach fetch: {e}")
+        raise  # Re-raise to be caught by main error handling
 
 # Legacy function name for compatibility
-def fetch_california_ag_breaches():
+def fetch_california_ag_breaches(scraper_logger=None):
     """
     Legacy function name - calls the enhanced process function.
     """
-    return process_california_ag_breaches()
+    return process_california_ag_breaches(scraper_logger)
 
 if __name__ == "__main__":
+    # Initialize scraper logger
+    scraper_logger = ScraperLogger("california_ag", SOURCE_ID_CALIFORNIA_AG)
+    run_id = scraper_logger.start_run()
+
     logger.info("California AG Security Breach Scraper Started")
 
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
     SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
-    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        logger.error("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
-    else:
-        logger.info("Supabase environment variables seem to be set.")
-        process_california_ag_breaches()
+    success = False
+    error_message = None
+    items_processed = 0
+    items_inserted = 0
+    items_skipped = 0
 
-    logger.info("California AG Security Breach Scraper Finished")
+    try:
+        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+            error_message = "CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set."
+            logger.error(error_message)
+            scraper_logger.log_error(error_message, "configuration")
+        else:
+            logger.info("Supabase environment variables seem to be set.")
+            scraper_logger.log_progress("Starting California AG breach processing")
+
+            # Run the main processing function
+            result = process_california_ag_breaches(scraper_logger)
+
+            # Extract statistics from result if available
+            if isinstance(result, dict):
+                items_processed = result.get('processed_count', 0)
+                items_inserted = result.get('inserted_count', 0)
+                items_skipped = result.get('skipped_count', 0)
+
+            success = True
+            logger.info("California AG Security Breach Scraper Finished Successfully")
+
+    except Exception as e:
+        error_message = f"Scraper failed with error: {str(e)}"
+        logger.error(error_message, exc_info=True)
+        scraper_logger.log_error(error_message, "execution")
+
+    finally:
+        # End the scraper run with final statistics
+        scraper_logger.end_run(
+            success=success,
+            items_processed=items_processed,
+            items_inserted=items_inserted,
+            items_skipped=items_skipped,
+            error_message=error_message
+        )

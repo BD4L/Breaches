@@ -1,0 +1,189 @@
+name: California AG Scraper (Hourly)
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Runs every hour at the top of the hour
+  workflow_dispatch: # Allows manual triggering
+    inputs:
+      processing_mode:
+        description: 'Processing mode for California AG scraper'
+        required: false
+        default: 'FULL'
+        type: choice
+        options:
+          - 'FULL'
+          - 'QUICK'
+          - 'ENHANCED'
+      filter_from_date:
+        description: 'Filter breaches from this date (YYYY-MM-DD)'
+        required: false
+        default: '2025-05-21'
+        type: string
+
+jobs:
+  # ============================================================================
+  # PRE-SCRAPING SNAPSHOT - Capture database state before scraping
+  # ============================================================================
+
+  pre-scraping-snapshot:
+    name: "📸 Pre-Scraping Database Snapshot"
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Take database snapshot
+        run: python scrapers/database_change_tracker.py --snapshot
+      - name: Upload snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: california-ag-snapshot
+          path: /tmp/scraper_snapshot.json
+          retention-days: 1
+
+  # ============================================================================
+  # CALIFORNIA AG SCRAPER - Dedicated hourly run
+  # ============================================================================
+
+  california-ag-scraper:
+    name: "🏛️ California AG Scraper"
+    runs-on: ubuntu-latest
+    needs: pre-scraping-snapshot
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+      # California AG configuration
+      CA_AG_FILTER_FROM_DATE: ${{ github.event.inputs.filter_from_date || '2025-05-21' }}
+      CA_AG_PROCESSING_MODE: ${{ github.event.inputs.processing_mode || 'FULL' }}
+      CA_AG_TIMEOUT: "50"  # 50-minute timeout for hourly runs
+      CA_AG_MAX_PAGES: "10"  # Limit pages to prevent excessive runtime
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Log scraper start
+        run: |
+          echo "🚀 Starting California AG scraper at $(date)"
+          echo "📊 Configuration:"
+          echo "   - Processing Mode: $CA_AG_PROCESSING_MODE"
+          echo "   - Filter From Date: $CA_AG_FILTER_FROM_DATE"
+          echo "   - Timeout: $CA_AG_TIMEOUT minutes"
+          echo "   - Max Pages: $CA_AG_MAX_PAGES"
+      - name: Run California AG Scraper
+        run: |
+          echo "🏛️ Running California AG scraper..."
+          python scrapers/fetch_california_ag.py
+      - name: Log scraper completion
+        run: |
+          echo "✅ California AG scraper completed at $(date)"
+
+  # ============================================================================
+  # SUMMARY JOB - Generate database change report
+  # ============================================================================
+
+  summary:
+    name: "📊 California AG Summary & Database Changes"
+    runs-on: ubuntu-latest
+    needs: [pre-scraping-snapshot, california-ag-scraper]
+    if: always() # Run even if scraper fails
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    outputs:
+      new_items: ${{ steps.database-report.outputs.new_items }}
+      new_breaches: ${{ steps.database-report.outputs.new_breaches }}
+      new_news: ${{ steps.database-report.outputs.new_news }}
+      new_affected: ${{ steps.database-report.outputs.new_affected }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Download snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: california-ag-snapshot
+          path: /tmp/
+      - name: Generate database change report
+        id: database-report
+        run: python scrapers/database_change_tracker.py --report
+      - name: Check scraper results
+        run: |
+          echo "=== CALIFORNIA AG SCRAPER SUMMARY ==="
+          echo "California AG Scraper: ${{ needs.california-ag-scraper.result }}"
+          echo "================================="
+          
+          if [[ "${{ needs.california-ag-scraper.result }}" == "success" ]]; then
+            echo "✅ California AG scraper completed successfully!"
+          else
+            echo "❌ California AG scraper failed"
+          fi
+
+          echo ""
+          echo "📊 DATABASE CHANGES SUMMARY:"
+          echo "   Items Change: ${{ steps.database-report.outputs.new_items }}"
+          echo "   Breaches Change: ${{ steps.database-report.outputs.new_breaches }}"
+          echo "   News Change: ${{ steps.database-report.outputs.new_news }}"
+          echo "   People Affected Change: ${{ steps.database-report.outputs.new_affected }}"
+
+          # Interpret the results
+          NEW_ITEMS="${{ steps.database-report.outputs.new_items }}"
+          NEW_BREACHES="${{ steps.database-report.outputs.new_breaches }}"
+
+          if [ "$NEW_ITEMS" -lt 0 ]; then
+            echo "ℹ️  Note: Negative values indicate database cleanup (duplicate removal)"
+          elif [ "$NEW_ITEMS" -eq 0 ]; then
+            echo "ℹ️  No new items discovered in this California AG run"
+          else
+            echo "✅ $NEW_ITEMS new items discovered from California AG!"
+          fi
+
+          echo "🔗 View live dashboard: https://bd4l.github.io/Breaches/"
+
+  # ============================================================================
+  # EMAIL NOTIFICATIONS - Send alerts for new breaches
+  # ============================================================================
+
+  email-notifications:
+    name: "📧 Email Alert Notifications"
+    runs-on: ubuntu-latest
+    needs: [summary]
+    if: needs.summary.outputs.new_breaches > 0
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Send email notifications
+        run: |
+          echo "📧 Sending email notifications for ${{ needs.summary.outputs.new_breaches }} new breaches..."
+          python scrapers/email_alerts.py --source "California AG" --new-count "${{ needs.summary.outputs.new_breaches }}"

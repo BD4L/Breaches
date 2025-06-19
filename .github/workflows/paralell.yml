@@ -107,7 +107,7 @@ jobs:
         run: python scrapers/fetch_hhs_ocr.py
 
   state-ag-group-1:
-    name: "State AG Group 1 (DE, CA, WA, HI)"
+    name: "State AG Group 1 (DE, WA, HI)"
     runs-on: ubuntu-latest
     needs: pre-scraping-snapshot
     if: ${{ github.event.inputs.run_state_ag_1 != 'false' }}
@@ -115,9 +115,6 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       PYTHONUNBUFFERED: "1"
-      # California AG configuration
-      CA_AG_FILTER_FROM_DATE: "2025-05-21"
-      CA_AG_PROCESSING_MODE: "FULL"
       # Washington AG configuration
       WA_AG_FILTER_FROM_DATE: "2025-01-20"
       # Hawaii AG configuration
@@ -134,10 +131,6 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run Delaware AG Scraper
         run: python scrapers/fetch_delaware_ag.py
-      - name: Wait between scrapers
-        run: sleep 10
-      - name: Run California AG Scraper
-        run: python scrapers/fetch_california_ag.py
       - name: Wait between scrapers
         run: sleep 10
       - name: Run Washington AG Scraper
@@ -356,13 +349,14 @@ jobs:
           set +e  # Disable exit on error for this section
           echo "=== PARALLEL SCRAPING SUMMARY ==="
           echo "Government & Federal: ${{ needs.government-scrapers.result }}"
-          echo "State AG Group 1 (DE,CA,WA,HI): ${{ needs.state-ag-group-1.result }}"
+          echo "State AG Group 1 (DE,WA,HI): ${{ needs.state-ag-group-1.result }}"
           echo "State AG Group 2 (IN,IA,ME): ${{ needs.state-ag-group-2.result }}"
           echo "State AG Group 3 (MA,MT,NH,NJ): ${{ needs.state-ag-group-3.result }}"
           echo "State AG Group 4 (ND,OK,VT,WI,TX): ${{ needs.state-ag-group-4.result }}"
           echo "Problematic Scrapers (MD): ${{ needs.problematic-scrapers.result }}"
           echo "================================="
-          echo "ℹ️  Note: RSS & API scrapers now run in separate workflow"
+          echo "ℹ️  Note: California AG runs hourly in separate workflow"
+          echo "ℹ️  Note: RSS & API scrapers run in separate workflow"
 
           # Count successful jobs (excluding problematic scrapers from main count)
           success_count=0
