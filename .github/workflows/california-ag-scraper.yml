@@ -65,7 +65,7 @@ jobs:
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       PYTHONUNBUFFERED: "1"
       # California AG configuration
-      CA_AG_FILTER_FROM_DATE: ${{ github.event.inputs.filter_from_date || '2025-05-21' }}
+      CA_AG_FILTER_FROM_DATE: ${{ github.event.inputs.filter_from_date || '2025-06-01' }}
       CA_AG_PROCESSING_MODE: ${{ github.event.inputs.processing_mode || 'FULL' }}
       CA_AG_TIMEOUT: "50"  # 50-minute timeout for hourly runs
       CA_AG_MAX_PAGES: "10"  # Limit pages to prevent excessive runtime

@@ -2,7 +2,7 @@ import os
 import logging
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urljoin
 from dateutil import parser as dateutil_parser
 import re
@@ -35,7 +35,7 @@ REQUEST_HEADERS = {
 }
 
 # Configuration
-FILTER_FROM_DATE = os.environ.get("BREACHSENSE_FILTER_FROM_DATE", datetime.now().strftime("%Y-%m-%d"))  # Default to today
+FILTER_FROM_DATE = os.environ.get("BREACHSENSE_FILTER_FROM_DATE", "2025-06-01")  # Default to beginning of current month
 PROCESSING_MODE = os.environ.get("BREACHSENSE_PROCESSING_MODE", "ENHANCED")  # BASIC, ENHANCED, FULL
 MAX_BREACHES = int(os.environ.get("BREACHSENSE_MAX_BREACHES", "50"))  # Limit for GitHub Actions
 

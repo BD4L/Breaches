@@ -74,19 +74,19 @@ def parse_date_delaware(date_str: str) -> str | None:
 
 def is_recent_breach(date_str: str) -> bool:
     """
-    Check if a breach date is from today onward.
-    Returns True if the date is today or in the future.
+    Check if a breach date is from June 1st, 2025 onward.
+    Returns True if the date is on or after June 1st, 2025.
     """
     if not date_str:
-        return False
+        return True  # Include if no date available
 
     try:
         from datetime import datetime, date
         breach_date = datetime.fromisoformat(date_str).date()
-        today = date.today()
-        return breach_date >= today
+        cutoff_date = date(2025, 6, 1)  # June 1st, 2025
+        return breach_date >= cutoff_date
     except:
-        return False
+        return True  # Include if date parsing fails
 
 def extract_organization_name(cell) -> tuple[str, str]:
     """

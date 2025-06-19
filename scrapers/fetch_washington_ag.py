@@ -28,8 +28,8 @@ SOURCE_ID_WASHINGTON_AG = 5
 # Configuration for date filtering
 # Set to None to collect all historical data (for testing)
 # Set to a date string like "2025-01-27" for production filtering
-# Default to one week back for better testing coverage in GitHub Actions
-default_date = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
+# Default to beginning of current month for comprehensive coverage in GitHub Actions
+default_date = "2025-06-01"
 FILTER_FROM_DATE = os.environ.get("WA_AG_FILTER_FROM_DATE", default_date)
 
 # Rate limiting configuration

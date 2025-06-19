@@ -33,10 +33,10 @@ SOURCE_ID_CALIFORNIA_AG = 4 # California AG source ID
 # Configuration for date filtering
 # Set to None to collect all historical data (for testing)
 # Set to a date string like "2025-05-27" for production filtering
-# Default to one week back for better testing coverage
+# Default to beginning of current month for comprehensive coverage
 # GitHub Actions should use recent date to avoid timeouts
 from datetime import timedelta
-default_date = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
+default_date = "2025-06-01"
 FILTER_FROM_DATE = os.environ.get("CA_AG_FILTER_FROM_DATE", default_date)
 
 # Processing mode configuration

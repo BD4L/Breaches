@@ -30,8 +30,8 @@ SOURCE_ID_VERMONT_AG = 17
 # Configuration for date filtering
 # Set to None to collect all historical data (for testing)
 # Set to a date string like "2025-01-27" for production filtering
-# Default to one week back for better testing coverage
-default_date = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
+# Default to beginning of current month for comprehensive coverage
+default_date = "2025-06-01"
 FILTER_FROM_DATE = os.environ.get("VT_AG_FILTER_FROM_DATE", default_date)
 
 # Processing mode configuration

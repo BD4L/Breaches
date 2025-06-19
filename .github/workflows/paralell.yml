@@ -118,9 +118,9 @@ jobs:
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       PYTHONUNBUFFERED: "1"
       # Washington AG configuration
-      WA_AG_FILTER_FROM_DATE: "2025-01-20"
+      WA_AG_FILTER_FROM_DATE: "2025-06-01"
       # Hawaii AG configuration
-      HI_AG_FILTER_FROM_DATE: "2025-01-21"
+      HI_AG_FILTER_FROM_DATE: "2025-06-01"
       HI_AG_PROCESSING_MODE: "FULL"
     steps:
       - name: Checkout repository
@@ -152,13 +152,13 @@ jobs:
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       PYTHONUNBUFFERED: "1"
       # Indiana AG configuration
-      IN_AG_FILTER_FROM_DATE: "2025-01-20"
+      IN_AG_FILTER_FROM_DATE: "2025-06-01"
       IN_AG_PROCESSING_MODE: "ENHANCED"
       # Iowa AG configuration
-      IA_AG_FILTER_FROM_DATE: "2025-01-20"
+      IA_AG_FILTER_FROM_DATE: "2025-06-01"
       IA_AG_PROCESSING_MODE: "ENHANCED"
       # Maine AG configuration
-      ME_AG_FILTER_FROM_DATE: "2025-01-01"
+      ME_AG_FILTER_FROM_DATE: "2025-06-01"
       ME_AG_PROCESSING_MODE: "ENHANCED"
       ME_AG_MAX_PAGES: "2"
     steps:
@@ -191,7 +191,7 @@ jobs:
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       PYTHONUNBUFFERED: "1"
       # Massachusetts AG configuration
-      MA_AG_FILTER_DAYS_BACK: "7"
+      MA_AG_FILTER_DAYS_BACK: "19"
       MA_AG_PROCESSING_MODE: "ENHANCED"
       MA_AG_FORCE_PROCESS: "true"
     steps:
@@ -228,8 +228,10 @@ jobs:
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       PYTHONUNBUFFERED: "1"
       # Texas AG configuration
-      TX_AG_FILTER_FROM_DATE: "2025-01-01"
+      TX_AG_FILTER_FROM_DATE: "2025-06-01"
       TX_AG_PROCESSING_MODE: "ENHANCED"
+      # Vermont AG configuration
+      VT_AG_FILTER_FROM_DATE: "2025-06-01"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

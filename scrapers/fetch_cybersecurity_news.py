@@ -45,7 +45,7 @@ REQUEST_HEADERS = {
 }
 
 # Configuration
-FILTER_DAYS_BACK = int(os.environ.get("NEWS_FILTER_DAYS_BACK", "3"))  # Only process news from last N days (reduced for larger feed list)
+FILTER_DAYS_BACK = int(os.environ.get("NEWS_FILTER_DAYS_BACK", "19"))  # Process news from last N days (from June 1st, 2025)
 MAX_ITEMS_PER_FEED = int(os.environ.get("NEWS_MAX_ITEMS_PER_FEED", "25"))  # Limit items per feed (reduced for performance with 18 feeds)
 PROCESSING_MODE = os.environ.get("NEWS_PROCESSING_MODE", "ENHANCED")  # BASIC, ENHANCED
 BREACH_INTELLIGENCE_ENABLED = os.environ.get("BREACH_INTELLIGENCE_ENABLED", "true").lower() == "true"
