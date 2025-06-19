@@ -372,10 +372,17 @@ def main():
                        help='Check for breaches in the last N minutes (default: 30)')
     parser.add_argument('--test-email', type=str,
                        help='Send a test email to specified address')
+    parser.add_argument('--source', help='Source name for logging (used by GitHub Actions)')
+    parser.add_argument('--new-count', type=int, help='Number of new breaches (used by GitHub Actions)')
 
     args = parser.parse_args()
 
-    alerts = BreachEmailAlerts()
+    try:
+        alerts = BreachEmailAlerts()
+    except ValueError as e:
+        print(f"❌ Configuration error: {e}")
+        print("💡 Make sure RESEND_API_KEY environment variable is set")
+        return
 
     if args.test_email:
         # Send test email
@@ -401,15 +408,26 @@ def main():
 
         if result['success']:
             print(f"✅ Test email sent successfully to {args.test_email}")
+            print(f"📧 Message ID: {result.get('message_id')}")
         else:
             print(f"❌ Failed to send test email: {result['error']}")
     else:
         # Process real alerts
+        if args.source and args.new_count:
+            print(f"📧 Processing alerts for {args.new_count} new breaches from {args.source}")
+
         stats = alerts.process_breach_alerts(args.since_minutes)
         print(f"📊 Alert Summary:")
         print(f"   New breaches: {stats['new_breaches']}")
         print(f"   Alerts sent: {stats['alerts_sent']}")
         print(f"   Errors: {stats['errors']}")
+
+        if stats['new_breaches'] == 0:
+            print("ℹ️  No new breaches found - no alerts to send")
+        elif stats['alerts_sent'] == 0:
+            print("ℹ️  No users matched alert criteria - no alerts sent")
+        else:
+            print(f"🎉 Successfully sent {stats['alerts_sent']} email alerts!")
 
 
 if __name__ == "__main__":

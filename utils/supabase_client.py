@@ -280,3 +280,14 @@ class SupabaseClient:
 
     # We can add more methods later, e.g., for inserting into 'data_sources'
     # or for querying/updating records.
+
+def get_supabase_client():
+    """
+    Get a Supabase client instance for use in email alerts and other utilities.
+    Returns the raw Supabase client, not the SupabaseClient wrapper.
+    """
+    url: str = os.environ.get("SUPABASE_URL")
+    key: str = os.environ.get("SUPABASE_SERVICE_KEY")
+    if not url or not key:
+        raise ValueError("Supabase URL and Key must be set as environment variables.")
+    return create_client(url, key)
