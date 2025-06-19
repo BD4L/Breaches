@@ -48,12 +48,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Take database snapshot
-        run: python scrapers/database_change_tracker.py --snapshot
+        run: |
+          export SNAPSHOT_FILE=/tmp/rss_api_snapshot.json
+          python scrapers/database_change_tracker.py --snapshot
       - name: Upload snapshot
         uses: actions/upload-artifact@v4
         with:
           name: rss-api-database-snapshot
-          path: /tmp/scraper_snapshot.json
+          path: /tmp/rss_api_snapshot.json
           retention-days: 1
 
   # ============================================================================
@@ -155,7 +157,9 @@ jobs:
           path: /tmp/
       - name: Generate database change report
         id: database-report
-        run: python scrapers/database_change_tracker.py --report
+        run: |
+          export SNAPSHOT_FILE=/tmp/rss_api_snapshot.json
+          python scrapers/database_change_tracker.py --report
       - name: Check scraper results
         run: |
           echo "=== RSS/API SCRAPING SUMMARY ==="
@@ -194,7 +198,7 @@ jobs:
     name: "📧 RSS/API Email Alerts"
     runs-on: ubuntu-latest
     needs: summary
-    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' }}
+    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' && needs.summary.outputs.new_breaches != 'null' }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}

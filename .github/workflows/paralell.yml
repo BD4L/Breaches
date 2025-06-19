@@ -68,12 +68,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Take database snapshot
-        run: python scrapers/database_change_tracker.py --snapshot
+        run: |
+          export SNAPSHOT_FILE=/tmp/parallel_scraper_snapshot.json
+          python scrapers/database_change_tracker.py --snapshot
       - name: Upload snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: database-snapshot
-          path: /tmp/scraper_snapshot.json
+          name: parallel-database-snapshot
+          path: /tmp/parallel_scraper_snapshot.json
           retention-days: 1
 
   # ============================================================================
@@ -326,12 +328,23 @@ jobs:
       - name: Download snapshot
         uses: actions/download-artifact@v4
         with:
-          name: database-snapshot
+          name: parallel-database-snapshot
           path: /tmp/
+      - name: Debug snapshot file
+        run: |
+          echo "🔍 DEBUG: Checking snapshot file..."
+          ls -la /tmp/parallel_scraper_snapshot.json || echo "❌ Snapshot file not found"
+          if [ -f /tmp/parallel_scraper_snapshot.json ]; then
+            echo "📄 Snapshot file size: $(wc -c < /tmp/parallel_scraper_snapshot.json) bytes"
+            echo "📊 Snapshot preview (first 500 chars):"
+            head -c 500 /tmp/parallel_scraper_snapshot.json
+            echo ""
+          fi
       - name: Generate database change report
         id: database-report
         run: |
           echo "📊 Generating database change report..."
+          export SNAPSHOT_FILE=/tmp/parallel_scraper_snapshot.json
           python scrapers/database_change_tracker.py --report || {
             echo "⚠️  Database report failed, setting default outputs"
             echo "new_items=0" >> $GITHUB_OUTPUT
@@ -397,24 +410,47 @@ jobs:
           echo "   News Change: ${{ steps.database-report.outputs.new_news }}"
           echo "   People Affected Change: ${{ steps.database-report.outputs.new_affected }}"
 
-          # Interpret the results with better error handling
+          # Interpret the results with enhanced error handling
           NEW_ITEMS="${{ steps.database-report.outputs.new_items }}"
           NEW_BREACHES="${{ steps.database-report.outputs.new_breaches }}"
+          NEW_NEWS="${{ steps.database-report.outputs.new_news }}"
+          NEW_AFFECTED="${{ steps.database-report.outputs.new_affected }}"
 
-          # Handle empty values by defaulting to 0 and ensure they're numeric
+          # Handle empty/null values by defaulting to 0 and ensure they're numeric
           NEW_ITEMS=${NEW_ITEMS:-0}
           NEW_BREACHES=${NEW_BREACHES:-0}
+          NEW_NEWS=${NEW_NEWS:-0}
+          NEW_AFFECTED=${NEW_AFFECTED:-0}
 
-          # Validate that values are numeric
+          # Debug: Show raw values received
+          echo "🔍 DEBUG: Raw values from database report:"
+          echo "   NEW_ITEMS='${{ steps.database-report.outputs.new_items }}'"
+          echo "   NEW_BREACHES='${{ steps.database-report.outputs.new_breaches }}'"
+          echo "   NEW_NEWS='${{ steps.database-report.outputs.new_news }}'"
+          echo "   NEW_AFFECTED='${{ steps.database-report.outputs.new_affected }}'"
+
+          # Validate that values are numeric and fix if needed
           if ! [[ "$NEW_ITEMS" =~ ^-?[0-9]+$ ]]; then
-            echo "⚠️  Warning: NEW_ITEMS is not numeric, defaulting to 0"
+            echo "⚠️  Warning: NEW_ITEMS '$NEW_ITEMS' is not numeric, defaulting to 0"
             NEW_ITEMS=0
           fi
 
           if ! [[ "$NEW_BREACHES" =~ ^-?[0-9]+$ ]]; then
-            echo "⚠️  Warning: NEW_BREACHES is not numeric, defaulting to 0"
+            echo "⚠️  Warning: NEW_BREACHES '$NEW_BREACHES' is not numeric, defaulting to 0"
             NEW_BREACHES=0
           fi
+
+          if ! [[ "$NEW_NEWS" =~ ^-?[0-9]+$ ]]; then
+            echo "⚠️  Warning: NEW_NEWS '$NEW_NEWS' is not numeric, defaulting to 0"
+            NEW_NEWS=0
+          fi
+
+          if ! [[ "$NEW_AFFECTED" =~ ^-?[0-9]+$ ]]; then
+            echo "⚠️  Warning: NEW_AFFECTED '$NEW_AFFECTED' is not numeric, defaulting to 0"
+            NEW_AFFECTED=0
+          fi
+
+          echo "✅ Validated values: items=$NEW_ITEMS, breaches=$NEW_BREACHES, news=$NEW_NEWS, affected=$NEW_AFFECTED"
 
           if [ "$NEW_ITEMS" -lt 0 ]; then
             echo "ℹ️  Note: Negative values indicate database cleanup (duplicate removal)"
@@ -441,7 +477,7 @@ jobs:
     name: "📧 Email Alert Notifications"
     runs-on: ubuntu-latest
     needs: summary
-    if: ${{ always() && needs.summary.outputs.new_breaches > 0 }}
+    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' && needs.summary.outputs.new_breaches != 'null' }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -484,7 +520,7 @@ jobs:
     name: "🔔 Breach Alert Notification (Legacy)"
     runs-on: ubuntu-latest
     needs: summary
-    if: ${{ always() && needs.summary.outputs.new_breaches > 0 }}
+    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' && needs.summary.outputs.new_breaches != 'null' }}
     steps:
       - name: Send breach alert
         run: |

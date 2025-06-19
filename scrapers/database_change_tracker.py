@@ -27,8 +27,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Snapshot file location
-SNAPSHOT_FILE = '/tmp/scraper_snapshot.json'
+# Snapshot file location - can be overridden via environment variable
+SNAPSHOT_FILE = os.environ.get('SNAPSHOT_FILE', '/tmp/scraper_snapshot.json')
 
 def get_database_stats():
     """
@@ -48,49 +48,70 @@ def get_database_stats():
         
         stats = {}
         
-        # Overall counts
+        logger.info("📊 Fetching database statistics...")
+        
+        # Overall counts from scraped_items table
         response = supabase.table("scraped_items").select("*", count="exact", head=True).execute()
         stats['total_items'] = response.count or 0
+        logger.info(f"Total items in database: {stats['total_items']}")
         
-        # Counts by source type
-        response = supabase.table("v_breach_dashboard").select("source_type").execute()
-        source_type_counts = {}
-        for item in response.data or []:
-            source_type = item.get('source_type', 'Unknown')
-            source_type_counts[source_type] = source_type_counts.get(source_type, 0) + 1
-        stats['by_source_type'] = source_type_counts
-
-        # Counts by individual source
-        response = supabase.table("v_breach_dashboard").select("source_name").execute()
-        source_counts = {}
-        for item in response.data or []:
-            source_name = item.get('source_name', 'Unknown')
-            source_counts[source_name] = source_counts.get(source_name, 0) + 1
-        stats['by_source'] = source_counts
+        # Get all data from the view and categorize properly
+        logger.info("📋 Fetching breach dashboard data for categorization...")
+        all_response = supabase.table("v_breach_dashboard").select("source_type, source_name, affected_individuals").execute()
         
-        # Get all data and categorize in Python to avoid complex Supabase queries
-        all_response = supabase.table("v_breach_dashboard").select("source_type, affected_individuals").execute()
+        if not all_response.data:
+            logger.warning("⚠️ No data returned from v_breach_dashboard")
+            stats['breach_count'] = 0
+            stats['news_count'] = 0
+            stats['total_affected'] = 0
+            stats['by_source_type'] = {}
+            stats['by_source'] = {}
+        else:
+            logger.info(f"Retrieved {len(all_response.data)} records from v_breach_dashboard")
+            
+            # Categorize data
+            source_type_counts = {}
+            source_counts = {}
+            breach_count = 0
+            news_count = 0
+            total_affected = 0
 
-        breach_count = 0
-        news_count = 0
-        total_affected = 0
+            # Updated categorization with more comprehensive types
+            breach_types = [
+                'State AG', 'Government Portal', 'Breach Database', 
+                'State Cybersecurity', 'State Agency', 'API', 
+                'Federal Portal', 'Regulatory Filing'
+            ]
+            news_types = ['News Feed', 'Company IR', 'RSS Feed']
 
-        breach_types = ['State AG', 'Government Portal', 'Breach Database', 'State Cybersecurity', 'State Agency', 'API']
-        news_types = ['News Feed', 'Company IR']
+            for item in all_response.data:
+                source_type = item.get('source_type', 'Unknown')
+                source_name = item.get('source_name', 'Unknown')
+                affected = item.get('affected_individuals', 0) or 0
 
-        for item in all_response.data or []:
-            source_type = item.get('source_type', '')
-            affected = item.get('affected_individuals', 0) or 0
+                # Count by source type
+                source_type_counts[source_type] = source_type_counts.get(source_type, 0) + 1
+                
+                # Count by individual source
+                source_counts[source_name] = source_counts.get(source_name, 0) + 1
+                
+                # Categorize as breach or news
+                if source_type in breach_types:
+                    breach_count += 1
+                    total_affected += affected
+                elif source_type in news_types:
+                    news_count += 1
+                else:
+                    # Log unknown source types for debugging
+                    logger.warning(f"Unknown source type: '{source_type}' from {source_name}")
 
-            if source_type in breach_types:
-                breach_count += 1
-                total_affected += affected
-            elif source_type in news_types:
-                news_count += 1
-
-        stats['breach_count'] = breach_count
-        stats['news_count'] = news_count
-        stats['total_affected'] = total_affected
+            stats['breach_count'] = breach_count
+            stats['news_count'] = news_count
+            stats['total_affected'] = total_affected
+            stats['by_source_type'] = source_type_counts
+            stats['by_source'] = source_counts
+            
+            logger.info(f"Categorized: {breach_count} breaches, {news_count} news, {total_affected} affected")
         
         # Recent items (last 24 hours)
         yesterday = (datetime.now() - timedelta(days=1)).isoformat()
@@ -104,10 +125,14 @@ def get_database_stats():
         
         stats['timestamp'] = datetime.now().isoformat()
         
+        logger.info("✅ Database statistics collected successfully")
         return stats
         
     except Exception as e:
         logger.error(f"Failed to get database stats: {e}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return None
 
 def take_snapshot():
@@ -237,13 +262,34 @@ def generate_report():
     
     print("="*80)
     
-    # Set GitHub Actions output
+    # Set GitHub Actions output with improved validation
     if os.environ.get('GITHUB_ACTIONS'):
-        with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-            f.write(f"new_items={changes['total_items']}\n")
-            f.write(f"new_breaches={changes['breach_count']}\n")
-            f.write(f"new_news={changes['news_count']}\n")
-            f.write(f"new_affected={changes['total_affected']}\n")
+        try:
+            github_output_file = os.environ.get('GITHUB_OUTPUT', '/dev/null')
+            logger.info(f"Writing GitHub Actions outputs to: {github_output_file}")
+            
+            # Ensure all values are integers
+            new_items = int(changes.get('total_items', 0))
+            new_breaches = int(changes.get('breach_count', 0))
+            new_news = int(changes.get('news_count', 0))
+            new_affected = int(changes.get('total_affected', 0))
+            
+            with open(github_output_file, 'a') as f:
+                f.write(f"new_items={new_items}\n")
+                f.write(f"new_breaches={new_breaches}\n")
+                f.write(f"new_news={new_news}\n")
+                f.write(f"new_affected={new_affected}\n")
+            
+            logger.info(f"GitHub outputs set: items={new_items}, breaches={new_breaches}, news={new_news}, affected={new_affected}")
+            
+        except Exception as e:
+            logger.error(f"Failed to write GitHub Actions outputs: {e}")
+            # Write default values to prevent workflow failures
+            with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+                f.write("new_items=0\n")
+                f.write("new_breaches=0\n")
+                f.write("new_news=0\n")
+                f.write("new_affected=0\n")
     
     return True
 
