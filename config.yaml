@@ -16,18 +16,21 @@ cybersecurity_news_feeds:
     source_id: 24
   - name: "Dark Reading"
     url: "https://www.darkreading.com/rss.xml"
-    source_id: 25
+    source_id: 24
   - name: "DataBreaches.net"
     url: "https://www.databreaches.net/feed/"
-    source_id: 26
+    source_id: 25
   - name: "Cybersecurity Ventures"
     url: "https://cybersecurityventures.com/feed/"
-    source_id: 27
+    source_id: 26
   - name: "Reddit r/cybersecurity"
     url: "https://www.reddit.com/r/cybersecurity.rss"
-    source_id: 28
+    source_id: 27
   - name: "Reddit r/databreaches"
     url: "https://www.reddit.com/r/databreaches.rss"
+    source_id: 28
+  - name: "Cyber News Feed"
+    url: "https://cybernews.com/feed/"
     source_id: 29
   - name: "Security Magazine Cybersecurity"
     url: "https://www.securitymagazine.com/rss/topic/2236-cybersecurity-news"
@@ -39,16 +42,16 @@ cybersecurity_news_feeds:
     url: "https://www.cisa.gov/cybersecurity-advisories/all.xml"
     source_id: 42
   - name: "DataBreachToday.com"
-    url: "http://feeds.feedburner.com/databreachtoday/com"
+    url: "https://www.databreachtoday.com/rssFeeds.php?type=main"
     source_id: 43
   - name: "HealthcareInfoSecurity.com"
-    url: "http://feeds.feedburner.com/healthcareinfosecurity/com"
+    url: "https://www.healthcareinfosecurity.com/rssFeeds.php?type=main"
     source_id: 44
   - name: "BankInfoSecurity.com"
-    url: "http://feeds.feedburner.com/bankinfosecurity/com"
+    url: "https://www.bankinfosecurity.com/rssFeeds.php?type=main"
     source_id: 45
   - name: "InfoRiskToday.com"
-    url: "http://feeds.feedburner.com/inforisktoday/com"
+    url: "https://www.inforisktoday.com/rssFeeds.php?type=main"
     source_id: 46
   - name: "Have I Been Pwned - Latest Breaches"
     url: "http://feeds.feedburner.com/HaveIBeenPwnedLatestBreaches"
