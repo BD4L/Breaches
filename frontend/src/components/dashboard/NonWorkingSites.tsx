@@ -36,7 +36,7 @@ export function NonWorkingSites({ onClose }: NonWorkingSitesProps) {
     {
       id: 13,
       name: "New Hampshire AG",
-      url: "https://www.doj.nh.gov/consumer/security-breaches/",
+      url: "https://www.doj.nh.gov/citizens/consumer-protection-antitrust-bureau/security-breach-notifications",
       type: "State AG",
       description: "New Hampshire Attorney General data breach notifications",
       reason: "WAF (Web Application Firewall) protection blocking scraper access. Returns 403 Forbidden errors. May need browser automation or alternative access methods.",
@@ -45,7 +45,7 @@ export function NonWorkingSites({ onClose }: NonWorkingSitesProps) {
     {
       id: 14,
       name: "New Jersey Cybersecurity",
-      url: "https://www.cyber.nj.gov/alerts-advisories/data-breach-notifications",
+      url: "https://www.cyber.nj.gov/threat-landscape/public-data-breaches",
       type: "State AG",
       description: "New Jersey cybersecurity data breach notifications",
       reason: "Incapsula WAF protection blocking scraper access. Advanced bot detection prevents automated access. Requires sophisticated bypass techniques.",
