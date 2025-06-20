@@ -57,9 +57,28 @@ def get_database_stats():
         
         # Get all data from the view and categorize properly
         logger.info("📋 Fetching breach dashboard data for categorization...")
-        all_response = supabase.table("v_breach_dashboard").select("source_type, source_name, affected_individuals").execute()
-        
-        if not all_response.data:
+
+        # Fetch all records using pagination to avoid 1000 record limit
+        all_data = []
+        page_size = 1000
+        offset = 0
+
+        while True:
+            response = supabase.table("v_breach_dashboard").select("source_type, source_name, affected_individuals").range(offset, offset + page_size - 1).execute()
+
+            if not response.data:
+                break
+
+            all_data.extend(response.data)
+            logger.info(f"Fetched {len(response.data)} records (offset {offset})")
+
+            # If we got less than page_size records, we've reached the end
+            if len(response.data) < page_size:
+                break
+
+            offset += page_size
+
+        if not all_data:
             logger.warning("⚠️ No data returned from v_breach_dashboard")
             stats['breach_count'] = 0
             stats['news_count'] = 0
@@ -67,7 +86,7 @@ def get_database_stats():
             stats['by_source_type'] = {}
             stats['by_source'] = {}
         else:
-            logger.info(f"Retrieved {len(all_response.data)} records from v_breach_dashboard")
+            logger.info(f"Retrieved {len(all_data)} total records from v_breach_dashboard")
             
             # Categorize data
             source_type_counts = {}
@@ -84,7 +103,7 @@ def get_database_stats():
             ]
             news_types = ['News Feed', 'Company IR', 'RSS Feed']
 
-            for item in all_response.data:
+            for item in all_data:
                 source_type = item.get('source_type', 'Unknown')
                 source_name = item.get('source_name', 'Unknown')
                 affected = item.get('affected_individuals', 0) or 0
