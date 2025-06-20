@@ -657,6 +657,7 @@ export async function getSourceTypeCounts() {
   const { data, error } = await supabase
     .from('v_breach_dashboard')
     .select('source_type')
+    .limit(10000) // Ensure we get all records, not just first 1000
 
   if (error) throw error
 
@@ -855,6 +856,7 @@ export async function getSourceSummary() {
     const { data, error } = await supabase
       .from('v_breach_dashboard')
       .select('source_type, source_name, affected_individuals, publication_date')
+      .limit(10000) // Ensure we get all records, not just first 1000
 
     if (error) throw error
 
@@ -911,6 +913,7 @@ export async function getDailyStats(): Promise<{ data: DailyStats | null; error:
       .select('source_type, source_name, affected_individuals')
       .gte('scraped_at', startIso)
       .lt('scraped_at', endIso)
+      .limit(10000) // Ensure we get all records, not just first 1000
 
     if (error) throw error
 
