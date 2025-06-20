@@ -48,47 +48,27 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
       setLoading(true)
       setError(null)
 
-      // First get all data sources (including those with zero data)
+      // Use efficient count-based approach like the main dashboard
+      console.log('📊 Loading source stats with efficient count-based approach...')
+
+      // Get all data sources
       const { data: allSources, error: sourcesError } = await supabase
         .from('data_sources')
         .select('id, name, type')
-        .neq('type', 'API') // Exclude API sources
+        .neq('type', 'API')
 
       if (sourcesError) throw sourcesError
 
-      // Use the same view as the main dashboard for consistency
-      const { data: scrapedData, error: scrapedError } = await supabase
-        .from('v_breach_dashboard')
-        .select(`
-          id,
-          source_id,
-          organization_name,
-          affected_individuals,
-          breach_date,
-          scraped_at,
-          publication_date,
-          source_type
-        `)
-        .limit(10000) // Ensure we get all records, not just first 1000
+      // Initialize category map
+      const categoryMap = new Map<string, CategoryStats>()
 
-      if (scrapedError) throw scrapedError
-
-      console.log('📊 Source Summary Debug:', {
-        totalSources: allSources.length,
-        totalScrapedItems: scrapedData.length,
-        sourceTypes: [...new Set(allSources.map(s => s.type))],
-        scrapedSourceTypes: [...new Set(scrapedData.map(s => s.source_type))]
-      })
-
-      // Initialize sourceMap with ALL sources (including those with zero data)
-      const sourceMap = new Map<number, SourceStats>()
-
-      // First, initialize all sources from data_sources table
-      allSources.forEach(source => {
-        const sourceId = Number(source.id) // Ensure consistent number type
+      // Process each source efficiently
+      const sourceStatsPromises = allSources.map(async (source) => {
+        const sourceId = Number(source.id)
         const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(source.type)
+        const isNewsSource = SOURCE_TYPE_CONFIG.isNewsSource(source.type)
 
-        // Determine item type label based on source type
+        // Determine item type label
         let itemTypeLabel = 'items'
         switch (source.type) {
           case 'State AG':
@@ -106,81 +86,91 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
             break
         }
 
-        sourceMap.set(sourceId, {
+        // Get count efficiently using count query
+        const { count: totalItems } = await supabase
+          .from('v_breach_dashboard')
+          .select('*', { count: 'exact', head: true })
+          .eq('source_id', sourceId)
+
+        // Get breach count for breach sources
+        let totalBreaches = 0
+        if (isBreachSource) {
+          const { count: breachCount } = await supabase
+            .from('v_breach_dashboard')
+            .select('*', { count: 'exact', head: true })
+            .eq('source_id', sourceId)
+            .in('source_type', SOURCE_TYPE_CONFIG.getBreachSourceTypes())
+          totalBreaches = breachCount || 0
+        }
+
+        // Get news count for news sources
+        let totalNews = 0
+        if (isNewsSource) {
+          const { count: newsCount } = await supabase
+            .from('v_breach_dashboard')
+            .select('*', { count: 'exact', head: true })
+            .eq('source_id', sourceId)
+            .in('source_type', SOURCE_TYPE_CONFIG.getNewsSourceTypes())
+          totalNews = newsCount || 0
+        }
+
+        // Get affected individuals sum efficiently for breach sources
+        let totalAffected = 0
+        let avgAffectedPerBreach = 0
+        if (isBreachSource && totalBreaches > 0) {
+          const { data: affectedData } = await supabase
+            .from('v_breach_dashboard')
+            .select('affected_individuals')
+            .eq('source_id', sourceId)
+            .not('affected_individuals', 'is', null)
+
+          if (affectedData) {
+            totalAffected = affectedData.reduce((sum, item) => sum + (item.affected_individuals || 0), 0)
+            avgAffectedPerBreach = totalAffected / totalBreaches
+          }
+        }
+
+        // Get latest dates efficiently
+        const { data: latestData } = await supabase
+          .from('v_breach_dashboard')
+          .select('breach_date, scraped_at')
+          .eq('source_id', sourceId)
+          .not('scraped_at', 'is', null)
+          .order('scraped_at', { ascending: false })
+          .limit(1)
+
+        const latestScraped = latestData?.[0]?.scraped_at || null
+        const latestBreach = latestData?.[0]?.breach_date || null
+
+        return {
           source_id: sourceId,
           source_name: source.name,
           source_type: source.type,
-          total_items: 0,
-          total_breaches: 0,
-          total_news: 0,
-          total_affected: 0,
-          latest_breach: null,
-          latest_scraped: null,
-          avg_affected_per_breach: 0,
+          total_items: totalItems || 0,
+          total_breaches: totalBreaches,
+          total_news: totalNews,
+          total_affected: totalAffected,
+          latest_breach: latestBreach,
+          latest_scraped: latestScraped,
+          avg_affected_per_breach: avgAffectedPerBreach,
           is_breach_source: isBreachSource,
           item_type_label: itemTypeLabel
-        })
-      })
-
-      // Then, process scraped items data to update statistics
-      scrapedData.forEach(record => {
-        const sourceId = Number(record.source_id) // Ensure consistent number type
-
-        // Skip if source not in our map (shouldn't happen, but safety check)
-        if (!sourceMap.has(sourceId)) {
-          console.warn(`Found scraped data for unknown source ID: ${sourceId} (type: ${typeof sourceId})`)
-          console.warn('Available source IDs:', Array.from(sourceMap.keys()))
-          return
-        }
-
-        const sourceStats = sourceMap.get(sourceId)!
-
-        // Get source type from the view data (now available since we're using v_breach_dashboard)
-        const sourceType = record.source_type || sourceStats.source_type
-
-        // Count items based on source type using centralized config
-        const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(sourceType)
-        const isNewsSource = SOURCE_TYPE_CONFIG.isNewsSource(sourceType)
-
-        // Increment total items
-        sourceStats.total_items++
-
-        // Increment appropriate category count
-        if (isBreachSource) {
-          sourceStats.total_breaches++
-        } else if (isNewsSource) {
-          sourceStats.total_news++
-        } else {
-          console.warn(`⚠️ Unknown source type classification: ${sourceType} for source ${sourceId}`)
-        }
-
-        // Only count affected individuals for breach sources
-        if (isBreachSource && record.affected_individuals) {
-          sourceStats.total_affected += record.affected_individuals
-        }
-
-        // Update latest dates
-        if (record.breach_date && (!sourceStats.latest_breach || record.breach_date > sourceStats.latest_breach)) {
-          sourceStats.latest_breach = record.breach_date
-        }
-
-        if (record.scraped_at && (!sourceStats.latest_scraped || record.scraped_at > sourceStats.latest_scraped)) {
-          sourceStats.latest_scraped = record.scraped_at
         }
       })
 
-      // Calculate averages and group by category
-      const categoryMap = new Map<string, CategoryStats>()
+      // Wait for all source stats to complete
+      const sourceStats = await Promise.all(sourceStatsPromises)
 
-      sourceMap.forEach(sourceStats => {
-        // Only calculate averages for breach sources with breaches
-        if (sourceStats.is_breach_source && sourceStats.total_breaches > 0) {
-          sourceStats.avg_affected_per_breach = sourceStats.total_affected / sourceStats.total_breaches
-        } else {
-          sourceStats.avg_affected_per_breach = 0
-        }
+      console.log('📊 Source Summary Efficient Debug:', {
+        totalSources: allSources.length,
+        sourceStatsCalculated: sourceStats.length,
+        totalItemsSum: sourceStats.reduce((sum, s) => sum + s.total_items, 0),
+        totalBreachesSum: sourceStats.reduce((sum, s) => sum + s.total_breaches, 0)
+      })
 
-        const category = SOURCE_TYPE_CONFIG.getDisplayCategory(sourceStats.source_type)
+      // Group by category
+      sourceStats.forEach(sourceInfo => {
+        const category = SOURCE_TYPE_CONFIG.getDisplayCategory(sourceInfo.source_type)
 
         if (!categoryMap.has(category)) {
           categoryMap.set(category, {
@@ -196,14 +186,14 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
         const categoryStats = categoryMap.get(category)!
         categoryStats.total_sources++
-        categoryStats.total_items += sourceStats.total_items
-        categoryStats.total_breaches += sourceStats.total_breaches
-        categoryStats.total_news += sourceStats.total_news
-        categoryStats.total_affected += sourceStats.total_affected
-        categoryStats.sources.push(sourceStats)
+        categoryStats.total_items += sourceInfo.total_items
+        categoryStats.total_breaches += sourceInfo.total_breaches
+        categoryStats.total_news += sourceInfo.total_news
+        categoryStats.total_affected += sourceInfo.total_affected
+        categoryStats.sources.push(sourceInfo)
       })
 
-      // Sort sources within each category by total items (breaches + news)
+      // Sort sources within each category by total items
       categoryMap.forEach(category => {
         category.sources.sort((a, b) => b.total_items - a.total_items)
       })
