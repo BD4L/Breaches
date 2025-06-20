@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Constants
-NEW_JERSEY_CYBER_URL = "https://www.cyber.nj.gov/data-breach-alerts"
+NEW_JERSEY_CYBER_URL = "https://www.cyber.nj.gov/threat-landscape/public-data-breaches"
 SOURCE_ID_NEW_JERSEY_CYBER = 14 # Per task instructions, using 14 for NJ (Cybersecurity)
 
 # Headers for requests

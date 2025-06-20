@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__brave-search__brave_web_search"
+    ],
+    "deny": []
+  }
+}
