@@ -56,21 +56,29 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
       if (sourcesError) throw sourcesError
 
-      // Then get all scraped items data directly from scraped_items table
+      // Use the same view as the main dashboard for consistency
       const { data: scrapedData, error: scrapedError } = await supabase
-        .from('scraped_items')
+        .from('v_breach_dashboard')
         .select(`
           id,
           source_id,
-          title,
+          organization_name,
           affected_individuals,
           breach_date,
           scraped_at,
-          publication_date
+          publication_date,
+          source_type
         `)
         .limit(10000) // Ensure we get all records, not just first 1000
 
       if (scrapedError) throw scrapedError
+
+      console.log('📊 Source Summary Debug:', {
+        totalSources: allSources.length,
+        totalScrapedItems: scrapedData.length,
+        sourceTypes: [...new Set(allSources.map(s => s.type))],
+        scrapedSourceTypes: [...new Set(scrapedData.map(s => s.source_type))]
+      })
 
       // Initialize sourceMap with ALL sources (including those with zero data)
       const sourceMap = new Map<number, SourceStats>()
@@ -127,8 +135,8 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
 
         const sourceStats = sourceMap.get(sourceId)!
 
-        // Get source type from our sourceMap (since scraped_items doesn't have source_type)
-        const sourceType = sourceStats.source_type
+        // Get source type from the view data (now available since we're using v_breach_dashboard)
+        const sourceType = record.source_type || sourceStats.source_type
 
         // Count items based on source type using centralized config
         const isBreachSource = SOURCE_TYPE_CONFIG.isBreachSource(sourceType)
@@ -142,6 +150,8 @@ export function SourceSummary({ onClose }: SourceSummaryProps) {
           sourceStats.total_breaches++
         } else if (isNewsSource) {
           sourceStats.total_news++
+        } else {
+          console.warn(`⚠️ Unknown source type classification: ${sourceType} for source ${sourceId}`)
         }
 
         // Only count affected individuals for breach sources
