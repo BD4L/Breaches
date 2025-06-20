@@ -62,6 +62,7 @@ export function SourceSummaryHero() {
       .from('v_breach_dashboard')
       .select('affected_individuals')
       .not('affected_individuals', 'is', null)
+      .limit(10000) // Ensure we get all records, not just first 1000
 
     const totalAffected = affectedData?.reduce((sum, item) => sum + (item.affected_individuals || 0), 0) || 0
 
