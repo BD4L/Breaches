@@ -655,7 +655,10 @@ serve(async (req)=>{
         details: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set'
       }), {
         status: 500,
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -676,7 +679,10 @@ serve(async (req)=>{
         details: error.message
       }), {
         status: 400,
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -687,7 +693,10 @@ serve(async (req)=>{
         details: 'Please provide a valid breachId in the request body'
       }), {
         status: 400,
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -711,7 +720,10 @@ serve(async (req)=>{
         apiKeysStatus: apiKeys
       }), {
         status: 500,
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -801,27 +813,48 @@ serve(async (req)=>{
     console.log(`📊 Created report record ${reportRecord.id}`);
 
     try {
-      // Start Enhanced Legal Marketing Intelligence Research
+      // Start Enhanced Legal Marketing Intelligence Research with timeout protection
       console.log(`⚖️ Starting Legal Marketing Intelligence Analysis for ${breach.organization_name}`);
 
+      // Set research timeout (2 minutes max to prevent hanging)
+      const RESEARCH_TIMEOUT = 120000; // 2 minutes
+      
       // Enhanced 6-Phase Research Pipeline for Class Action Litigation
       console.log(`🔍 Starting comprehensive 6-phase legal marketing research for ${breach.organization_name}`);
       
-      // Phase 1: Enhanced Breach Discovery & Verification with Source Citations
-      console.log(`📊 Phase 1: Enhanced Breach Discovery & Cross-Verification`);
-      const breachDiscovery = await enhancedBreachDiscovery(aiResearcher, breach, supabase);
+      // Execute research phases with timeout protection
+      const researchPromise = (async () => {
+        // Phase 1: Enhanced Breach Discovery & Verification with Source Citations
+        console.log(`📊 Phase 1: Enhanced Breach Discovery & Cross-Verification`);
+        const breachDiscovery = await enhancedBreachDiscovery(aiResearcher, breach, supabase);
+        
+        // Phase 2: Legal Settlement Precedent Research
+        console.log(`⚖️ Phase 2: Legal Settlement Precedent Analysis`);
+        const settlementPrecedents = await researchSettlementPrecedentsEnhanced(aiResearcher, breach, breachDiscovery);
+        
+        // Phase 3: Customer Demographics Analysis for Ad Targeting
+        console.log(`👥 Phase 3: Customer Demographics Analysis for Ad Targeting`);
+        const customerDemographics = await customerDemographicsAnalysis(aiResearcher, breach);
+        
+        // Phase 4: Geographic & Behavioral Targeting
+        console.log(`🎯 Phase 4: Geographic & Behavioral Targeting Analysis`);
+        const targetingAnalysis = await behavioralTargetingAnalysis(aiResearcher, breach, customerDemographics);
+        
+        return {
+          breachDiscovery,
+          settlementPrecedents,
+          customerDemographics,
+          targetingAnalysis
+        };
+      })();
       
-      // Phase 2: Legal Settlement Precedent Research
-      console.log(`⚖️ Phase 2: Legal Settlement Precedent Analysis`);
-      const settlementPrecedents = await researchSettlementPrecedentsEnhanced(aiResearcher, breach, breachDiscovery);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Research timeout - operations exceeded 2 minutes')), RESEARCH_TIMEOUT)
+      );
       
-      // Phase 3: Customer Demographics Analysis for Ad Targeting
-      console.log(`👥 Phase 3: Customer Demographics Analysis for Ad Targeting`);
-      const customerDemographics = await customerDemographicsAnalysis(aiResearcher, breach);
-      
-      // Phase 4: Geographic & Behavioral Targeting
-      console.log(`🎯 Phase 4: Geographic & Behavioral Targeting Analysis`);
-      const targetingAnalysis = await behavioralTargetingAnalysis(aiResearcher, breach, customerDemographics);
+      console.log(`⏱️ Starting research with ${RESEARCH_TIMEOUT/1000}s timeout...`);
+      const { breachDiscovery, settlementPrecedents, customerDemographics, targetingAnalysis } = 
+        await Promise.race([researchPromise, timeoutPromise]);
       
       // Combine all research phases for comprehensive legal intelligence
       const allResearchData = {
@@ -948,13 +981,28 @@ serve(async (req)=>{
         }
       });
     } catch (error) {
+      console.error('❌ Research phase failed:', error);
       // Update report record with error
       await supabase.from('research_jobs').update({
         status: 'failed',
         error_message: error.message,
         processing_time_ms: Date.now() - startTime
       }).eq('id', reportRecord.id);
-      throw error;
+      
+      // Return error response instead of throwing (prevents hanging)
+      return new Response(JSON.stringify({
+        error: 'Research failed',
+        details: error.message,
+        reportId: reportRecord.id,
+        status: 'failed',
+        processingTimeMs: Date.now() - startTime
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
     }
   } catch (error) {
     console.error('❌ Error generating AI report:', error);
