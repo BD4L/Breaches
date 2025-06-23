@@ -114,9 +114,7 @@ function calculateLegalSettlementRange(breach: any, dataTypes: string[], content
 }
 
 // AI Model Configuration - Primary: Gemini 2.5 Pro + Grounding, Fallback: Claude 3.7
-const GOOGLE_SEARCH_API_KEY = Deno.env.get('GOOGLE_SEARCH_API_KEY');
-const GOOGLE_SEARCH_ENGINE_ID = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+// Note: Environment variables are accessed within functions to avoid initialization issues
 
 // AI Model Selection Strategy
 const AI_STRATEGY = {
@@ -196,6 +194,9 @@ const searchFunctions = {
 
 // Google's Native Search Implementation
 async function googleWebSearch(query: string, searchType: string = "general", maxResults: number = 15) {
+  const GOOGLE_SEARCH_API_KEY = Deno.env.get('GOOGLE_SEARCH_API_KEY');
+  const GOOGLE_SEARCH_ENGINE_ID = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
+
   if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
     console.log('Google Search API not configured, falling back to Brave Search');
     return await searchWithBrave(query);
@@ -435,6 +436,7 @@ async function createAIResearcher() {
 
   try {
     // Fallback: Claude 3.7 Sonnet with native web search
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     if (ANTHROPIC_API_KEY) {
       const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
       console.log('🚀 Using Claude 3.7 Sonnet with native web search as fallback');
@@ -637,29 +639,56 @@ serve(async (req)=>{
       headers: corsHeaders
     });
   }
+
+  // Always wrap everything in try-catch to ensure CORS headers
   try {
+    console.log('🚀 AI Report function called');
+
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase configuration');
+      console.error('❌ Missing Supabase configuration');
+      return new Response(JSON.stringify({
+        error: 'Missing Supabase configuration',
+        details: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set'
+      }), {
+        status: 500,
+        headers: corsHeaders
+      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log('✅ Supabase client initialized');
 
-    // Parse request first to validate input
+    // Parse request
     let breachId, userId;
     try {
       const body = await req.json();
       breachId = body.breachId;
       userId = body.userId;
+      console.log(`📋 Request parsed - breachId: ${breachId}, userId: ${userId}`);
     } catch (error) {
-      throw new Error('Invalid JSON in request body');
+      console.error('❌ Invalid JSON in request body:', error);
+      return new Response(JSON.stringify({
+        error: 'Invalid JSON in request body',
+        details: error.message
+      }), {
+        status: 400,
+        headers: corsHeaders
+      });
     }
 
     if (!breachId) {
-      throw new Error('breachId is required');
+      console.error('❌ breachId is required');
+      return new Response(JSON.stringify({
+        error: 'breachId is required',
+        details: 'Please provide a valid breachId in the request body'
+      }), {
+        status: 400,
+        headers: corsHeaders
+      });
     }
 
     console.log(`🤖 Starting AI report generation for breach ${breachId}`);
@@ -668,7 +697,6 @@ serve(async (req)=>{
     const apiKeys = {
       gemini: !!Deno.env.get('GEMINI_API_KEY'),
       anthropic: !!Deno.env.get('ANTHROPIC_API_KEY'),
-      google_search: !!Deno.env.get('GOOGLE_SEARCH_API_KEY'),
       brave_search: !!Deno.env.get('BRAVE_SEARCH_API_KEY'),
       firecrawl: !!Deno.env.get('FIRECRAWL_API_KEY')
     };
@@ -676,7 +704,15 @@ serve(async (req)=>{
     console.log('🔑 API Keys availability:', apiKeys);
 
     if (!apiKeys.gemini && !apiKeys.anthropic) {
-      throw new Error('No AI API keys configured. Please set GEMINI_API_KEY or ANTHROPIC_API_KEY in Supabase Edge Function environment variables.');
+      console.error('❌ No AI API keys configured');
+      return new Response(JSON.stringify({
+        error: 'No AI API keys configured',
+        details: 'Please set GEMINI_API_KEY or ANTHROPIC_API_KEY in Supabase Edge Function environment variables.',
+        apiKeysStatus: apiKeys
+      }), {
+        status: 500,
+        headers: corsHeaders
+      });
     }
 
     // Initialize Enhanced AI Research System with better error handling
@@ -693,10 +729,7 @@ serve(async (req)=>{
     // Legacy compatibility for existing functions
     const genAI = aiResearcher.genAI || aiResearcher.model?.constructor ||
                  { getGenerativeModel: () => ({ generateContent: () => ({ response: { text: () => 'AI unavailable' } }) }) };
-    if (!breachId) {
-      throw new Error('breachId is required');
-    }
-    console.log(`🤖 Starting AI report generation for breach ${breachId}`);
+
     const startTime = Date.now();
     // Check rate limits (if user provided)
     if (userId) {
@@ -731,6 +764,21 @@ serve(async (req)=>{
         }
       });
     }
+
+    // If report is already processing, return the processing status
+    if (existingReport && existingReport.status === 'processing') {
+      console.log(`⏳ Report already processing for breach ${breachId}`);
+      return new Response(JSON.stringify({
+        reportId: existingReport.id,
+        status: 'processing',
+        message: 'Report generation in progress. Please check back in a few moments.'
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
     // Get breach data
     const { data: breach, error: breachError } = await supabase.from('v_breach_dashboard').select('*').eq('id', breachId).single();
     if (breachError || !breach) {
@@ -751,6 +799,7 @@ serve(async (req)=>{
       throw new Error(`Failed to create report record: ${reportError.message}`);
     }
     console.log(`📊 Created report record ${reportRecord.id}`);
+
     try {
       // Start Enhanced Legal Marketing Intelligence Research
       console.log(`⚖️ Starting Legal Marketing Intelligence Analysis for ${breach.organization_name}`);
