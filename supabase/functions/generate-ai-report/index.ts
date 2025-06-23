@@ -2,7 +2,7 @@
 // 6-Phase Research Pipeline for Class Action Litigation Marketing
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { GoogleGenerativeAI, FunctionDeclarationSchemaType } from "https://esm.sh/@google/generative-ai@0.21.0";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.28.0";
 // Helper functions inlined to avoid import issues in Supabase Edge Functions
 function extractDataTypes(whatWasLeaked: string): string[] {
@@ -131,19 +131,19 @@ const searchFunctions = {
     name: "web_search",
     description: "Search the web for breach-related information using Google Search API",
     parameters: {
-      type: FunctionDeclarationSchemaType.OBJECT,
+      type: "object",
       properties: {
         query: {
-          type: FunctionDeclarationSchemaType.STRING,
+          type: "string",
           description: "Search query for finding breach information"
         },
         search_type: {
-          type: FunctionDeclarationSchemaType.STRING,
+          type: "string",
           description: "Type of search: legal, settlement, demographic, competitive",
           enum: ["legal", "settlement", "demographic", "competitive", "general"]
         },
         max_results: {
-          type: FunctionDeclarationSchemaType.NUMBER,
+          type: "number",
           description: "Maximum number of results to return (1-10)",
           default: 5
         }
@@ -155,19 +155,19 @@ const searchFunctions = {
     name: "legal_database_search", 
     description: "Search for legal precedents and settlement data",
     parameters: {
-      type: FunctionDeclarationSchemaType.OBJECT,
+      type: "object",
       properties: {
         data_types: {
-          type: FunctionDeclarationSchemaType.ARRAY,
-          items: { type: FunctionDeclarationSchemaType.STRING },
+          type: "array",
+          items: { type: "string" },
           description: "Types of data involved in breach (SSN, credit card, medical, etc.)"
         },
         affected_count: {
-          type: FunctionDeclarationSchemaType.NUMBER,
+          type: "number",
           description: "Number of people affected by the breach"
         },
         company_name: {
-          type: FunctionDeclarationSchemaType.STRING,
+          type: "string",
           description: "Name of the company that suffered the breach"
         }
       },
@@ -178,14 +178,14 @@ const searchFunctions = {
     name: "cross_verify_internal",
     description: "Cross-verify breach information with internal database",
     parameters: {
-      type: FunctionDeclarationSchemaType.OBJECT,
+      type: "object",
       properties: {
         company_name: {
-          type: FunctionDeclarationSchemaType.STRING,
+          type: "string",
           description: "Company name to verify"
         },
         source_id: {
-          type: FunctionDeclarationSchemaType.NUMBER,
+          type: "number",
           description: "Source ID from internal database"
         }
       },
@@ -251,6 +251,9 @@ async function handleFunctionCall(functionCall: any, supabase: any) {
       return await searchLegalPrecedents(args.data_types, args.affected_count, args.company_name);
       
     case 'cross_verify_internal':
+      if (!supabase) {
+        return { status: 'unavailable', message: 'Internal database not available in legacy mode' };
+      }
       return await crossVerifyWithInternalDB(args.company_name, args.source_id, supabase);
       
     default:
@@ -638,16 +641,58 @@ serve(async (req)=>{
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    // Initialize Enhanced AI Research System (Gemini 2.5 Pro + Grounding → Claude 3.7 → Legacy)
-    const aiResearcher = await createAIResearcher();
-    console.log(`🤖 AI Research System initialized: ${aiResearcher.type}`);
-    
+
+    // Parse request first to validate input
+    let breachId, userId;
+    try {
+      const body = await req.json();
+      breachId = body.breachId;
+      userId = body.userId;
+    } catch (error) {
+      throw new Error('Invalid JSON in request body');
+    }
+
+    if (!breachId) {
+      throw new Error('breachId is required');
+    }
+
+    console.log(`🤖 Starting AI report generation for breach ${breachId}`);
+
+    // Check API key availability
+    const apiKeys = {
+      gemini: !!Deno.env.get('GEMINI_API_KEY'),
+      anthropic: !!Deno.env.get('ANTHROPIC_API_KEY'),
+      google_search: !!Deno.env.get('GOOGLE_SEARCH_API_KEY'),
+      brave_search: !!Deno.env.get('BRAVE_SEARCH_API_KEY'),
+      firecrawl: !!Deno.env.get('FIRECRAWL_API_KEY')
+    };
+
+    console.log('🔑 API Keys availability:', apiKeys);
+
+    if (!apiKeys.gemini && !apiKeys.anthropic) {
+      throw new Error('No AI API keys configured. Please set GEMINI_API_KEY or ANTHROPIC_API_KEY in Supabase Edge Function environment variables.');
+    }
+
+    // Initialize Enhanced AI Research System with better error handling
+    let aiResearcher;
+    try {
+      aiResearcher = await createAIResearcher();
+      console.log(`🤖 AI Research System initialized: ${aiResearcher.type}`);
+    } catch (error) {
+      console.error('❌ Failed to initialize AI researcher:', error);
+      // Continue with fallback mode
+      aiResearcher = { type: 'fallback', genAI: null };
+    }
+
     // Legacy compatibility for existing functions
-    const genAI = aiResearcher.genAI || aiResearcher.model?.constructor || 
+    const genAI = aiResearcher.genAI || aiResearcher.model?.constructor ||
                  { getGenerativeModel: () => ({ generateContent: () => ({ response: { text: () => 'AI unavailable' } }) }) };
-    // Parse request
-    const { breachId, userId } = await req.json();
     if (!breachId) {
       throw new Error('breachId is required');
     }
@@ -863,10 +908,17 @@ serve(async (req)=>{
       throw error;
     }
   } catch (error) {
-    console.error('Error generating AI report:', error);
-    return new Response(JSON.stringify({
-      error: error.message
-    }), {
+    console.error('❌ Error generating AI report:', error);
+    console.error('❌ Error stack:', error.stack);
+
+    // Ensure we always return a proper CORS response
+    const errorResponse = {
+      error: error.message || 'Unknown error occurred',
+      details: error.stack ? error.stack.split('\n').slice(0, 5).join('\n') : 'No stack trace available',
+      timestamp: new Date().toISOString()
+    };
+
+    return new Response(JSON.stringify(errorResponse), {
       status: 500,
       headers: {
         ...corsHeaders,
@@ -1780,7 +1832,7 @@ Provide a comprehensive analysis with specific settlement amounts, case names, a
     
     // Parse and structure the research results
     const analysis = researchResult.analysis;
-    const settlementRange = calculateLegalSettlementRange(analysis, breach.affected_individuals);
+    const settlementRange = calculateLegalSettlementRange(breach, dataTypes, []);
     
     console.log(`✅ Settlement precedent research complete: ${analysis.length} chars`);
     

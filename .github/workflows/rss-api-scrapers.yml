@@ -200,12 +200,13 @@ jobs:
     name: "📧 RSS/API Email Alerts"
     runs-on: ubuntu-latest
     needs: summary
-    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' && needs.summary.outputs.new_breaches != 'null' }}
+    if: ${{ always() && ((needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' && needs.summary.outputs.new_breaches != 'null') || (needs.summary.outputs.new_items > 0 && needs.summary.outputs.new_items != '' && needs.summary.outputs.new_items != 'null')) }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       ALERT_FROM_EMAIL: ${{ secrets.ALERT_FROM_EMAIL }}
+      ALERT_TO_EMAIL: ${{ secrets.ALERT_TO_EMAIL }}
       DASHBOARD_URL: "https://bd4l.github.io/Breaches/"
       PYTHONUNBUFFERED: "1"
     steps:

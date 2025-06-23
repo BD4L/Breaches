@@ -10,12 +10,9 @@ max_rows = 1000
 
 [auth]
 enabled = true
-port = 54324
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["https://bd4l.github.io"]
 jwt_expiry = 3600
-refresh_token_rotation_enabled = true
-security_update_password_require_reauthentication = true
 
 [auth.email]
 enable_signup = true
@@ -29,21 +26,13 @@ major_version = 15
 
 [functions]
 # Configuration for Edge Functions
-verify_jwt = false
-
-[functions.generate-ai-report]
-# AI Report Generation Function
-verify_jwt = false  # Set to true in production for authenticated requests
 
 [storage]
 enabled = true
-port = 54323
 file_size_limit = "50MiB"
-s3_region = "us-east-1"
 
 [edge_runtime]
 enabled = true
-port = 54325
 
 [analytics]
 enabled = false

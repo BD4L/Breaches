@@ -479,12 +479,13 @@ jobs:
     name: "📧 Email Alert Notifications"
     runs-on: ubuntu-latest
     needs: summary
-    if: ${{ always() && needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' && needs.summary.outputs.new_breaches != 'null' }}
+    if: ${{ always() && ((needs.summary.outputs.new_breaches > 0 && needs.summary.outputs.new_breaches != '' && needs.summary.outputs.new_breaches != 'null') || (needs.summary.outputs.new_items > 0 && needs.summary.outputs.new_items != '' && needs.summary.outputs.new_items != 'null')) }}
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       ALERT_FROM_EMAIL: ${{ secrets.ALERT_FROM_EMAIL }}
+      ALERT_TO_EMAIL: ${{ secrets.ALERT_TO_EMAIL }}
       DASHBOARD_URL: "https://bd4l.github.io/Breaches/"
       PYTHONUNBUFFERED: "1"
     steps:
@@ -498,9 +499,15 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install requests  # Add requests for Resend API
+      - name: Setup email preferences (if needed)
+        run: |
+          echo "🔧 Ensuring email preferences are configured..."
+          python setup_email_preferences_github.py || echo "⚠️ Email setup failed or already exists"
       - name: Send email alerts
         run: |
           echo "📧 Processing email alerts for new breaches..."
+          echo "📊 New breaches: ${{ needs.summary.outputs.new_breaches }}"
+          echo "📊 New items: ${{ needs.summary.outputs.new_items }}"
           python scrapers/email_alerts.py --since-minutes 35
           echo ""
           echo "✅ Email alert processing complete"
