@@ -109,7 +109,7 @@ jobs:
         run: python scrapers/fetch_hhs_ocr.py
 
   state-ag-group-1:
-    name: "State AG Group 1 (DE, WA, HI)"
+    name: "State AG Group 1 (DE, WA, HI, SC)"
     runs-on: ubuntu-latest
     needs: pre-scraping-snapshot
     if: ${{ github.event.inputs.run_state_ag_1 != 'false' }}
@@ -122,6 +122,8 @@ jobs:
       # Hawaii AG configuration
       HI_AG_FILTER_FROM_DATE: "2025-06-01"
       HI_AG_PROCESSING_MODE: "FULL"
+      # South Carolina AG configuration
+      SC_AG_FILTER_FROM_DATE: "2025-06-01"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -141,6 +143,10 @@ jobs:
         run: sleep 10
       - name: Run Hawaii AG Scraper
         run: python scrapers/fetch_hi_ag.py
+      - name: Wait between scrapers
+        run: sleep 10
+      - name: Run South Carolina AG Scraper
+        run: python scrapers/fetch_sc_ag.py
 
   state-ag-group-2:
     name: "State AG Group 2 (IN, IA, ME)"
@@ -364,7 +370,7 @@ jobs:
           set +e  # Disable exit on error for this section
           echo "=== PARALLEL SCRAPING SUMMARY ==="
           echo "Government & Federal: ${{ needs.government-scrapers.result }}"
-          echo "State AG Group 1 (DE,WA,HI): ${{ needs.state-ag-group-1.result }}"
+          echo "State AG Group 1 (DE,WA,HI,SC): ${{ needs.state-ag-group-1.result }}"
           echo "State AG Group 2 (IN,IA,ME): ${{ needs.state-ag-group-2.result }}"
           echo "State AG Group 3 (MA,MT,NH,NJ): ${{ needs.state-ag-group-3.result }}"
           echo "State AG Group 4 (ND,OK,VT,WI,TX): ${{ needs.state-ag-group-4.result }}"
