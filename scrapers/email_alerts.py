@@ -10,7 +10,14 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import requests
-from utils.supabase_client import get_supabase_client
+
+# Import SupabaseClient with fallback path handling
+try:
+    from utils.supabase_client import SupabaseClient
+except ImportError:
+    import sys
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from utils.supabase_client import SupabaseClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 class BreachEmailAlerts:
     def __init__(self):
-        self.supabase = get_supabase_client()
+        self.supabase_client = SupabaseClient()
+        self.supabase = self.supabase_client.client
         self.resend_api_key = os.getenv('RESEND_API_KEY')
         self.from_email = os.getenv('ALERT_FROM_EMAIL', 'alerts@yourdomain.com')
         self.dashboard_url = os.getenv('DASHBOARD_URL', 'https://bd4l.github.io/Breaches/')
@@ -28,7 +36,7 @@ class BreachEmailAlerts:
     
     def get_new_breaches_for_alerts(self, since_minutes: int = 30) -> List[Dict[str, Any]]:
         """Get new breaches that might trigger alerts"""
-        since_time = datetime.utcnow() - timedelta(minutes=since_minutes)
+        since_time = datetime.now() - timedelta(minutes=since_minutes)
         
         try:
             response = self.supabase.table('v_breach_dashboard').select(
