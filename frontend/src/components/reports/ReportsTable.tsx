@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
@@ -43,6 +43,23 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'created_at' | 'completed_at' | 'processing_time_ms'>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  // Refs for horizontal scroll sync
+  const tableContainerRef = useRef<HTMLDivElement>(null)
+  const scrollbarRef = useRef<HTMLDivElement>(null)
+
+  // Sync horizontal scroll between table and external scrollbar
+  const handleTableScroll = () => {
+    if (tableContainerRef.current && scrollbarRef.current) {
+      scrollbarRef.current.scrollLeft = tableContainerRef.current.scrollLeft
+    }
+  }
+
+  const handleScrollbarScroll = () => {
+    if (tableContainerRef.current && scrollbarRef.current) {
+      tableContainerRef.current.scrollLeft = scrollbarRef.current.scrollLeft
+    }
+  }
 
   // Load reports from database
   useEffect(() => {
@@ -326,8 +343,17 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
 
       {/* Reports Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="relative">
+          <div
+            ref={tableContainerRef}
+            className="overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
+            onScroll={handleTableScroll}
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+          >
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -442,6 +468,18 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
               ))}
             </tbody>
           </table>
+          </div>
+
+          {/* External Horizontal Scrollbar */}
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <div
+              ref={scrollbarRef}
+              className="overflow-x-auto overflow-y-hidden h-4 cursor-pointer"
+              onScroll={handleScrollbarScroll}
+            >
+              <div className="min-w-full h-1"></div>
+            </div>
+          </div>
         </div>
 
         {reports.length === 0 && !loading && (
