@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
+import { HorizontalScrollContainer } from '../ui/HorizontalScrollContainer'
 import { supabase } from '../../lib/supabase'
 
 interface Report {
@@ -198,7 +199,7 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
 
     try {
       // Call Supabase Edge Function using the client (avoids CORS issues)
-      const { data, error } = await supabase.functions.invoke('generate-ai-report', {
+      const { data, error } = await supabase.functions.invoke('generate-ai-report-simple', {
         body: {
           breachId: breachId,
           userId: 'reports-tab-user' // Optional user tracking
@@ -326,7 +327,11 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
 
       {/* Reports Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+        <HorizontalScrollContainer
+          className="min-h-[400px]"
+          showScrollButtons={true}
+          showScrollIndicator={true}
+        >
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -442,7 +447,7 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
               ))}
             </tbody>
           </table>
-        </div>
+        </HorizontalScrollContainer>
 
         {reports.length === 0 && !loading && (
           <div className="text-center py-12">
