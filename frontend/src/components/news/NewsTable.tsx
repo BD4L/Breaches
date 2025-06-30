@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -33,6 +33,23 @@ export function NewsTable({ filters }: NewsTableProps) {
   const [expanded, setExpanded] = useState<ExpandedState>({})
 
   const pageSize = 25
+
+  // Refs for horizontal scroll sync
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const bottomScrollRef = useRef<HTMLDivElement>(null)
+
+  // Sync horizontal scroll between table and bottom scrollbar
+  const syncScrollFromTable = () => {
+    if (tableScrollRef.current && bottomScrollRef.current) {
+      bottomScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft
+    }
+  }
+
+  const syncScrollFromBottom = () => {
+    if (tableScrollRef.current && bottomScrollRef.current) {
+      tableScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft
+    }
+  }
 
   const columns = useMemo<ColumnDef<NewsArticle>[]>(() => [
     {
@@ -230,8 +247,12 @@ export function NewsTable({ filters }: NewsTableProps) {
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div
+          ref={tableScrollRef}
+          className="overflow-x-auto"
+          onScroll={syncScrollFromTable}
+        >
+          <table className="w-full min-w-[1000px]">
             <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map(headerGroup => (
                 <tr key={headerGroup.id}>
@@ -299,6 +320,17 @@ export function NewsTable({ filters }: NewsTableProps) {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Persistent Bottom Horizontal Scrollbar */}
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          <div
+            ref={bottomScrollRef}
+            className="overflow-x-auto overflow-y-hidden h-4"
+            onScroll={syncScrollFromBottom}
+          >
+            <div className="min-w-[1000px] h-1"></div>
+          </div>
         </div>
       </div>
 
