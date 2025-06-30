@@ -16,7 +16,6 @@ import { Button } from '../ui/Button'
 import { BreachDetail } from '../breach/BreachDetail'
 import { SaveBreachButton, type SaveBreachData } from '../saved/SaveBreachButton'
 import { AIReportButton } from '../ai/AIReportButton'
-import { HorizontalScrollContainer } from '../ui/HorizontalScrollContainer'
 
 interface BreachTableProps {
   filters: {
@@ -449,12 +448,8 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
       </div>
 
       {/* Table */}
-      <HorizontalScrollContainer
-        className="min-h-[400px]"
-        showScrollButtons={true}
-        showScrollIndicator={true}
-      >
-        <table className="w-full min-w-[1200px]">
+      <div className="overflow-x-auto">
+        <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
@@ -510,7 +505,7 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
             ))}
           </tbody>
         </table>
-      </HorizontalScrollContainer>
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (

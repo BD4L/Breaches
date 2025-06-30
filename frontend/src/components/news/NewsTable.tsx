@@ -13,7 +13,6 @@ import { getNewsArticles, type NewsArticle } from '../../lib/supabase'
 import { formatDate, getSourceTypeColor, truncateText } from '../../lib/utils'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { HorizontalScrollContainer } from '../ui/HorizontalScrollContainer'
 
 interface NewsTableProps {
   filters: {
@@ -231,12 +230,8 @@ export function NewsTable({ filters }: NewsTableProps) {
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <HorizontalScrollContainer
-          className="min-h-[400px]"
-          showScrollButtons={true}
-          showScrollIndicator={true}
-        >
-          <table className="w-full min-w-[1000px]">
+        <div className="overflow-x-auto">
+          <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map(headerGroup => (
                 <tr key={headerGroup.id}>
@@ -304,7 +299,7 @@ export function NewsTable({ filters }: NewsTableProps) {
               ))}
             </tbody>
           </table>
-        </HorizontalScrollContainer>
+        </div>
       </div>
 
       {/* Pagination */}
