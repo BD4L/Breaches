@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
@@ -43,23 +43,6 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'created_at' | 'completed_at' | 'processing_time_ms'>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-
-  // Refs for horizontal scroll sync
-  const tableScrollRef = useRef<HTMLDivElement>(null)
-  const bottomScrollRef = useRef<HTMLDivElement>(null)
-
-  // Sync horizontal scroll between table and bottom scrollbar
-  const syncScrollFromTable = () => {
-    if (tableScrollRef.current && bottomScrollRef.current) {
-      bottomScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft
-    }
-  }
-
-  const syncScrollFromBottom = () => {
-    if (tableScrollRef.current && bottomScrollRef.current) {
-      tableScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft
-    }
-  }
 
   // Load reports from database
   useEffect(() => {
@@ -343,11 +326,7 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
 
       {/* Reports Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div
-          ref={tableScrollRef}
-          className="overflow-x-auto"
-          onScroll={syncScrollFromTable}
-        >
+        <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -463,17 +442,6 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* Persistent Bottom Horizontal Scrollbar */}
-        <div className="border-t border-gray-200 dark:border-gray-700">
-          <div
-            ref={bottomScrollRef}
-            className="overflow-x-auto overflow-y-hidden h-4"
-            onScroll={syncScrollFromBottom}
-          >
-            <div className="min-w-full h-1"></div>
-          </div>
         </div>
 
         {reports.length === 0 && !loading && (

@@ -43,29 +43,12 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
   const [currentPage, setCurrentPage] = useState(0)
   const pageSize = 50
 
-  // Refs for horizontal scroll sync
-  const tableScrollRef = useRef<HTMLDivElement>(null)
-  const bottomScrollRef = useRef<HTMLDivElement>(null)
-
   // Add debouncing to prevent excessive API calls
   const [debouncedFilters, setDebouncedFilters] = useState(filters)
   const debounceTimeoutRef = useRef<NodeJS.Timeout>()
 
   // Track saved breaches
   const [savedBreaches, setSavedBreaches] = useState<Record<number, any>>({})
-
-  // Sync horizontal scroll between table and bottom scrollbar
-  const syncScrollFromTable = () => {
-    if (tableScrollRef.current && bottomScrollRef.current) {
-      bottomScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft
-    }
-  }
-
-  const syncScrollFromBottom = () => {
-    if (tableScrollRef.current && bottomScrollRef.current) {
-      tableScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft
-    }
-  }
 
   // Update saved count when savedBreaches changes
   useEffect(() => {
@@ -465,12 +448,8 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
       </div>
 
       {/* Table */}
-      <div
-        ref={tableScrollRef}
-        className="overflow-x-auto"
-        onScroll={syncScrollFromTable}
-      >
-        <table className="w-full min-w-[1200px]">
+      <div className="overflow-x-auto">
+        <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
@@ -526,17 +505,6 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
             ))}
           </tbody>
         </table>
-      </div>
-
-      {/* Persistent Bottom Horizontal Scrollbar */}
-      <div className="border-t border-gray-200 dark:border-gray-700">
-        <div
-          ref={bottomScrollRef}
-          className="overflow-x-auto overflow-y-hidden h-4"
-          onScroll={syncScrollFromBottom}
-        >
-          <div className="min-w-[1200px] h-1"></div>
-        </div>
       </div>
 
       {/* Pagination */}
