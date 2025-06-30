@@ -43,29 +43,12 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
   const [currentPage, setCurrentPage] = useState(0)
   const pageSize = 50
 
-  // Refs for horizontal scroll sync
-  const tableContainerRef = useRef<HTMLDivElement>(null)
-  const scrollbarRef = useRef<HTMLDivElement>(null)
-
   // Add debouncing to prevent excessive API calls
   const [debouncedFilters, setDebouncedFilters] = useState(filters)
   const debounceTimeoutRef = useRef<NodeJS.Timeout>()
 
   // Track saved breaches
   const [savedBreaches, setSavedBreaches] = useState<Record<number, any>>({})
-
-  // Sync horizontal scroll between table and external scrollbar
-  const handleTableScroll = () => {
-    if (tableContainerRef.current && scrollbarRef.current) {
-      scrollbarRef.current.scrollLeft = tableContainerRef.current.scrollLeft
-    }
-  }
-
-  const handleScrollbarScroll = () => {
-    if (tableContainerRef.current && scrollbarRef.current) {
-      tableContainerRef.current.scrollLeft = scrollbarRef.current.scrollLeft
-    }
-  }
 
   // Update saved count when savedBreaches changes
   useEffect(() => {
@@ -465,18 +448,8 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
       </div>
 
       {/* Table */}
-      <div className="relative">
-        <div
-          ref={tableContainerRef}
-          className="overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
-          onScroll={handleTableScroll}
-          style={{
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
-          }}
-        >
-          <div>
-            <table className="w-full min-w-[1200px]">
+      <div className="overflow-x-auto">
+        <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
@@ -531,20 +504,7 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
               </React.Fragment>
             ))}
           </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* External Horizontal Scrollbar */}
-        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <div
-            ref={scrollbarRef}
-            className="overflow-x-auto overflow-y-hidden h-4 cursor-pointer"
-            onScroll={handleScrollbarScroll}
-          >
-            <div className="min-w-[1200px] h-1"></div>
-          </div>
-        </div>
+        </table>
       </div>
 
       {/* Pagination */}

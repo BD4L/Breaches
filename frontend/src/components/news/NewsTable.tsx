@@ -34,23 +34,6 @@ export function NewsTable({ filters }: NewsTableProps) {
 
   const pageSize = 25
 
-  // Refs for horizontal scroll sync
-  const tableContainerRef = useRef<HTMLDivElement>(null)
-  const scrollbarRef = useRef<HTMLDivElement>(null)
-
-  // Sync horizontal scroll between table and external scrollbar
-  const handleTableScroll = () => {
-    if (tableContainerRef.current && scrollbarRef.current) {
-      scrollbarRef.current.scrollLeft = tableContainerRef.current.scrollLeft
-    }
-  }
-
-  const handleScrollbarScroll = () => {
-    if (tableContainerRef.current && scrollbarRef.current) {
-      tableContainerRef.current.scrollLeft = scrollbarRef.current.scrollLeft
-    }
-  }
-
   const columns = useMemo<ColumnDef<NewsArticle>[]>(() => [
     {
       id: 'expander',
@@ -247,17 +230,8 @@ export function NewsTable({ filters }: NewsTableProps) {
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="relative">
-          <div
-            ref={tableContainerRef}
-            className="overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
-            onScroll={handleTableScroll}
-            style={{
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none'
-            }}
-          >
-            <table className="w-full min-w-[1000px]">
+        <div className="overflow-x-auto">
+          <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map(headerGroup => (
                 <tr key={headerGroup.id}>
@@ -324,19 +298,7 @@ export function NewsTable({ filters }: NewsTableProps) {
                 </React.Fragment>
               ))}
             </tbody>
-            </table>
-          </div>
-
-          {/* External Horizontal Scrollbar */}
-          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div
-              ref={scrollbarRef}
-              className="overflow-x-auto overflow-y-hidden h-4 cursor-pointer"
-              onScroll={handleScrollbarScroll}
-            >
-              <div className="min-w-[1000px] h-1"></div>
-            </div>
-          </div>
+          </table>
         </div>
       </div>
 
