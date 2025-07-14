@@ -48,6 +48,7 @@ interface FilterSidebarProps {
     selectedSources: number[]
     minAffected: number
     affectedKnown?: boolean
+    noticesSent?: boolean
     scrapedDateRange: { start?: string; end?: string }
     breachDateRange: { start?: string; end?: string }
     publicationDateRange: { start?: string; end?: string }
@@ -60,6 +61,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
   const [selectedSources, setSelectedSources] = useState<number[]>([])
   const [minAffected, setMinAffected] = useState(0)
   const [affectedKnown, setAffectedKnown] = useState<boolean | undefined>(undefined)
+  const [noticesSent, setNoticesSent] = useState<boolean | undefined>(undefined)
   const [scrapedDateRange, setScrapedDateRange] = useState<{ start?: string; end?: string }>({})
   const [breachDateRange, setBreachDateRange] = useState<{ start?: string; end?: string }>({})
   const [publicationDateRange, setPublicationDateRange] = useState<{ start?: string; end?: string }>({})
@@ -103,6 +105,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
           selectedSources,
           minAffected,
           affectedKnown,
+          noticesSent,
           scrapedDateRange,
           breachDateRange,
           publicationDateRange
@@ -119,21 +122,22 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       selectedSources,
       minAffected,
       affectedKnown,
+      noticesSent,
       scrapedDateRange,
       breachDateRange,
       publicationDateRange
     })
-  }, [onFiltersChange, search, sourceTypes, selectedSources, minAffected, affectedKnown, scrapedDateRange, breachDateRange, publicationDateRange])
+  }, [onFiltersChange, search, sourceTypes, selectedSources, minAffected, affectedKnown, noticesSent, scrapedDateRange, breachDateRange, publicationDateRange])
 
   // Only update filters when specific filter values change (not on every render)
   useEffect(() => {
     // Only call if we have actual filter values to avoid initial empty calls
-    if (sourceTypes.length > 0 || selectedSources.length > 0 || minAffected > 0 || affectedKnown !== undefined ||
+    if (sourceTypes.length > 0 || selectedSources.length > 0 || minAffected > 0 || affectedKnown !== undefined || noticesSent !== undefined ||
         Object.keys(scrapedDateRange).length > 0 || Object.keys(breachDateRange).length > 0 ||
         Object.keys(publicationDateRange).length > 0) {
       updateFiltersImmediate()
     }
-  }, [sourceTypes, selectedSources, minAffected, affectedKnown, scrapedDateRange, breachDateRange, publicationDateRange])
+  }, [sourceTypes, selectedSources, minAffected, affectedKnown, noticesSent, scrapedDateRange, breachDateRange, publicationDateRange])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -184,6 +188,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
     setSelectedSources([])
     setMinAffected(0)
     setAffectedKnown(undefined)
+    setNoticesSent(undefined)
     setScrapedDateRange({})
     setBreachDateRange({})
     setPublicationDateRange({})
@@ -196,6 +201,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       selectedSources: [],
       minAffected: 0,
       affectedKnown: undefined,
+      noticesSent: undefined,
       scrapedDateRange: {},
       breachDateRange: {},
       publicationDateRange: {}
@@ -239,6 +245,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
       setSourceTypes(['State AG Sites', 'Government Portals'])
       setSelectedSources(sourceIds)
       setAffectedKnown(true) // Only known affected counts
+      setNoticesSent(undefined) // Reset notices filter
       setScrapedDateRange({ start: last24HoursStart, end: nowEnd }) // Last 24 hours
       setBreachDateRange({})
       setPublicationDateRange({})
@@ -253,6 +260,7 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
         selectedSources: sourceIds,
         minAffected: 0,
         affectedKnown: true,
+        noticesSent: undefined,
         scrapedDateRange: { start: last24HoursStart, end: nowEnd },
         breachDateRange: {},
         publicationDateRange: {}
@@ -512,6 +520,60 @@ export function FilterSidebar({ isOpen, onClose, currentView, onFiltersChange }:
                       </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         (TBD, under investigation)
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Victim Notices Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Victim Notifications
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="noticesSent"
+                        checked={noticesSent === undefined}
+                        onChange={() => setNoticesSent(undefined)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                        All records
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        (with and without notices)
+                      </span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="noticesSent"
+                        checked={noticesSent === true}
+                        onChange={() => setNoticesSent(true)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                        Notices sent
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        (victims have been notified)
+                      </span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="noticesSent"
+                        checked={noticesSent === false}
+                        onChange={() => setNoticesSent(false)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                        No notices sent
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        (victims not yet notified)
                       </span>
                     </label>
                   </div>

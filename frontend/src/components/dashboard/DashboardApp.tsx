@@ -16,6 +16,7 @@ interface Filters {
   selectedSources: number[]
   minAffected: number
   affectedKnown?: boolean
+  noticesSent?: boolean
   scrapedDateRange: { start?: string; end?: string }
   breachDateRange: { start?: string; end?: string }
   publicationDateRange: { start?: string; end?: string }
@@ -40,6 +41,7 @@ export function DashboardApp() {
     selectedSources: [],
     minAffected: 0,
     affectedKnown: undefined,
+    noticesSent: undefined,
     scrapedDateRange: {},
     breachDateRange: {},
     publicationDateRange: {}
@@ -103,6 +105,7 @@ export function DashboardApp() {
     onSelectedSourcesChange: (selectedSources) => setFilters(prev => ({ ...prev, selectedSources })),
     onMinAffectedChange: (minAffected) => setFilters(prev => ({ ...prev, minAffected })),
     onAffectedKnownChange: (affectedKnown) => setFilters(prev => ({ ...prev, affectedKnown })),
+    onNoticesSentChange: (noticesSent) => setFilters(prev => ({ ...prev, noticesSent })),
     onScrapedDateRangeChange: (scrapedDateRange) => setFilters(prev => ({ ...prev, scrapedDateRange })),
     onBreachDateRangeChange: (breachDateRange) => setFilters(prev => ({ ...prev, breachDateRange })),
     onPublicationDateRangeChange: (publicationDateRange) => setFilters(prev => ({ ...prev, publicationDateRange }))
@@ -115,6 +118,7 @@ export function DashboardApp() {
       selectedSources: [],
       minAffected: 0,
       affectedKnown: undefined,
+      noticesSent: undefined,
       scrapedDateRange: {},
       breachDateRange: {},
       publicationDateRange: {}

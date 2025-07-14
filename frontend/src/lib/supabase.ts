@@ -208,6 +208,7 @@ export async function getBreaches(params: {
   selectedSources?: number[]
   minAffected?: number
   affectedKnown?: boolean
+  noticesSent?: boolean
   search?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
@@ -222,6 +223,7 @@ export async function getBreaches(params: {
     selectedSources = [],
     minAffected = 0,
     affectedKnown,
+    noticesSent,
     search = '',
     sortBy = 'publication_date',
     sortOrder = 'desc',
@@ -231,7 +233,7 @@ export async function getBreaches(params: {
   } = params
 
   console.log('🔍 getBreaches called with params:', {
-    page, limit, sourceTypes, selectedSources, minAffected, affectedKnown,
+    page, limit, sourceTypes, selectedSources, minAffected, affectedKnown, noticesSent,
     search, sortBy, sortOrder, scrapedDateRange, breachDateRange, publicationDateRange
   })
 
@@ -287,6 +289,18 @@ export async function getBreaches(params: {
     } else {
       console.log('📊 Filtering for records WITHOUT affected_individuals count')
       query = query.is('affected_individuals', null)
+    }
+  }
+
+  // Filter for records where victim notices have been sent
+  if (noticesSent !== undefined) {
+    console.log('🔍 Applying noticesSent filter:', noticesSent)
+    if (noticesSent) {
+      console.log('📊 Filtering for records WITH notice documents (victims notified)')
+      query = query.not('notice_document_url', 'is', null)
+    } else {
+      console.log('📊 Filtering for records WITHOUT notice documents (victims not notified)')
+      query = query.is('notice_document_url', null)
     }
   }
 

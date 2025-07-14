@@ -102,6 +102,7 @@ export function createFilterPills(
     selectedSources: number[]
     minAffected: number
     affectedKnown?: boolean
+    noticesSent?: boolean
     scrapedDateRange: { start?: string; end?: string }
     breachDateRange: { start?: string; end?: string }
     publicationDateRange: { start?: string; end?: string }
@@ -113,6 +114,7 @@ export function createFilterPills(
     onSelectedSourcesChange: (sources: number[]) => void
     onMinAffectedChange: (min: number) => void
     onAffectedKnownChange: (known?: boolean) => void
+    onNoticesSentChange: (sent?: boolean) => void
     onScrapedDateRangeChange: (range: { start?: string; end?: string }) => void
     onBreachDateRangeChange: (range: { start?: string; end?: string }) => void
     onPublicationDateRangeChange: (range: { start?: string; end?: string }) => void
@@ -175,6 +177,17 @@ export function createFilterPills(
       value: filters.affectedKnown ? 'Known' : 'Unknown',
       type: 'numeric',
       onRemove: () => onFilterChange.onAffectedKnownChange(undefined)
+    })
+  }
+
+  // Victim notices sent filter
+  if (filters.noticesSent !== undefined) {
+    pills.push({
+      id: 'notices-sent',
+      label: 'Victim Notices',
+      value: filters.noticesSent ? 'Sent' : 'Not Sent',
+      type: 'numeric',
+      onRemove: () => onFilterChange.onNoticesSentChange(undefined)
     })
   }
 
