@@ -16,6 +16,7 @@ import { Button } from '../ui/Button'
 import { BreachDetail } from '../breach/BreachDetail'
 import { SaveBreachButton, type SaveBreachData } from '../saved/SaveBreachButton'
 import { AIReportButton } from '../ai/AIReportButton'
+import { HorizontalScrollbar } from '../ui/HorizontalScrollbar'
 
 interface BreachTableProps {
   filters: {
@@ -38,6 +39,7 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'publication_date', desc: true }
   ])
+  const tableContainerRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState<ExpandedState>({})
   const [totalCount, setTotalCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(0)
@@ -447,8 +449,11 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Table Container */}
+      <div
+        ref={tableContainerRef}
+        className="overflow-x-auto overflow-y-visible scrollbar-hide"
+      >
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             {table.getHeaderGroups().map(headerGroup => (
@@ -505,6 +510,14 @@ export function BreachTable({ filters, onSavedCountChange }: BreachTableProps) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* External Horizontal Scrollbar */}
+      <div className="px-6 py-2">
+        <HorizontalScrollbar
+          targetRef={tableContainerRef}
+          className="w-full"
+        />
       </div>
 
       {/* Pagination */}
