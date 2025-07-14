@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,7 +13,6 @@ import { getNewsArticles, type NewsArticle } from '../../lib/supabase'
 import { formatDate, getSourceTypeColor, truncateText } from '../../lib/utils'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { HorizontalScrollbar } from '../ui/HorizontalScrollbar'
 
 interface NewsTableProps {
   filters: {
@@ -32,7 +31,6 @@ export function NewsTable({ filters }: NewsTableProps) {
   const [currentPage, setCurrentPage] = useState(0)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'publication_date', desc: true }])
   const [expanded, setExpanded] = useState<ExpandedState>({})
-  const tableContainerRef = useRef<HTMLDivElement>(null)
 
   const pageSize = 25
 
@@ -232,10 +230,7 @@ export function NewsTable({ filters }: NewsTableProps) {
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div
-          ref={tableContainerRef}
-          className="overflow-x-auto overflow-y-visible scrollbar-hide"
-        >
+        <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map(headerGroup => (
@@ -304,14 +299,6 @@ export function NewsTable({ filters }: NewsTableProps) {
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* External Horizontal Scrollbar */}
-        <div className="px-4 py-2">
-          <HorizontalScrollbar
-            targetRef={tableContainerRef}
-            className="w-full"
-          />
         </div>
       </div>
 
