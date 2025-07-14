@@ -50,8 +50,9 @@ MAX_ITEMS_PER_FEED = int(os.environ.get("NEWS_MAX_ITEMS_PER_FEED", "25"))  # Lim
 PROCESSING_MODE = os.environ.get("NEWS_PROCESSING_MODE", "ENHANCED")  # BASIC, ENHANCED
 BREACH_INTELLIGENCE_ENABLED = os.environ.get("BREACH_INTELLIGENCE_ENABLED", "true").lower() == "true"
 BREACH_CONFIDENCE_THRESHOLD = float(os.environ.get("BREACH_CONFIDENCE_THRESHOLD", "0.3"))  # Minimum confidence for breach detection
-CONCURRENT_FEEDS = int(os.environ.get("NEWS_CONCURRENT_FEEDS", "3"))  # Number of feeds to process concurrently
+CONCURRENT_FEEDS = int(os.environ.get("NEWS_CONCURRENT_FEEDS", "2"))  # Number of feeds to process concurrently (reduced for stability)
 FEED_TIMEOUT = int(os.environ.get("NEWS_FEED_TIMEOUT", "30"))  # Timeout per feed in seconds
+MAX_TOTAL_TIMEOUT = int(os.environ.get("NEWS_MAX_TOTAL_TIMEOUT", "300"))  # Maximum total job timeout (5 minutes)
 
 def clean_html(html_content: str, max_length: int = 500) -> str:
     """Strips HTML from a string and truncates it."""
@@ -379,6 +380,9 @@ def process_cybersecurity_news_feeds():
     failed_feeds = 0
 
     # Use ThreadPoolExecutor for concurrent processing
+    logger.info(f"🚀 Starting concurrent processing of {len(NEWS_FEEDS)} feeds with {CONCURRENT_FEEDS} workers...")
+    logger.info(f"⏱️  Timeout configuration: {FEED_TIMEOUT}s per feed, {MAX_TOTAL_TIMEOUT}s total job timeout")
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENT_FEEDS) as executor:
         # Submit all feed processing tasks
         future_to_feed = {
@@ -386,8 +390,8 @@ def process_cybersecurity_news_feeds():
             for feed_info in NEWS_FEEDS
         }
 
-        # Collect results as they complete
-        for future in concurrent.futures.as_completed(future_to_feed, timeout=FEED_TIMEOUT * len(NEWS_FEEDS)):
+        # Collect results as they complete with reasonable total timeout
+        for future in concurrent.futures.as_completed(future_to_feed, timeout=MAX_TOTAL_TIMEOUT):
             feed_info = future_to_feed[future]
             try:
                 _, processed_count, inserted_count, skipped_count = future.result(timeout=FEED_TIMEOUT)
@@ -402,7 +406,7 @@ def process_cybersecurity_news_feeds():
                     failed_feeds += 1
 
             except concurrent.futures.TimeoutError:
-                logger.error(f"⏰ Timeout processing feed: {feed_info.get('name', 'Unknown')}")
+                logger.error(f"⏰ Timeout processing feed: {feed_info.get('name', 'Unknown')} (timeout: {FEED_TIMEOUT}s)")
                 failed_feeds += 1
             except Exception as e:
                 logger.error(f"❌ Exception processing feed {feed_info.get('name', 'Unknown')}: {e}")
