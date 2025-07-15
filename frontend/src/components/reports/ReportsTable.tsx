@@ -274,12 +274,7 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Avg Processing Time</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-              ${reports.filter(r => r.cost_estimate).reduce((sum, r) => sum + (r.cost_estimate || 0), 0).toFixed(2)}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Total Research Cost</div>
-          </div>
+          {/* Removed total research cost box */}
         </div>
       )}
 
@@ -392,11 +387,7 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     {formatDuration(report.processing_time_ms)}
-                    {report.cost_estimate && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        ${report.cost_estimate.toFixed(2)}
-                      </div>
-                    )}
+                    {/* Cost estimate removed */}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     <div>{formatDate(report.created_at)}</div>
