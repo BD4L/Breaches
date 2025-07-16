@@ -4,44 +4,75 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // OpenRouter Kimi-K2 integration
 const OPENROUTER_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? ''
 
-// Simple prompt function
+// Improved prompt function with balanced guidance: suggested searches as starting points, but allow organic adaptation
 function buildKimiPrompt(organizationName: string): string {
-  return `Conduct MULTIPLE targeted web searches to thoroughly research the ${organizationName} data breach. Do separate searches for different aspects:
+  return `You are an expert cybersecurity and legal intelligence analyst specializing in data breaches. Your goal is to conduct thorough, accurate research on the ${organizationName} data breach using multiple targeted web searches. Start with the suggested searches below, but adapt them organically, add new queries as needed, and follow leads from initial results to deepen the investigation. Prioritize reliable sources like official government filings (SEC, HHS), reputable news outlets (Reuters, Bloomberg, KrebsOnSecurity, BleepingComputer), and company statements. Cross-verify facts from at least 2-3 sources where possible. If information is conflicting or unavailable, note it explicitly with explanations.
+
+Use site: operators for targeted results (e.g., site:sec.gov) when appropriate. Include recent years: 2024 2025. Suggested starting searches (adapt and expand as needed):
 
 SEARCH 1: Basic breach information
-- Search: "${organizationName} data breach 2024 2025"
-- Search: "${organizationName} cybersecurity incident"
+- "${organizationName} data breach details 2024 2025"
+- "${organizationName} cybersecurity incident" site:gov OR site:edu
 
-SEARCH 2: Official government sources
-- Search: "${organizationName} SEC filing 8-K cybersecurity"
-- Search: "${organizationName} HHS breach report"
-- Search: "${organizationName} attorney general notification"
+SEARCH 2: Official government and company sources
+- site:sec.gov "${organizationName} 8-K cybersecurity incident"
+- site:hhs.gov "${organizationName} breach report"
+- "${organizationName} data breach official statement" site:${organizationName.replace(/\s/g, '')}.com
 
 SEARCH 3: News and media coverage
-- Search: "${organizationName} breach news Reuters Bloomberg"
-- Search: "${organizationName} cybersecurity KrebsOnSecurity BleepingComputer"
+- "${organizationName} data breach" site:reuters.com OR site:bloomberg.com
+- "${organizationName} cybersecurity breach" site:krebsOnSecurity.com OR site:bleepingcomputer.com
 
 SEARCH 4: Legal developments
-- Search: "${organizationName} class action lawsuit breach"
-- Search: "${organizationName} settlement fine penalty"
+- "${organizationName} data breach class action lawsuit 2024 2025"
+- "${organizationName} breach settlement fine penalty" site:gov OR site:law.com
 
 SEARCH 5: Company and customer demographics
-- Search: "${organizationName} customer demographics target market"
-- Search: "${organizationName} user base statistics"
+- "${organizationName} customer demographics user base"
+- "${organizationName} target market statistics" site:statista.com OR site:businessinsider.com
 
 SEARCH 6: Breach notifications and response
-- Search: "${organizationName} breach notification letter"
-- Search: "${organizationName} credit monitoring offer"
+- "${organizationName} data breach notification letter sample"
+- "${organizationName} credit monitoring identity theft protection offer"
 
-For each search, find:
-- Exact number of people affected
-- What specific data was stolen/leaked
-- Timeline of events
-- Company's response and notifications
-- Legal consequences
-- Customer demographics for marketing targeting
+Perform additional organic searches based on findings, such as following up on specific dates, actors, or related incidents mentioned in results.
 
-Compile all findings into a comprehensive report with direct links to sources. Use clear headings and organize logically.`;
+For each aspect, focus on extracting:
+- Exact number of people affected (look for confirmed figures from official reports; estimate if exact unavailable)
+- Specific data stolen/leaked (e.g., names, emails, SSNs, payment info - list precisely)
+- Timeline of events (e.g., breach occurrence date, discovery, notification, public disclosure)
+- Company's response and notifications (e.g., actions taken, communications, remediation offers)
+- Legal consequences (e.g., lawsuits filed, settlements, regulatory fines, investigations)
+- Customer demographics for marketing targeting (e.g., age groups, locations, income levels, interests)
+
+Compile findings into a structured markdown report. Use clear headings. Cite every claim inline with numbered sources like [1]. At the end, list sources as a numbered list with clickable markdown links: 1. [Source Title](https://example.com). Only include verified information; avoid speculation.
+
+Report Structure:
+# ${organizationName} Data Breach Report
+
+## Executive Summary
+(Brief overview of key facts)
+
+## Number of Affected Individuals
+(Exact figures, sources, any discrepancies)
+
+## Compromised Data
+(Detailed list of data types)
+
+## Timeline of Events
+(Chronological bullet points)
+
+## Company Response and Notifications
+(Details on actions, offers, statements)
+
+## Legal and Regulatory Consequences
+(Lawsuits, fines, etc.)
+
+## Customer Demographics and Targeting Insights
+(Relevant stats for marketing/context)
+
+## Sources
+(Numbered list of all cited sources)`;
 }
 
 // Kimi-K2 API call with web search
@@ -59,12 +90,12 @@ async function runWithKimi(messages: any[]) {
       model: 'moonshotai/kimi-k2:online',
       messages,
       max_tokens: 4096,
-      temperature: 0.7,
+      temperature: 0.6,  // Slightly increased from 0.5 to allow more organic creativity while maintaining focus
       plugins: [
         {
           id: 'web',
           max_results: 50,
-          search_prompt: 'Conduct multiple targeted web searches to gather comprehensive information. Search different aspects separately for better results. Use all search results to create a thorough breach analysis report. Cite all sources as clickable markdown links like [Source Name](https://example.com).'
+          search_prompt: 'Conduct multiple targeted web searches starting with the suggested queries, but adapt organically and perform additional searches as needed to follow leads and gather comprehensive information. Prioritize official, government, and reputable news sources with site: operators when appropriate. Gather detailed snippets for verification. Cross-reference facts across searches to resolve conflicts. Use all results to build an accurate, cited breach analysis report. Cite sources as inline numbers corresponding to a final sources list with markdown links like [Source Title](https://example.com).'
         }
       ]
     })
@@ -90,7 +121,7 @@ function extractMarkdownLinks(md: string): {title: string; url: string}[] {
   return out;
 }
 
-// Extract web search results from OpenRouter response annotations
+// Extract web search results from OpenRouter response annotations - improved to include content snippets
 function extractWebSearchResults(response: any): {title: string; url: string; content?: string}[] {
   const sources = [] as {title: string; url: string; content?: string}[];
 
@@ -109,7 +140,9 @@ function extractWebSearchResults(response: any): {title: string; url: string; co
   return sources;
 }
 
-// Simple markdown cleanup - focus on basic formatting
+
+
+// Improved markdown cleanup - added handling for duplicate sections and better formatting
 function cleanMarkdown(content: string): string {
   return content
     // Remove excessive whitespace
@@ -120,6 +153,8 @@ function cleanMarkdown(content: string): string {
     .replace(/(?<![\[\(])(https?:\/\/[^\s\)\]]+)(?![\]\)])/g, '[$1]($1)')
     // Fix basic spacing around headers
     .replace(/^(#{1,6})\s*(.+)$/gm, '$1 $2')
+    // Remove duplicate headers (basic dedup)
+    .replace(/^(##+ .+?)\n\1/mg, '$1')
     .trim();
 }
 
@@ -310,7 +345,7 @@ serve(async (req) => {
         const kimiResult = await runWithKimi([
           {
             role: 'system',
-            content: 'You are an expert cybersecurity and legal intelligence analyst. Research thoroughly and provide well-structured markdown reports with proper source citations.'
+            content: 'You are an expert cybersecurity and legal intelligence analyst. Research thoroughly using web searches, verify facts, and provide well-structured markdown reports with inline citations and a sources list. Feel free to adapt searches organically to follow leads and ensure completeness.'
           },
           {
             role: 'user',
