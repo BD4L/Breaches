@@ -236,15 +236,19 @@ import Layout from '../layouts/Layout.astro'
     const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpbGJiam5ueGtpdHhicHRla3RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxOTYwNDIsImV4cCI6MjA2Mzc3MjA0Mn0.vk8AJ2pofRAy5y26WQeMYgEFudU1plXnYa6sMFyATFM'
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    // Get report ID from URL parameters
+    // Get report ID or breach ID from URL parameters
     const urlParams = new URLSearchParams(window.location.search)
     const reportId = urlParams.get('id')
+    const breachId = urlParams.get('breach_id')
 
-    if (!reportId) {
-      showError('No report ID provided in URL')
-    } else {
-      // Load and display the report
+    if (!reportId && !breachId) {
+      showError('No report ID or breach ID provided in URL')
+    } else if (reportId) {
+      // Load report by report ID
       loadReport(reportId)
+    } else {
+      // Load report by breach ID
+      loadReportByBreachId(breachId)
     }
 
     async function loadReport(id) {
@@ -266,6 +270,54 @@ import Layout from '../layouts/Layout.astro'
         displayReport(data)
       } catch (err) {
         console.error('Error loading report:', err)
+        showError(err.message)
+      }
+    }
+
+    async function loadReportByBreachId(breachId) {
+      try {
+        // First get the breach data
+        const { data: breachData, error: breachError } = await supabase
+          .from('breach_raw')
+          .select('*')
+          .eq('id', breachId)
+          .single()
+
+        if (breachError) {
+          throw new Error(`Breach not found: ${breachError.message}`)
+        }
+
+        // Then get the AI report
+        const { data: reportData, error: reportError } = await supabase
+          .from('breach_ai')
+          .select('*')
+          .eq('breach_id', breachId)
+          .single()
+
+        if (reportError) {
+          throw new Error(`AI report not found: ${reportError.message}`)
+        }
+
+        // Combine the data in the format expected by displayReport
+        const combinedData = {
+          id: reportData.id,
+          organization_name: breachData.organization_name,
+          affected_individuals: breachData.affected_people_count,
+          source_name: breachData.source_name,
+          breach_date: breachData.breach_date,
+          created_at: reportData.generated_at,
+          completed_at: reportData.generated_at,
+          markdown_content: reportData.ai_report,
+          ai_model_used: reportData.model_used || 'kimi-k2',
+          processing_time_ms: null,
+          search_results_count: null,
+          scraped_urls_count: null,
+          metadata: null
+        }
+
+        displayReport(combinedData)
+      } catch (err) {
+        console.error('Error loading report by breach ID:', err)
         showError(err.message)
       }
     }

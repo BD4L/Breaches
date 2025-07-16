@@ -44,10 +44,10 @@ export function StreamingAIReportButton({ breach, className }: StreamingAIReport
   }
 
   const openExistingReport = () => {
-    // Open existing report in new tab
+    // Open existing report in new tab using the existing ai-report page with breach_id parameter
     const basePath = import.meta.env.BASE_URL || '/'
     const normalizedBasePath = basePath.replace(/\/$/, '') + '/'
-    const reportUrl = `${normalizedBasePath}ai-reports/${breach.id}`
+    const reportUrl = `${normalizedBasePath}ai-report?breach_id=${breach.id}`
     window.open(reportUrl, '_blank')
   }
 
