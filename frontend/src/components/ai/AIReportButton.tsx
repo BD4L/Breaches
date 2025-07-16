@@ -60,8 +60,8 @@ export function AIReportButton({ breach, className }: AIReportButtonProps) {
 
     try {
       // Call Supabase Edge Function
-      const { data, error } = await supabase.functions.invoke('generate-ai-report', {
-        body: { 
+      const { data, error } = await supabase.functions.invoke('generate-ai-report-simple', {
+        body: {
           breachId: breach.id,
           userId: null // For now, using anonymous access
         }
