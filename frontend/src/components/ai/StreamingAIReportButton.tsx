@@ -23,14 +23,17 @@ export function StreamingAIReportButton({ breach, className }: StreamingAIReport
     try {
       setLoading(true)
       const { data, error } = await supabase
-        .from('breach_ai')
-        .select('id, ai_report')
-        .eq('breach_id', breach.id)
-        .not('ai_report', 'is', null)
+        .from('research_jobs')
+        .select('id, status, markdown_content')
+        .eq('scraped_item', breach.id)
+        .eq('report_type', 'ai_breach_analysis')
+        .eq('status', 'completed')
+        .not('markdown_content', 'is', null)
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
 
-      if (data && data.ai_report) {
+      if (data && data.markdown_content) {
         setHasExistingReport(true)
       } else {
         setHasExistingReport(false)
@@ -43,12 +46,30 @@ export function StreamingAIReportButton({ breach, className }: StreamingAIReport
     }
   }
 
-  const openExistingReport = () => {
-    // Open existing report in new tab using the existing ai-report page with breach_id parameter
-    const basePath = import.meta.env.BASE_URL || '/'
-    const normalizedBasePath = basePath.replace(/\/$/, '') + '/'
-    const reportUrl = `${normalizedBasePath}ai-report?breach_id=${breach.id}`
-    window.open(reportUrl, '_blank')
+  const openExistingReport = async () => {
+    try {
+      // Get the report ID from research_jobs table
+      const { data, error } = await supabase
+        .from('research_jobs')
+        .select('id')
+        .eq('scraped_item', breach.id)
+        .eq('report_type', 'ai_breach_analysis')
+        .eq('status', 'completed')
+        .not('markdown_content', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (data) {
+        // Open existing report using the report ID
+        const basePath = import.meta.env.BASE_URL || '/'
+        const normalizedBasePath = basePath.replace(/\/$/, '') + '/'
+        const reportUrl = `${normalizedBasePath}ai-report?id=${data.id}`
+        window.open(reportUrl, '_blank')
+      }
+    } catch (err) {
+      console.error('Error opening existing report:', err)
+    }
   }
 
   const handleClick = () => {

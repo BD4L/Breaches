@@ -193,12 +193,14 @@ serve(async (req) => {
 
           // Save complete report to database
           const { error: saveError } = await supabase
-            .from('breach_ai')
-            .upsert({
-              breach_id: breach_id,
-              ai_report: fullContent,
-              model_used: 'kimi-k2',
-              generated_at: new Date().toISOString()
+            .from('research_jobs')
+            .insert({
+              scraped_item: breach_id,
+              status: 'completed',
+              report_type: 'ai_breach_analysis',
+              markdown_content: fullContent,
+              ai_model_used: 'kimi-k2',
+              completed_at: new Date().toISOString()
             })
 
           if (saveError) {
