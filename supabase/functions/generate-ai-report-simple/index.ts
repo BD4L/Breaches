@@ -78,6 +78,9 @@ Report Structure:
 // Kimi-K2 API call with web search
 async function runWithKimi(messages: any[]) {
   if (!OPENROUTER_KEY) throw new Error('OPENROUTER_API_KEY not set');
+
+  console.log('🔄 Making Kimi-K2 API request...')
+
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -100,8 +103,22 @@ async function runWithKimi(messages: any[]) {
       ]
     })
   });
-  if (!res.ok) throw new Error(`Kimi-K2 request failed: ${res.status}`);
+
+  console.log(`📡 API Response status: ${res.status}`)
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error(`❌ Kimi-K2 API error: ${res.status} - ${errorText}`);
+    throw new Error(`Kimi-K2 request failed: ${res.status} - ${errorText}`);
+  }
+
   const data = await res.json();
+  console.log('✅ Kimi-K2 API response received');
+
+  if (!data.choices || !data.choices[0]) {
+    console.error('❌ No choices in API response:', data);
+    throw new Error('Invalid API response: no choices returned');
+  }
 
   // Return both content and full response for annotations
   return {
@@ -342,32 +359,45 @@ serve(async (req) => {
         console.log('🤖 Using Kimi-K2 with web search for report generation')
         modelUsed = 'moonshotai/kimi-k2:online'
 
-        const kimiResult = await runWithKimi([
-          {
-            role: 'system',
-            content: 'You are an expert cybersecurity and legal intelligence analyst. Research thoroughly using web searches, verify facts, and provide well-structured markdown reports with inline citations and a sources list. Feel free to adapt searches organically to follow leads and ensure completeness.'
-          },
-          {
-            role: 'user',
-            content: buildKimiPrompt(breach.organization_name)
+        try {
+          const kimiResult = await runWithKimi([
+            {
+              role: 'system',
+              content: 'You are an expert cybersecurity and legal intelligence analyst. Research thoroughly using web searches, verify facts, and provide well-structured markdown reports with inline citations and a sources list. Feel free to adapt searches organically to follow leads and ensure completeness.'
+            },
+            {
+              role: 'user',
+              content: buildKimiPrompt(breach.organization_name)
+            }
+          ])
+
+          console.log('✅ Kimi-K2 API call successful')
+          console.log(`📝 Content length: ${kimiResult.content?.length || 0} characters`)
+
+          if (!kimiResult.content) {
+            throw new Error('No content returned from Kimi-K2')
           }
-        ])
 
-        reportContent = cleanMarkdown(kimiResult.content)
+          reportContent = cleanMarkdown(kimiResult.content)
 
-        // Extract sources from both web search annotations and markdown links
-        const webSources = extractWebSearchResults(kimiResult.response)
-        const markdownSources = extractMarkdownLinks(reportContent)
+          // Extract sources from both web search annotations and markdown links
+          const webSources = extractWebSearchResults(kimiResult.response)
+          const markdownSources = extractMarkdownLinks(reportContent)
 
-        // Combine and deduplicate sources
-        const allSources = [...webSources, ...markdownSources]
-        sources = allSources.filter((source, index, self) =>
-          index === self.findIndex(s => s.url === source.url)
-        )
+          // Combine and deduplicate sources
+          const allSources = [...webSources, ...markdownSources]
+          sources = allSources.filter((source, index, self) =>
+            index === self.findIndex(s => s.url === source.url)
+          )
 
-        console.log(`🔍 Web search results: ${webSources.length} sources from annotations`)
-        console.log(`📝 Markdown links: ${markdownSources.length} sources from content`)
-        console.log(`📚 Total unique sources: ${sources.length}`)
+          console.log(`🔍 Web search results: ${webSources.length} sources from annotations`)
+          console.log(`📝 Markdown links: ${markdownSources.length} sources from content`)
+          console.log(`📚 Total unique sources: ${sources.length}`)
+
+        } catch (kimiError) {
+          console.error('❌ Kimi-K2 API call failed:', kimiError)
+          throw new Error(`Kimi-K2 API failed: ${kimiError.message}`)
+        }
 
       } else if (apiKeys.gemini) {
         console.log('🤖 Using Gemini as fallback')
