@@ -198,7 +198,7 @@ export function ReportsTable({ filters = {} }: ReportsTableProps) {
 
     try {
       // Call Supabase Edge Function using the client (avoids CORS issues)
-      const { data, error } = await supabase.functions.invoke('generate-ai-report', {
+      const { data, error } = await supabase.functions.invoke('generate-ai-report-simple', {
         body: {
           breachId: breachId,
           userId: 'reports-tab-user' // Optional user tracking
