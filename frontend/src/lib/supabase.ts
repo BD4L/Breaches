@@ -1031,7 +1031,7 @@ export async function generateAIReport(breachId: number, userId?: string) {
   console.log('🤖 Generating AI report for breach:', breachId)
 
   try {
-    const { data, error } = await supabase.functions.invoke('generate-ai-report-simple', {
+    const { data, error } = await supabase.functions.invoke('generate-ai-report', {
       body: {
         breachId,
         userId: userId || null
