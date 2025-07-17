@@ -29,7 +29,20 @@ if (import.meta.env.MODE === 'development') {
   })
 }
 
-export const supabase = createClient(finalUrl, finalKey)
+export const supabase = createClient(finalUrl, finalKey, {
+  auth: {
+    persistSession: false, // Disable session persistence for static sites
+    autoRefreshToken: false, // Disable auto refresh for anonymous usage
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'breach-dashboard@1.0.0',
+    },
+  },
+  functions: {
+    region: 'us-east-1', // Match your Supabase region
+  }
+})
 
 // Centralized source type configuration to ensure consistency across all functions
 export const SOURCE_TYPE_CONFIG = {
