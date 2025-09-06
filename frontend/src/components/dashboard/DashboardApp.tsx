@@ -8,6 +8,7 @@ import { ActiveFilterPills, createFilterPills } from '../filters/ActiveFilterPil
 import { AdminControls } from './AdminControls'
 import { SavedBreachesView } from '../saved/SavedBreachesView'
 import { ReportsTable } from '../reports/ReportsTable'
+import { EmailStatusIndicator } from './EmailStatusIndicator'
 import { supabase, getDataSources, getSavedBreaches } from '../../lib/supabase'
 
 interface Filters {
@@ -156,7 +157,9 @@ export function DashboardApp() {
               />
             </div>
 
-
+            <div className="flex items-center space-x-3">
+              <EmailStatusIndicator />
+            </div>
           </div>
         </div>
 

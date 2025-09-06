@@ -44,6 +44,7 @@ export function EmailPreferences({ onClose }: EmailPreferencesProps) {
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [sendingTest, setSendingTest] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [newKeyword, setNewKeyword] = useState('')
 
@@ -77,14 +78,14 @@ export function EmailPreferences({ onClose }: EmailPreferencesProps) {
           max_alerts_per_day: data.max_alerts_per_day || 10,
           notify_high_impact: data.notify_high_impact ?? true,
           notify_critical_sectors: data.notify_critical_sectors ?? true,
-          notify_local_breaches: data.notify_local_breaches ?? false,
-          source_types: data.source_types || [],
+          notify_local_breaches: data.notify_local_breaches ?? true,
+          source_types: data.source_types || ['State AG', 'Government Portal', 'News Feed', 'RSS Feed'],
           keywords: data.keywords || []
         })
       }
     } catch (error) {
       console.error('Error loading preferences:', error)
-      setMessage({ type: 'error', text: 'Failed to load preferences' })
+      setMessage({ type: 'error', text: 'Failed to load email preferences. Please try again.' })
     } finally {
       setLoading(false)
     }
@@ -147,6 +148,53 @@ export function EmailPreferences({ onClose }: EmailPreferencesProps) {
     }
   }
 
+  const sendTestEmail = async () => {
+    try {
+      if (!preferences.email) {
+        setMessage({ type: 'error', text: 'Please enter an email address first' })
+        return
+      }
+
+      setSendingTest(true)
+      setMessage(null)
+
+      // Call Supabase Edge Function to send test email
+      const { data, error } = await supabase.functions.invoke('send-email-alert', {
+        body: {
+          type: 'test',
+          email: preferences.email
+        }
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      if (data?.success) {
+        setMessage({
+          type: 'success',
+          text: `🎉 Test email sent successfully to ${preferences.email}! Check your inbox (and spam folder).`
+        })
+
+        // Auto-verify email since test was successful
+        if (!preferences.email_verified) {
+          setPreferences(prev => ({ ...prev, email_verified: true }))
+          await savePreferences()
+        }
+      } else {
+        throw new Error(data?.error || 'Failed to send test email')
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error)
+      setMessage({
+        type: 'error',
+        text: `Failed to send test email: ${error.message}. Please check your email address and try again.`
+      })
+    } finally {
+      setSendingTest(false)
+    }
+  }
+
   const addKeyword = () => {
     if (newKeyword.trim() && !preferences.keywords.includes(newKeyword.trim())) {
       setPreferences(prev => ({
@@ -188,9 +236,14 @@ export function EmailPreferences({ onClose }: EmailPreferencesProps) {
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
             <Mail className="w-6 h-6 text-blue-600" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              Email Alert Preferences
-            </h2>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Email Alert Preferences
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Configure when and how you receive breach notifications
+              </p>
+            </div>
           </div>
           {onClose && (
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -247,6 +300,23 @@ export function EmailPreferences({ onClose }: EmailPreferencesProps) {
                       Verify
                     </Button>
                   )}
+                </div>
+
+                {/* Test Email Button */}
+                <div className="mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={sendTestEmail}
+                    disabled={!preferences.email || sendingTest}
+                    className="flex items-center space-x-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>{sendingTest ? 'Sending...' : 'Send Test Email'}</span>
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Send a test email to verify your configuration is working
+                  </p>
                 </div>
               </div>
 
@@ -383,6 +453,45 @@ export function EmailPreferences({ onClose }: EmailPreferencesProps) {
                   Include links to documents and sources
                 </span>
               </label>
+            </div>
+          </div>
+
+          {/* Source Types */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <Shield className="w-5 h-5 mr-2" />
+              Source Types
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Select which types of sources you want to receive alerts from
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {['State AG', 'Government Portal', 'News Feed', 'RSS Feed', 'API Feed'].map((sourceType) => (
+                <label key={sourceType} className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={preferences.source_types.includes(sourceType)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setPreferences(prev => ({
+                          ...prev,
+                          source_types: [...prev.source_types, sourceType]
+                        }))
+                      } else {
+                        setPreferences(prev => ({
+                          ...prev,
+                          source_types: prev.source_types.filter(type => type !== sourceType)
+                        }))
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {sourceType}
+                  </span>
+                </label>
+              ))}
             </div>
           </div>
 
